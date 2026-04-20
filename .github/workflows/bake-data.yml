@@ -1,30 +1,36 @@
-name: Bake OSM data nightly
+name: Build and deploy
 
 # What this does:
-#   1. Runs nightly at 03:40 UTC (~05:40 Berlin in summer, 04:40 in winter)
-#   2. Fetches venues + buildings from Overpass via scripts/bake-data.js
-#   3. Commits data/*.json if anything changed
-#   4. Cloudflare Pages, connected to this repo, auto-deploys on push
+#   - On every push to main: deploys current repo to Cloudflare Pages.
+#   - Nightly at 03:40 UTC (~05:40 Berlin summer): re-bakes OSM data from
+#     Overpass, commits any changes, then deploys.
+#   - Manual "Run workflow" button: same as nightly — bake + deploy.
 #
-# First-time setup required:
-#   - Settings → Actions → General → Workflow permissions: "Read and write"
-#     (so the workflow can push the refreshed data/ files back to main)
+# One workflow, no drag-drop. Push or wait, and the site updates.
 #
-# Manual trigger: Actions tab → "Bake OSM data nightly" → Run workflow
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — Cloudflare API token with "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID  — Cloudflare account ID (visible in dashboard URL)
+#
+# Required repo permission:
+#   Settings → Actions → General → Workflow permissions: Read and write
+#   (so the baker can commit refreshed data/ files back to main)
 
 on:
+  push:
+    branches: [main]
   schedule:
-    # 03:40 UTC daily. Off the hour on purpose to avoid everyone else's cron.
+    # 03:40 UTC daily. Off the hour on purpose.
     - cron: '40 3 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: write   # needed to commit refreshed data/*.json back to main
+  contents: write
 
 jobs:
-  bake:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # if Overpass is really bad, don't hang the CI runner
+    timeout-minutes: 25
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -34,16 +40,32 @@ jobs:
         with:
           node-version: '20'
 
+      # Bake on cron / manual runs, or if data/ is missing on any run.
+      # Skip on ordinary code pushes — they shouldn't re-hit Overpass.
+      - name: Decide whether to bake
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] \
+             || [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+             || [ ! -f data/venues.json ]; then
+            echo "bake=true" >> $GITHUB_OUTPUT
+          else
+            echo "bake=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run baker
+        if: steps.decide.outputs.bake == 'true'
         run: node scripts/bake-data.js
 
       - name: Show output sizes
+        if: steps.decide.outputs.bake == 'true'
         run: |
           ls -lh data/ || true
           echo "---"
           cat data/manifest.json || true
 
       - name: Commit refreshed data if changed
+        if: steps.decide.outputs.bake == 'true'
         run: |
           git config user.name  "sunmaxxing-baker"
           git config user.email "noreply@sunmaxxing.com"
@@ -51,6 +73,13 @@ jobs:
           if git diff --cached --quiet; then
             echo "No data changes — nothing to commit."
           else
-            git commit -m "chore(data): nightly bake $(date -u +%Y-%m-%dT%H:%MZ)"
+            git commit -m "chore(data): bake $(date -u +%Y-%m-%dT%H:%MZ)"
             git push
           fi
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=sunmaxxing --branch=main --commit-dirty=true
