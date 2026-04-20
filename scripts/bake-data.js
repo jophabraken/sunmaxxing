@@ -134,6 +134,53 @@ function makeTiles(bbox, n){
   return tiles;
 }
 
+// Cloudflare Pages rejects any file >25 MiB, and raw OSM data for central
+// Berlin comes in around 27 MiB. Two cheap, lossless-enough shrinks:
+//
+//   1. Round geometry coords to 5 decimals (≈1.1 m at 52°N — finer than the
+//      shadow-precision the app needs, and way finer than the rendered pixels).
+//   2. Drop tags we don't use in the client. Buildings only need footprint
+//      and heights; names, addresses, and OSM bookkeeping just bloat the bundle.
+//
+// Together these typically cut 35–45% off the file size.
+const COORD_DECIMALS = 5;
+const KEEP_BUILDING_TAGS = new Set([
+  'building',
+  'building:levels',
+  'building:min_level',
+  'min_level',
+  'height',
+  'min_height',
+  'roof:shape',
+  'roof:height',
+  'roof:levels',
+]);
+
+function roundCoord(v){
+  return +v.toFixed(COORD_DECIMALS);
+}
+
+function slimBuildingElement(el){
+  // Shape: { id, type, geometry: [{lat, lon}, …], tags: {...}, bounds, nodes }
+  // The client only reads `geometry` + a handful of `tags`. Everything else
+  // (nodes array, bounds, osm bookkeeping) is safe to drop.
+  const out = { id: el.id, type: el.type };
+  if (Array.isArray(el.geometry)){
+    out.geometry = el.geometry.map(p => ({
+      lat: roundCoord(p.lat),
+      lon: roundCoord(p.lon),
+    }));
+  }
+  if (el.tags){
+    const t = {};
+    for (const k of Object.keys(el.tags)){
+      if (KEEP_BUILDING_TAGS.has(k)) t[k] = el.tags[k];
+    }
+    if (Object.keys(t).length) out.tags = t;
+  }
+  return out;
+}
+
 async function bakeBuildings(){
   console.log('▸ Baking buildings…');
   const tiles = makeTiles(BBOX, BUILDING_TILES_PER_SIDE);
@@ -149,7 +196,7 @@ async function bakeBuildings(){
       for (const el of (j.elements || [])){
         if (!seen.has(el.id)){
           seen.add(el.id);
-          merged.push(el);
+          merged.push(slimBuildingElement(el));
         }
       }
       ok++;
