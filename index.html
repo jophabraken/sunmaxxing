@@ -404,6 +404,7 @@
   .popup-v2{font-size:13px;color:var(--text);line-height:1.4}
   .popup-v2 .hero-photo{
     position:relative;height:150px;overflow:hidden;background:#E3DDD0;
+    isolation:isolate; /* contain the backdrop-filter badge's stacking context */
   }
   .popup-v2 .hero-photo img{
     width:100%;height:100%;object-fit:cover;display:block;
@@ -658,13 +659,21 @@
     margin-left:4px;
   }
   .m-ribbon-now-btn{
-    border:none;background:transparent;font:inherit;font-size:11.5px;
-    font-weight:700;color:var(--coral);cursor:pointer;padding:3px 10px;
-    border-radius:999px;transition:background .15s, transform .12s;
+    border:none;font:inherit;font-size:12px;font-weight:800;
+    letter-spacing:.02em;text-transform:uppercase;
+    color:#fff;background:var(--coral);cursor:pointer;
+    min-height:30px;padding:0 12px 0 10px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:5px;
+    box-shadow:0 2px 8px rgba(255,107,87,.35);
+    transition:background .15s, transform .12s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
   }
-  .m-ribbon-now-btn:hover, .m-ribbon-now-btn:focus-visible{background:rgba(255,107,87,.1)}
-  .m-ribbon-now-btn:active{transform:scale(.94)}
-  .m-ribbon-now-btn.hidden{visibility:hidden;pointer-events:none}
+  .m-ribbon-now-btn::before{
+    content:'↺';font-size:14px;font-weight:700;line-height:1;
+    display:inline-block;transform:translateY(-.5px);
+  }
+  .m-ribbon-now-btn:hover, .m-ribbon-now-btn:focus-visible{background:#e55a47;box-shadow:0 3px 10px rgba(255,107,87,.5)}
+  .m-ribbon-now-btn:active{transform:scale(.94);box-shadow:0 1px 4px rgba(255,107,87,.4)}
+  .m-ribbon-now-btn.hidden{visibility:hidden;pointer-events:none;opacity:0}
 
   .m-ribbon{
     position:relative;height:30px;border-radius:8px;
@@ -748,12 +757,17 @@
   .m-peek-status.night{background:var(--night);color:var(--sun)}
   .m-peek-status.nosun,.m-peek-status.closed{background:#F0F0F0;color:var(--muted)}
   .m-peek-cta{
-    flex-shrink:0;width:44px;height:44px;border-radius:50%;border:none;padding:0;
-    background:var(--shade);color:#fff;display:grid;place-items:center;
-    font-size:18px;font-weight:700;cursor:pointer;
-    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s;
+    flex-shrink:0;min-height:44px;border-radius:999px;border:none;
+    padding:0 14px 0 16px;
+    background:var(--shade);color:#fff;
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:13px;font-weight:700;letter-spacing:-0.005em;
+    cursor:pointer;white-space:nowrap;
+    box-shadow:0 2px 8px rgba(45,49,66,.24);
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s, box-shadow .2s;
   }
-  .m-peek-cta:active{transform:scale(.9);background:#1c1f2d}
+  .m-peek-cta .chev{font-size:18px;line-height:1;margin-top:-1px;font-weight:500;opacity:.85}
+  .m-peek-cta:active{transform:scale(.94);background:#1c1f2d;box-shadow:0 1px 4px rgba(45,49,66,.28)}
 
   /* Default ribbon-only "browse" card */
   .m-browse{
@@ -780,6 +794,7 @@
   .m-details-hero{
     position:relative;margin:4px 14px 0;height:170px;overflow:hidden;
     border-radius:16px;background:#E3DDD0;
+    isolation:isolate; /* contain the badge's stacking context under the sticky ribbon */
   }
   .m-details-hero.fallback{
     background:
@@ -1141,7 +1156,7 @@
       <div class="m-ribbon-wrap">
         <div class="m-ribbon-head">
           <span class="m-ribbon-time" id="m-ribbon-time">Today · <em>—:—</em></span>
-          <button class="m-ribbon-now-btn hidden" id="m-ribbon-now-btn">now</button>
+          <button class="m-ribbon-now-btn hidden" id="m-ribbon-now-btn" aria-label="Jump to now">Now</button>
         </div>
         <div class="m-ribbon" id="m-ribbon">
           <div class="m-ribbon-clouds" id="m-ribbon-clouds"></div>
@@ -1715,8 +1730,11 @@ function nextOpenChange(v, dateMs){
    ============================================================ */
 async function fetchWeather(){
   const cacheKey = 'sonne_weather_v1';
-  const cached = readCache(cacheKey, WEATHER_TTL_MS);
-  if (cached){ state.weather = cached; return; }
+  // readCache is async — must await, otherwise we assign a Promise object to
+  // state.weather, which is truthy-but-malformed and downstream renders
+  // "weather unknown" forever.
+  const cached = await readCache(cacheKey, WEATHER_TTL_MS);
+  if (cached && cached.hourlyTimeMs?.length){ state.weather = cached; return; }
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CENTER[0]}&longitude=${CENTER[1]}&current=cloud_cover,temperature_2m&hourly=cloud_cover,temperature_2m&timezone=Europe%2FBerlin&forecast_days=1`;
     const res = await fetch(url);
@@ -3075,7 +3093,7 @@ function renderMobileSheet(){
           <p class="m-peek-meta">${escapeHtml(prettyType(v))}${v.street?' · <b>'+escapeHtml(v.street)+'</b>':''}${walk}</p>
           <span class="m-peek-status ${st}">${escapeHtml(badge)}</span>
         </div>
-        <button class="m-peek-cta" aria-label="Show details">→</button>
+        <button class="m-peek-cta" aria-label="Show details">More info <span class="chev">›</span></button>
       </div>`;
     root.querySelector('.m-peek').addEventListener('click', () => {
       mobile.sheetMode = 'details';
