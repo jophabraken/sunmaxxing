@@ -1,0 +1,3465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sonne Berlin — find the sunny terrace, right now</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+
+<style>
+  :root{
+    --sun: #F5A623;
+    --sun-bright: #FFB627;
+    --sun-glow: rgba(255, 182, 39, 0.22);
+    --sun-bg: #FFF4D6;
+    --coral: #FF6B57;
+    --mint: #4ECDC4;
+    --shade: #2D3142;
+    --shade-soft: #8D91A0;
+    --night: #0F1123;
+    --bg: #FBF7EF;
+    --bg-2: #F5EFE2;
+    --card: #FFFFFF;
+    --text: #161822;
+    --muted: #6B7280;
+    --border: rgba(45, 49, 66, 0.08);
+    --border-strong: rgba(45, 49, 66, 0.16);
+    --shadow-sm: 0 1px 2px rgba(16, 17, 34, 0.06);
+    --shadow-md: 0 4px 16px rgba(16, 17, 34, 0.08);
+    --shadow-lg: 0 12px 40px rgba(16, 17, 34, 0.12);
+    --radius: 14px;
+    --radius-lg: 22px;
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;padding:0;height:100%;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    color:var(--text);
+    background:var(--bg);
+    font-feature-settings:"ss01","cv11";
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;
+  }
+  button{font:inherit;cursor:pointer}
+  a{color:inherit}
+
+  .app{
+    display:grid;
+    grid-template-rows:auto auto auto auto 1fr;
+    height:100vh;
+    height:100dvh;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:16px 22px 14px;
+    background:
+      radial-gradient(ellipse 80% 120% at 85% 0%, rgba(255,182,39,.38) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 100% at 10% 0%, rgba(255,107,87,.18) 0%, transparent 50%),
+      linear-gradient(180deg, #FFF4D6 0%, var(--bg) 100%);
+    border-bottom:1px solid var(--border);
+    position:relative;overflow:hidden;
+  }
+  .brand{display:flex;align-items:center;gap:14px}
+  .logo{
+    width:44px;height:44px;border-radius:12px;
+    background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 70%);
+    box-shadow:0 6px 18px var(--sun-glow), inset 0 -2px 4px rgba(0,0,0,.06);
+    display:grid;place-items:center;font-size:22px;
+    animation:pulse 3.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{box-shadow:0 6px 18px var(--sun-glow), 0 0 0 0 rgba(255,182,39,0)}
+    50%   {box-shadow:0 6px 18px var(--sun-glow), 0 0 0 12px rgba(255,182,39,0)}
+  }
+  .brand h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1}
+  .brand h1 em{
+    font-family:'Fraunces', serif;font-style:italic;font-weight:600;color:var(--coral);
+    font-size:23px;
+  }
+  .brand p{margin:3px 0 0;color:var(--muted);font-size:13px;font-weight:500}
+
+  /* ---------- TOOLBAR ---------- */
+  .toolbar{
+    padding:12px 22px;
+    display:grid;grid-template-columns:minmax(180px, 1fr) auto auto;
+    gap:12px;align-items:center;background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .search-wrap{
+    position:relative;display:flex;align-items:center;
+    background:var(--card);border:1px solid var(--border);
+    border-radius:999px;padding:0 14px 0 40px;height:40px;
+    box-shadow:var(--shadow-sm);transition:box-shadow .15s, border-color .15s;
+  }
+  .search-wrap:focus-within{border-color:var(--sun);box-shadow:0 0 0 4px var(--sun-glow), var(--shadow-sm)}
+  .search-wrap svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--muted)}
+  .search-wrap input{border:none;outline:none;background:transparent;font:inherit;font-size:14px;width:100%;color:var(--text)}
+  .search-wrap input::placeholder{color:var(--muted)}
+  .search-clear{
+    border:none;background:transparent;color:var(--muted);
+    padding:4px 8px;border-radius:999px;font-size:12px;display:none;
+  }
+  .search-wrap.has-value .search-clear{display:block}
+  .search-clear:hover{background:var(--bg-2);color:var(--text)}
+
+  .tabs{
+    display:inline-flex;background:var(--card);
+    border:1px solid var(--border);border-radius:999px;padding:3px;
+    height:40px;box-shadow:var(--shadow-sm);
+  }
+  .tabs button{
+    border:none;background:transparent;padding:0 14px;border-radius:999px;
+    font-size:13px;font-weight:600;color:var(--muted);
+    display:flex;align-items:center;gap:6px;transition:all .15s ease;
+  }
+  .tabs button.active{background:var(--shade);color:#fff;box-shadow:var(--shadow-sm)}
+
+  .time-pill{
+    display:flex;align-items:center;gap:10px;background:var(--card);
+    border:1px solid var(--border);border-radius:999px;padding:0 6px 0 14px;
+    height:40px;box-shadow:var(--shadow-sm);min-width:260px;
+  }
+  .time-pill .time-display{
+    font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;min-width:54px;
+    display:flex;flex-direction:column;line-height:1.15;
+  }
+  .time-pill .time-display small{font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.04em}
+  .time-pill input[type=range]{flex:1;accent-color:var(--sun)}
+  .time-pill .now-btn{
+    border:none;background:var(--sun);color:#3a2900;font-weight:700;
+    height:30px;padding:0 12px;border-radius:999px;font-size:12px;letter-spacing:.02em;
+    box-shadow:0 2px 6px var(--sun-glow);transition:transform .08s;
+  }
+  .time-pill .now-btn:active{transform:scale(.96)}
+  .time-pill .now-btn.hidden{display:none}
+
+  /* ---------- FILTER BAR ---------- */
+  .filters{
+    padding:8px 22px;
+    display:flex;align-items:center;gap:8px;
+    background:var(--bg);border-bottom:1px solid var(--border);
+    overflow-x:auto;scrollbar-width:thin;
+    -webkit-overflow-scrolling:touch;
+  }
+  .filters::-webkit-scrollbar{height:6px}
+  .filters::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:6px 12px;height:32px;border-radius:999px;
+    border:1px solid var(--border);background:var(--card);color:var(--muted);
+    font-size:12.5px;font-weight:600;white-space:nowrap;
+    transition:all .15s;flex-shrink:0;
+  }
+  .chip:hover{border-color:var(--border-strong);color:var(--text)}
+  .chip.active{background:var(--shade);color:#fff;border-color:var(--shade)}
+  .chip.sunny.active{background:var(--sun);color:#3a2900;border-color:var(--sun)}
+  .chip .count{
+    background:rgba(255,255,255,.3);border-radius:999px;padding:1px 7px;
+    font-size:11px;font-variant-numeric:tabular-nums;
+  }
+  .chip:not(.active) .count{background:var(--bg-2);color:var(--muted)}
+  .chip.weather{
+    margin-left:auto;cursor:default;background:var(--card);
+    color:var(--text);border-color:var(--border);
+  }
+  .chip.weather .sun-info-inline{color:var(--muted);font-weight:500;margin-left:6px}
+  .chip .ic{font-size:13px}
+  .chip.hidden{display:none}
+
+  .stats-inline{
+    padding:6px 22px 10px;font-size:12.5px;color:var(--muted);
+    display:flex;gap:14px;align-items:center;border-bottom:1px solid var(--border);
+    background:var(--bg);flex-wrap:wrap;
+  }
+  .stats-inline b{color:var(--text);font-weight:700}
+  .hidden-link{color:var(--coral);font-weight:600;cursor:pointer;text-decoration:underline}
+  .hidden-link:hover{opacity:.8}
+
+  /* ---------- MAIN ---------- */
+  main{position:relative;overflow:hidden}
+  #map{width:100%;height:100%;background:var(--bg-2)}
+  #list{
+    width:100%;height:100%;overflow-y:auto;
+    padding:18px 22px 60px;display:none;scroll-behavior:smooth;
+  }
+  .view-list #list{display:block}
+  .view-list #map{display:none}
+  .view-list .legend{display:none}
+
+  /* ---------- LIST ---------- */
+  .list-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
+  .list-head h2{
+    font-family:'Fraunces',serif;font-weight:600;font-style:italic;
+    margin:0;font-size:22px;letter-spacing:-0.01em;color:var(--text);
+  }
+  .list-head .count{color:var(--muted);font-size:14px;font-weight:500}
+  .empty{
+    padding:40px 20px;text-align:center;color:var(--muted);
+    background:var(--card);border-radius:var(--radius-lg);
+    border:1px dashed var(--border-strong);
+  }
+  .empty b{color:var(--text)}
+
+  .venue-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:12px}
+
+  .venue{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:14px 16px 12px;
+    display:flex;flex-direction:column;gap:10px;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    cursor:pointer;position:relative;overflow:hidden;
+  }
+  .venue:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--border-strong)}
+  .venue.sunny{background:linear-gradient(180deg, #FFFAEA 0%, #FFFFFF 40%);border-color:rgba(245,166,35,.25)}
+  .venue.sunny::before{
+    content:'';position:absolute;top:-30px;right:-30px;
+    width:80px;height:80px;border-radius:50%;
+    background:radial-gradient(circle, var(--sun-glow) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .venue.favorite{border-color:var(--coral)}
+  .venue.favorite::after{
+    content:'';position:absolute;inset:0;border-radius:var(--radius);
+    border:1px solid var(--coral);opacity:.15;pointer-events:none;
+  }
+
+  .venue-head{display:flex;align-items:center;gap:12px}
+  .status-badge{
+    flex-shrink:0;width:34px;height:34px;border-radius:10px;
+    display:grid;place-items:center;font-size:17px;
+  }
+  .venue.sunny .status-badge{background:var(--sun-bg);box-shadow:0 2px 8px var(--sun-glow)}
+  .venue.cloudy .status-badge{background:#E5E9F0;color:var(--shade)}
+  .venue.shaded .status-badge{background:#EEF0F5;color:var(--shade)}
+  .venue.night  .status-badge{background:#1a1d2d;color:#FFD75E}
+  .venue.nosun  .status-badge{background:#F0F0F0;color:var(--muted)}
+  .venue.closed .status-badge{background:#FFE5E0;color:#8A2B1E}
+
+  .venue .name{
+    font-weight:700;font-size:15.5px;letter-spacing:-0.01em;
+    margin:0;line-height:1.25;
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .venue .meta{font-size:12.5px;color:var(--muted);margin-top:2px;font-weight:500;display:flex;flex-wrap:wrap;gap:6px 10px}
+  .venue .meta .walk{color:var(--coral);font-weight:600}
+  .venue .tag{
+    margin-left:auto;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.03em;
+    border-radius:999px;text-transform:uppercase;white-space:nowrap;
+  }
+  .tag.sunny{background:var(--sun);color:#3a2900}
+  .tag.cloudy{background:#C8CDD8;color:#2D3142}
+  .tag.shaded{background:#EEF0F5;color:var(--shade)}
+  .tag.night{background:var(--night);color:var(--sun)}
+  .tag.nosun{background:#F0F0F0;color:var(--muted)}
+  .tag.closed{background:#FFE5E0;color:#8A2B1E}
+
+  .card-corner{
+    position:absolute;top:10px;right:10px;display:flex;gap:4px;
+  }
+  .icon-btn{
+    width:26px;height:26px;display:grid;place-items:center;
+    border:none;background:transparent;border-radius:7px;
+    color:var(--muted);cursor:pointer;transition:all .12s;
+    font-size:14px;line-height:1;
+  }
+  .icon-btn:hover{background:var(--bg-2);color:var(--text)}
+  .icon-btn.fav-btn.on{color:var(--coral)}
+  .icon-btn.fav-btn.on svg{fill:var(--coral)}
+  .icon-btn.hide-btn:hover{background:#FFE5E0;color:#8A2B1E}
+
+  .sun-window-label{
+    font-size:12.5px;color:var(--text);font-weight:500;
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .sun-window-label .k{color:var(--muted);font-weight:600;letter-spacing:.04em;font-size:11px;text-transform:uppercase}
+  .sun-window-label b{font-variant-numeric:tabular-nums;font-weight:700}
+  .cloud-tint{color:var(--muted);font-size:11px;font-weight:500}
+
+  .timeline-wrap{padding:0 2px 18px}
+  .timeline{
+    position:relative;height:12px;border-radius:999px;
+    background:#EEF0F5;overflow:visible;margin:2px 0 4px;
+  }
+  .timeline .cloud-strip{
+    position:absolute;top:0;bottom:0;left:0;right:0;border-radius:999px;overflow:hidden;pointer-events:none;
+  }
+  .timeline .cloud-cell{position:absolute;top:0;bottom:0}
+  .timeline .seg{
+    position:absolute;top:0;bottom:0;
+    background:linear-gradient(90deg, var(--sun-bright), var(--sun));
+    border-radius:999px;box-shadow:0 0 0 2px rgba(255,182,39,.2);
+  }
+  .timeline .now-mark{
+    position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;
+    background:var(--coral);box-shadow:0 0 0 3px rgba(255,107,87,.2);
+  }
+  .timeline .tick{
+    position:absolute;top:14px;font-size:10px;color:var(--muted);
+    font-weight:500;font-variant-numeric:tabular-nums;transform:translateX(-50%);
+  }
+
+  .venue-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+  .venue-actions a, .venue-actions button{
+    flex:1;text-align:center;padding:7px 10px;border-radius:9px;
+    font-size:12.5px;font-weight:600;text-decoration:none;
+    border:1px solid var(--border-strong);background:var(--card);color:var(--text);
+    transition:all .12s;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .venue-actions a:hover, .venue-actions button:hover{background:var(--bg-2);transform:translateY(-1px)}
+  .venue-actions .primary{background:var(--shade);color:#fff;border-color:var(--shade)}
+  .venue-actions .primary:hover{background:#1c1f2d}
+
+  /* ---------- MAP LEGEND ---------- */
+  .legend{
+    position:absolute;bottom:18px;left:18px;z-index:500;
+    background:var(--card);padding:10px 14px;border-radius:14px;
+    font-size:12px;box-shadow:var(--shadow-md);
+    border:1px solid var(--border);font-weight:500;
+  }
+  .legend div{display:flex;align-items:center;gap:8px;margin:4px 0}
+  .legend .dot{width:10px;height:10px;border-radius:50%}
+  .legend .dot.sunny{background:var(--sun);box-shadow:0 0 0 3px var(--sun-glow)}
+  .legend .dot.cloudy{background:#C8CDD8}
+  .legend .dot.shaded{background:var(--shade)}
+  .legend .dot.night{background:var(--night)}
+
+  /* ---------- USER LOCATION ---------- */
+  .user-dot{
+    width:18px;height:18px;border-radius:50%;
+    background:#2979FF;border:3px solid #fff;
+    box-shadow:0 0 0 0 rgba(41,121,255,.5), 0 2px 8px rgba(0,0,0,.2);
+    animation:userPulse 2s ease-in-out infinite;
+  }
+  @keyframes userPulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(41,121,255,.5), 0 2px 8px rgba(0,0,0,.2)}
+    50%{box-shadow:0 0 0 14px rgba(41,121,255,0), 0 2px 8px rgba(0,0,0,.2)}
+  }
+
+  /* ---------- LOADER ---------- */
+  .loader{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:var(--card);padding:20px 26px;border-radius:20px;
+    box-shadow:var(--shadow-lg);z-index:1000;text-align:center;
+    font-size:14px;max-width:380px;border:1px solid var(--border);
+  }
+  .loader .sun-spin{
+    width:36px;height:36px;margin:0 auto 10px;
+    background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 70%);
+    border-radius:50%;
+    animation:spin 3s linear infinite, pulse 2s ease-in-out infinite;
+    box-shadow:0 0 30px var(--sun-glow);
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader .title{font-weight:700;font-size:15px;margin-bottom:4px}
+  .loader .detail{font-size:12px;color:var(--muted)}
+  .loader .bar{height:4px;background:#EEF0F5;border-radius:4px;overflow:hidden;margin-top:12px}
+  .loader .bar > div{height:100%;background:var(--sun);transition:width .2s}
+  .loader.error{background:#FFF0EE;border-color:#FFB3AA;color:#8A2B1E}
+
+  /* ---------- TOAST ---------- */
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--shade);color:#fff;
+    padding:11px 16px;border-radius:999px;font-size:13px;font-weight:500;
+    box-shadow:var(--shadow-lg);z-index:2000;
+    display:flex;align-items:center;gap:12px;
+    animation:toastIn .25s ease;
+  }
+  .toast button{
+    background:var(--sun);color:#3a2900;border:none;padding:4px 10px;
+    border-radius:999px;font-size:12px;font-weight:700;
+  }
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%, 8px)}to{opacity:1;transform:translate(-50%, 0)}}
+
+  /* ---------- LEAFLET POPUP (v2: photo hero + sun chart) ---------- */
+  .leaflet-popup-content-wrapper{
+    border-radius:20px!important;
+    box-shadow:var(--shadow-lg)!important;
+    padding:0!important;overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .leaflet-popup-content{font:inherit;margin:0!important;width:340px!important}
+  .leaflet-popup-close-button{
+    width:30px!important;height:30px!important;padding:0!important;
+    top:10px!important;right:10px!important;
+    background:rgba(255,255,255,.92)!important;backdrop-filter:blur(8px);
+    border-radius:50%!important;
+    color:var(--shade)!important;font-size:18px!important;line-height:30px!important;
+    box-shadow:var(--shadow-sm);
+    text-align:center!important;
+  }
+  .leaflet-popup-close-button:hover{color:#000!important;background:#fff!important}
+  .leaflet-popup-tip{box-shadow:var(--shadow-lg)!important}
+
+  .popup-v2{font-size:13px;color:var(--text);line-height:1.4}
+  .popup-v2 .hero-photo{
+    position:relative;height:150px;overflow:hidden;background:#E3DDD0;
+  }
+  .popup-v2 .hero-photo img{
+    width:100%;height:100%;object-fit:cover;display:block;
+  }
+  .popup-v2 .hero-photo::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:60%;
+    background:linear-gradient(180deg, transparent 0%, rgba(0,0,0,.55) 100%);
+    pointer-events:none;
+  }
+  .popup-v2 .hero-photo.fallback{
+    background:
+      radial-gradient(ellipse 70% 120% at 80% 20%, rgba(255,215,94,.9) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 100% at 20% 80%, rgba(255,107,87,.35) 0%, transparent 55%),
+      linear-gradient(135deg, #FFE8A8 0%, #FFB627 100%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .popup-v2 .hero-photo.fallback::after{display:none}
+  .popup-v2 .hero-photo.fallback .hero-glyph{
+    font-size:58px;line-height:1;opacity:.9;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.15));
+  }
+  .popup-v2 .hero-badge{
+    position:absolute;left:14px;bottom:14px;z-index:2;
+    display:inline-flex;align-items:center;gap:7px;
+    background:rgba(0,0,0,.75);color:#FFD75E;backdrop-filter:blur(10px);
+    padding:7px 13px;border-radius:999px;font-weight:600;font-size:12.5px;
+    letter-spacing:.01em;
+  }
+  .popup-v2 .hero-badge.cloudy{color:#cbd5e1}
+  .popup-v2 .hero-badge.shaded, .popup-v2 .hero-badge.nosun, .popup-v2 .hero-badge.night, .popup-v2 .hero-badge.closed{color:#94A3B8}
+  .popup-v2 .hero-badge .ic{font-size:14px}
+
+  .popup-v2 .body{padding:14px 16px 16px}
+  .popup-v2 .name{font-size:19px;font-weight:800;letter-spacing:-0.015em;margin:0;line-height:1.15}
+  .popup-v2 .meta{font-size:12.5px;color:var(--muted);margin:3px 0 12px;font-weight:500}
+  .popup-v2 .meta b{color:var(--text);font-weight:600}
+
+  .popup-v2 .chart-card{
+    background:#FAF8F3;border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px 8px;
+  }
+  .popup-v2 .chart{position:relative;height:70px;margin:4px 0 4px}
+  .popup-v2 .chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .popup-v2 .axis-y{
+    position:absolute;left:-4px;top:0;bottom:14px;width:18px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    font-size:12px;line-height:1;text-align:center;
+  }
+  .popup-v2 .axis-y span{opacity:.55}
+  .popup-v2 .chart-inner{position:absolute;left:20px;right:0;top:0;bottom:14px}
+  .popup-v2 .axis-x{
+    position:absolute;left:20px;right:0;bottom:-2px;
+    display:flex;justify-content:space-between;
+    font-size:10px;color:var(--muted);font-weight:500;
+  }
+  .popup-v2 .hours-text{
+    text-align:center;font-size:11.5px;color:var(--muted);
+    margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
+  }
+  .popup-v2 .hours-text b{color:var(--text);font-weight:600}
+  .popup-v2 .hours-text.closed b{color:#8A2B1E}
+  .popup-v2 .hours-text.open b{color:#0A7A0A}
+
+  .popup-v2 .cta{
+    display:flex;width:100%;align-items:center;justify-content:center;gap:8px;
+    border:none;border-radius:12px;padding:13px 14px;
+    font:inherit;font-size:14px;font-weight:700;cursor:pointer;
+    background:var(--sun);color:#3a2900;
+    box-shadow:0 5px 14px var(--sun-glow);
+    margin-top:12px;transition:all .15s;text-decoration:none;
+    letter-spacing:-0.005em;
+  }
+  .popup-v2 .cta:hover{background:#FFC340;transform:translateY(-1px);box-shadow:0 8px 20px var(--sun-glow)}
+  .popup-v2 .cta svg{width:16px;height:16px}
+  .popup-v2 .hide-link{
+    display:block;width:100%;border:none;background:transparent;
+    font:inherit;font-size:11.5px;color:var(--muted);padding:9px 0 0;cursor:pointer;
+    text-align:center;
+  }
+  .popup-v2 .hide-link:hover{color:var(--coral)}
+
+  @media (max-width:860px){
+    .toolbar{grid-template-columns:1fr;gap:8px;padding:10px 14px}
+    .time-pill{min-width:0;width:100%}
+    .hero{padding:14px 16px 12px}
+    .filters{padding:6px 14px}
+    .stats-inline{padding:4px 14px 8px}
+    #list{padding:14px}
+    .venue-grid{grid-template-columns:1fr}
+  }
+
+  /* ============================================================
+     MOBILE REDESIGN: one-row chrome, bottom sheet, sun ribbon
+     ============================================================ */
+  .mobile-ui, .m-search-overlay{display:none}
+  .no-scroll{overflow:hidden}
+
+  @media (max-width:860px){
+    /* Hide desktop chrome, let the map eat the viewport */
+    .hero, .toolbar, .filters, .stats-inline, .legend{display:none}
+    .app{grid-template-rows:1fr;height:100dvh}
+    main{height:100dvh;overflow:hidden}
+    .view-list #map{display:block}
+    .view-list #list{display:none}
+    #list{display:none}
+    #map{height:100dvh}
+    .leaflet-control-zoom{display:none}
+    .leaflet-control-attribution{
+      font-size:9px!important;background:rgba(255,255,255,.72)!important;
+      padding:0 4px!important;border-radius:4px;margin:0 6px 6px 0!important;
+      max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .leaflet-popup{display:none!important}
+
+    /* Mobile UI container floats above the map */
+    .mobile-ui{display:block;position:fixed;inset:0;pointer-events:none;z-index:1000}
+    .mobile-ui > *{pointer-events:auto}
+    .mobile-ui{opacity:0;transition:opacity .45s ease}
+    .mobile-ui.ready{opacity:1}
+  }
+
+  /* --- Chips row (floating) --- */
+  .m-chips{
+    position:absolute;top:max(12px, env(safe-area-inset-top, 0));
+    left:0;right:0;z-index:30;
+    display:flex;gap:6px;padding:8px 10px;align-items:center;
+    overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+    -ms-overflow-style:none;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .m-chips::-webkit-scrollbar{display:none}
+  .m-chip{
+    flex-shrink:0;display:inline-flex;align-items:center;gap:5px;
+    padding:7px 12px;height:34px;border-radius:999px;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);
+    font:inherit;font-size:12.5px;font-weight:600;color:var(--text);
+    box-shadow:var(--shadow-sm);cursor:pointer;
+    letter-spacing:-0.005em;
+    transition:background .2s ease, color .2s ease, border-color .2s ease,
+               box-shadow .2s ease, transform .14s cubic-bezier(.34,1.56,.64,1);
+  }
+  .m-chip:active{transform:scale(.95)}
+  .m-chip.active{background:var(--shade);color:#fff;border-color:var(--shade);box-shadow:0 4px 12px rgba(45,49,66,.22)}
+  .m-chip.sunny.active{background:var(--sun);color:#3a2900;border-color:var(--sun);box-shadow:0 4px 14px var(--sun-glow)}
+  .m-chip .cnt{
+    background:rgba(0,0,0,.08);color:currentColor;
+    padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;
+    font-variant-numeric:tabular-nums;min-width:18px;text-align:center;
+  }
+  .m-chip.active .cnt{background:rgba(255,255,255,.25)}
+  .m-chip.hidden{display:none}
+
+  .m-chip-search{
+    flex-shrink:0;width:34px;height:34px;border-radius:50%;padding:0;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);box-shadow:var(--shadow-sm);
+    display:grid;place-items:center;color:var(--text);
+    font:inherit;cursor:pointer;
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s ease;
+  }
+  .m-chip-search:active{transform:scale(.88);background:var(--bg-2)}
+  .m-chip-search svg{width:15px;height:15px}
+
+  /* --- Weather pill (below chips row, right) --- */
+  .m-weather{
+    position:absolute;
+    top:calc(max(12px, env(safe-area-inset-top, 0)) + 44px);
+    right:10px;z-index:28;
+    display:inline-flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--border);
+    padding:5px 10px;border-radius:999px;height:28px;
+    box-shadow:var(--shadow-sm);
+    font-size:11.5px;font-weight:700;color:var(--text);
+    font-variant-numeric:tabular-nums;
+    opacity:0;transform:translateY(-4px);
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  .m-weather.visible{opacity:1;transform:translateY(0)}
+  .m-weather .ic{font-size:14px;line-height:1}
+  .m-weather .muted{color:var(--muted);font-weight:500}
+
+  /* --- FAB (near-me) --- */
+  .m-fab{
+    position:absolute;right:14px;z-index:27;
+    width:48px;height:48px;border-radius:50%;border:none;padding:0;
+    background:var(--card);color:var(--text);
+    box-shadow:var(--shadow-md), 0 8px 20px rgba(16,17,34,.08);
+    display:grid;place-items:center;cursor:pointer;
+    transition:bottom .44s cubic-bezier(.22,1,.36,1),
+               transform .14s cubic-bezier(.34,1.56,.64,1),
+               background .25s ease, color .25s ease, box-shadow .25s ease;
+  }
+  .m-fab:active{transform:scale(.9)}
+  .m-fab.on{background:var(--coral);color:#fff;box-shadow:0 8px 22px rgba(255,107,87,.38)}
+  .m-fab svg{width:22px;height:22px}
+  .m-fab.locating svg{animation:spin 1.1s linear infinite}
+
+  /* --- Bottom Sheet --- */
+  .m-sheet{
+    position:absolute;left:0;right:0;bottom:0;z-index:25;
+    background:var(--card);border-radius:22px 22px 0 0;
+    box-shadow:0 -14px 44px rgba(16,17,34,.14), 0 -3px 12px rgba(16,17,34,.06);
+    display:flex;flex-direction:column;
+    height:var(--sheet-h, 220px);
+    transition:height .44s cubic-bezier(.22,1,.36,1);
+    will-change:height;
+    overscroll-behavior:contain;
+  }
+  .m-sheet.dragging{transition:none}
+  .m-sheet-handle-wrap{
+    display:flex;flex-direction:column;align-items:center;
+    padding:8px 0 4px;flex-shrink:0;touch-action:none;
+    cursor:grab;user-select:none;
+  }
+  .m-sheet-handle-wrap:active{cursor:grabbing}
+  .m-sheet-handle{
+    width:42px;height:4.5px;border-radius:4px;background:#D5CFC0;
+    transition:background .2s, transform .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .m-sheet-handle-wrap:active .m-sheet-handle{background:#A89F8A;transform:scaleX(1.12)}
+
+  /* Sheet content container */
+  .m-sheet-body{
+    flex:1;overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;scrollbar-width:thin;
+    overscroll-behavior:contain;
+  }
+  .m-sheet-body::-webkit-scrollbar{width:3px}
+  .m-sheet-body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:2px}
+  .m-sheet-body::-webkit-scrollbar-track{background:transparent}
+
+  /* Sun/cloud ribbon (inside the sheet, top) */
+  .m-ribbon-wrap{
+    padding:4px 14px 10px;flex-shrink:0;
+    border-bottom:1px solid var(--border);
+    background:var(--card);
+    position:sticky;top:0;z-index:2;
+  }
+  .m-ribbon-head{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:6px;padding:0 2px;
+  }
+  .m-ribbon-time{
+    font-size:12.5px;font-weight:700;letter-spacing:-0.01em;color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+  .m-ribbon-time em{
+    color:var(--coral);font-style:normal;
+    font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;
+    margin-left:4px;
+  }
+  .m-ribbon-now-btn{
+    border:none;background:transparent;font:inherit;font-size:11.5px;
+    font-weight:700;color:var(--coral);cursor:pointer;padding:3px 10px;
+    border-radius:999px;transition:background .15s, transform .12s;
+  }
+  .m-ribbon-now-btn:hover, .m-ribbon-now-btn:focus-visible{background:rgba(255,107,87,.1)}
+  .m-ribbon-now-btn:active{transform:scale(.94)}
+  .m-ribbon-now-btn.hidden{visibility:hidden;pointer-events:none}
+
+  .m-ribbon{
+    position:relative;height:30px;border-radius:8px;
+    overflow:visible;touch-action:pan-x;
+    user-select:none;-webkit-user-select:none;cursor:pointer;
+    background:linear-gradient(90deg,
+      #0F172A 0%, #334155 20%, #FFD489 27%, #FFC340 32%,
+      #FFB627 50%, #FFA600 70%, #FF9A6B 76%, #334155 82%, #0F172A 100%);
+  }
+  .m-ribbon::before{
+    content:'';position:absolute;inset:0;border-radius:8px;
+    border:1px solid rgba(0,0,0,.08);
+    pointer-events:none;
+  }
+  .m-ribbon-clouds{
+    position:absolute;inset:0;border-radius:8px;overflow:hidden;pointer-events:none;
+  }
+  .m-ribbon-clouds > div{
+    position:absolute;top:0;bottom:0;background:rgba(80,95,115,.55);
+    transition:opacity .4s ease;
+  }
+  .m-ribbon-nowline{
+    position:absolute;top:-3px;bottom:-3px;width:2px;
+    background:var(--coral);border-radius:2px;
+    box-shadow:0 0 0 3px rgba(255,107,87,.22), 0 1px 4px rgba(255,107,87,.35);
+    pointer-events:none;z-index:4;
+    transition:left .35s cubic-bezier(.22,1,.36,1);
+  }
+  .m-sheet.ribbon-dragging .m-ribbon-nowline,
+  .m-sheet.ribbon-dragging .m-ribbon-nowdot{transition:none}
+  .m-ribbon-nowdot{
+    position:absolute;top:50%;transform:translate(-50%,-50%);
+    width:16px;height:16px;border-radius:50%;
+    background:var(--coral);border:2.5px solid #fff;
+    box-shadow:0 2px 8px rgba(255,107,87,.5);
+    pointer-events:none;z-index:5;
+    transition:left .35s cubic-bezier(.22,1,.36,1);
+  }
+  .m-ribbon-scale{
+    display:flex;justify-content:space-between;margin-top:5px;
+    font-size:10px;color:var(--muted);font-weight:600;
+    padding:0 2px;font-variant-numeric:tabular-nums;
+  }
+
+  /* Sheet — peek card */
+  .m-peek{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 14px 14px;
+    animation:peekIn .38s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes peekIn{
+    from{opacity:0;transform:translateY(10px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .m-peek-avatar{
+    flex-shrink:0;width:48px;height:48px;border-radius:13px;
+    background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 75%);
+    display:grid;place-items:center;font-size:22px;
+    box-shadow:inset 0 -2px 4px rgba(0,0,0,.08), 0 3px 10px rgba(245,166,35,.2);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  .m-peek-avatar.cloudy{background:linear-gradient(135deg, #E3E7EE, #B8C0CC);box-shadow:inset 0 -2px 4px rgba(0,0,0,.08)}
+  .m-peek-avatar.shaded{background:linear-gradient(135deg, #CBD5E1, #94A3B8);box-shadow:inset 0 -2px 4px rgba(0,0,0,.08)}
+  .m-peek-avatar.night{background:linear-gradient(135deg, #1F2937, #334155);color:#FFD75E}
+  .m-peek-avatar.nosun, .m-peek-avatar.closed{background:#EEF0F5;color:var(--muted)}
+  .m-peek-info{min-width:0;flex:1}
+  .m-peek-name{
+    font-size:16px;font-weight:800;letter-spacing:-0.015em;margin:0;line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .m-peek-meta{font-size:12px;color:var(--muted);margin:2px 0 6px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-peek-meta b{color:var(--text);font-weight:600}
+  .m-peek-status{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11.5px;font-weight:700;letter-spacing:-0.005em;
+    color:#3a2900;background:var(--sun-bg);
+    padding:4px 10px;border-radius:999px;
+  }
+  .m-peek-status.cloudy{background:#E3E7EE;color:var(--shade)}
+  .m-peek-status.shaded{background:#EEF0F5;color:var(--shade)}
+  .m-peek-status.night{background:var(--night);color:var(--sun)}
+  .m-peek-status.nosun,.m-peek-status.closed{background:#F0F0F0;color:var(--muted)}
+  .m-peek-cta{
+    flex-shrink:0;width:44px;height:44px;border-radius:50%;border:none;padding:0;
+    background:var(--shade);color:#fff;display:grid;place-items:center;
+    font-size:18px;font-weight:700;cursor:pointer;
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s;
+  }
+  .m-peek-cta:active{transform:scale(.9);background:#1c1f2d}
+
+  /* Default ribbon-only "browse" card */
+  .m-browse{
+    padding:14px;animation:peekIn .4s cubic-bezier(.22,1,.36,1);
+  }
+  .m-browse-summary{
+    font-size:14px;font-weight:600;margin:0 0 4px;color:var(--text);
+    letter-spacing:-0.01em;
+  }
+  .m-browse-summary b{font-size:17px;font-weight:800;color:var(--sun);
+    font-variant-numeric:tabular-nums;
+    font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+  }
+  .m-browse-hint{font-size:12px;color:var(--muted);font-weight:500;margin:0}
+  .m-browse-hint .arr{
+    display:inline-block;animation:bob 1.6s ease-in-out infinite;
+    transform-origin:center;
+  }
+  @keyframes bob{
+    0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}
+  }
+
+  /* Sheet — venue details */
+  .m-details-hero{
+    position:relative;margin:4px 14px 0;height:170px;overflow:hidden;
+    border-radius:16px;background:#E3DDD0;
+  }
+  .m-details-hero.fallback{
+    background:
+      radial-gradient(ellipse 70% 120% at 80% 20%, rgba(255,215,94,.9) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 100% at 20% 80%, rgba(255,107,87,.35) 0%, transparent 55%),
+      linear-gradient(135deg, #FFE8A8 0%, #FFB627 100%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .m-details-hero img{
+    position:absolute;inset:0;width:100%;height:100%;
+    object-fit:cover;display:block;
+    opacity:0;transition:opacity .5s ease;
+  }
+  .m-details-hero img.loaded{opacity:1}
+  .m-details-hero::after{
+    content:'';position:absolute;left:0;right:0;bottom:0;height:55%;
+    background:linear-gradient(180deg, transparent 0%, rgba(0,0,0,.5) 100%);
+    pointer-events:none;
+  }
+  .m-details-hero.fallback::after{display:none}
+  .m-details-hero .hero-glyph{
+    font-size:60px;line-height:1;opacity:.9;z-index:1;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.15));
+  }
+  .m-details-badge{
+    position:absolute;left:14px;bottom:14px;z-index:2;
+    display:inline-flex;align-items:center;gap:7px;
+    background:rgba(0,0,0,.72);color:#FFD75E;backdrop-filter:blur(10px);
+    padding:7px 13px;border-radius:999px;font-weight:600;font-size:12.5px;
+    letter-spacing:-0.005em;
+  }
+  .m-details-badge.cloudy{color:#cbd5e1}
+  .m-details-badge.shaded,.m-details-badge.nosun,.m-details-badge.night{color:#94A3B8}
+  .m-details-body{padding:14px 16px 22px;animation:peekIn .42s cubic-bezier(.22,1,.36,1)}
+  .m-details-title{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0 0 3px;line-height:1.15}
+  .m-details-meta{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:500}
+  .m-details-meta b{color:var(--text);font-weight:600}
+  .m-details-chart{
+    background:#FAF8F3;border:1px solid var(--border);border-radius:12px;
+    padding:10px 12px 8px;margin-bottom:14px;
+  }
+  .m-details-chart .chart{position:relative;height:66px}
+  .m-details-chart .chart svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .m-details-chart .axis-y{
+    position:absolute;left:-4px;top:0;bottom:14px;width:18px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    font-size:11px;line-height:1;text-align:center;
+  }
+  .m-details-chart .axis-y span{opacity:.5}
+  .m-details-chart .chart-inner{position:absolute;left:18px;right:0;top:0;bottom:14px}
+  .m-details-chart .axis-x{
+    position:absolute;left:18px;right:0;bottom:-2px;
+    display:flex;justify-content:space-between;
+    font-size:10px;color:var(--muted);font-weight:500;
+    font-variant-numeric:tabular-nums;
+  }
+  .m-details-hours{
+    text-align:center;font-size:11.5px;color:var(--muted);
+    margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
+  }
+  .m-details-hours b{color:var(--text);font-weight:600}
+  .m-details-hours.closed b{color:#8A2B1E}
+  .m-details-hours.open b{color:#0A7A0A}
+  .m-cta-btn{
+    display:flex;width:100%;align-items:center;justify-content:center;gap:8px;
+    border:none;border-radius:14px;padding:14px;
+    font:inherit;font-size:14.5px;font-weight:700;
+    background:var(--sun);color:#3a2900;
+    box-shadow:0 5px 14px var(--sun-glow);
+    margin-bottom:10px;text-decoration:none;cursor:pointer;
+    transition:transform .12s ease, box-shadow .25s ease, background .2s;
+    letter-spacing:-0.005em;
+  }
+  .m-cta-btn:active{transform:scale(.98)}
+  .m-cta-btn:hover{background:#FFC340;box-shadow:0 8px 22px var(--sun-glow)}
+  .m-cta-btn svg{width:16px;height:16px}
+  .m-hide-link{
+    display:block;width:100%;border:none;background:transparent;
+    font:inherit;font-size:11.5px;color:var(--muted);padding:6px 0;cursor:pointer;
+    text-align:center;transition:color .15s;
+  }
+  .m-hide-link:active{color:var(--coral)}
+
+  /* Sheet — list */
+  .m-list-head{
+    display:flex;align-items:baseline;gap:8px;padding:12px 14px 8px;
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;background:var(--card);z-index:1;
+  }
+  .m-list-head h4{
+    margin:0;font-size:16px;
+    font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+    letter-spacing:-0.01em;color:var(--text);
+  }
+  .m-list-head .cnt{font-size:11.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+  .m-list-section{padding:0 14px}
+  .m-list-section + .m-list-section{margin-top:10px}
+  .m-list-section-h{
+    font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted);margin:14px 0 2px;padding:0 2px;
+  }
+  .m-list-row{
+    display:flex;align-items:center;gap:12px;padding:11px 0;
+    border-top:1px solid var(--border);
+    cursor:pointer;
+    transition:background .15s, transform .15s cubic-bezier(.34,1.56,.64,1);
+    opacity:0;animation:listIn .34s cubic-bezier(.22,1,.36,1) forwards;
+  }
+  @keyframes listIn{
+    from{opacity:0;transform:translateY(6px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  .m-list-row:active{background:var(--bg-2);transform:scale(.995)}
+  .m-list-row:first-child{border-top:none}
+  .m-list-avatar{
+    flex-shrink:0;width:40px;height:40px;border-radius:11px;
+    background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 75%);
+    display:grid;place-items:center;font-size:19px;
+    box-shadow:inset 0 -2px 3px rgba(0,0,0,.06);
+  }
+  .m-list-avatar.cloudy{background:linear-gradient(135deg, #E3E7EE, #B8C0CC)}
+  .m-list-avatar.shaded{background:linear-gradient(135deg, #CBD5E1, #94A3B8)}
+  .m-list-avatar.night{background:linear-gradient(135deg, #1F2937, #334155);color:#FFD75E}
+  .m-list-avatar.nosun,.m-list-avatar.closed{background:#EEF0F5;color:var(--muted)}
+  .m-list-info{min-width:0;flex:1}
+  .m-list-info .name{
+    font-size:14px;font-weight:700;letter-spacing:-0.01em;margin:0;line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
+  }
+  .m-list-info .meta{font-size:11.5px;color:var(--muted);margin:2px 0 0;font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .m-list-badge{
+    flex-shrink:0;align-self:center;
+    font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;
+    background:var(--sun-bg);color:#3a2900;white-space:nowrap;
+  }
+  .m-list-badge.cloudy{background:#E3E7EE;color:var(--shade)}
+  .m-list-badge.shaded,.m-list-badge.nosun{background:#EEF0F5;color:var(--muted)}
+  .m-list-badge.night{background:var(--night);color:var(--sun)}
+  .m-list-badge.closed{background:#FFE5E0;color:#8A2B1E}
+  .m-list-empty{
+    padding:44px 24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6;
+  }
+  .m-list-empty b{color:var(--text)}
+
+  /* --- Search overlay --- */
+  @media (max-width:860px){
+    .m-search-overlay{display:flex}
+  }
+  .m-search-overlay{
+    position:fixed;inset:0;z-index:3000;background:var(--card);
+    flex-direction:column;
+    transform:translateY(100%);
+    transition:transform .36s cubic-bezier(.22,1,.36,1);
+    visibility:hidden;
+  }
+  .m-search-overlay.open{transform:translateY(0);visibility:visible}
+  .m-search-topbar{
+    display:flex;align-items:center;gap:10px;
+    padding:calc(env(safe-area-inset-top, 0) + 14px) 14px 12px;
+    border-bottom:1px solid var(--border);flex-shrink:0;
+    background:var(--card);
+  }
+  .m-search-back{
+    width:36px;height:36px;border-radius:50%;border:none;
+    background:var(--bg-2);color:var(--text);
+    display:grid;place-items:center;font-size:18px;flex-shrink:0;cursor:pointer;
+    font-weight:700;
+    transition:background .15s, transform .12s;
+  }
+  .m-search-back:active{transform:scale(.9);background:var(--border-strong)}
+  .m-search-input-wrap{
+    flex:1;position:relative;display:flex;align-items:center;
+    background:var(--bg-2);border-radius:999px;
+    padding:0 14px 0 38px;height:40px;
+    transition:background .25s, box-shadow .25s;
+    border:1px solid transparent;
+  }
+  .m-search-input-wrap:focus-within{background:#FFF9E8;border-color:var(--sun);box-shadow:0 0 0 3px var(--sun-glow)}
+  .m-search-input-wrap .ic{
+    position:absolute;left:13px;top:50%;transform:translateY(-50%);
+    color:var(--muted);display:grid;place-items:center;
+  }
+  .m-search-input-wrap .ic svg{width:15px;height:15px}
+  .m-search-input{
+    border:none;background:transparent;font:inherit;font-size:15px;
+    width:100%;outline:none;color:var(--text);font-weight:500;
+  }
+  .m-search-input::placeholder{color:var(--muted)}
+  .m-search-clear{
+    background:rgba(0,0,0,.08);color:var(--muted);border:none;
+    width:22px;height:22px;border-radius:50%;padding:0;line-height:1;
+    display:none;place-items:center;cursor:pointer;font-size:14px;flex-shrink:0;
+  }
+  .m-search-input-wrap.has-value .m-search-clear{display:grid}
+  .m-search-results{flex:1;overflow-y:auto;padding-bottom:20px}
+  .m-search-section{padding:10px 16px 6px}
+  .m-search-section h5{
+    font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted);margin:4px 0 2px;
+  }
+  .m-search-item{
+    display:flex;align-items:center;gap:12px;padding:12px 0;
+    border-top:1px solid var(--border);cursor:pointer;
+    transition:background .15s;
+    opacity:0;animation:listIn .28s ease forwards;
+  }
+  .m-search-item:active{background:var(--bg-2)}
+  .m-search-item:first-of-type{border-top:none}
+  .m-search-avatar{
+    flex-shrink:0;width:38px;height:38px;border-radius:11px;
+    display:grid;place-items:center;font-size:18px;
+    background:var(--bg-2);color:var(--text);
+  }
+  .m-search-avatar.sunny{background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 75%)}
+  .m-search-avatar.cloudy{background:linear-gradient(135deg, #E3E7EE, #B8C0CC)}
+  .m-search-avatar.shaded{background:linear-gradient(135deg, #CBD5E1, #94A3B8)}
+  .m-search-avatar.night{background:linear-gradient(135deg, #1F2937, #334155);color:#FFD75E}
+  .m-search-info{min-width:0;flex:1}
+  .m-search-info .name{
+    font-size:14px;font-weight:700;margin:0;line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);
+  }
+  .m-search-info .name b{color:var(--coral);font-weight:800}
+  .m-search-info .meta{font-size:11.5px;color:var(--muted);margin:2px 0 0;font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .m-search-status{
+    flex-shrink:0;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:999px;
+    background:var(--sun-bg);color:#3a2900;
+  }
+  .m-search-status.shaded,.m-search-status.nosun{background:#EEF0F5;color:var(--muted)}
+  .m-search-status.cloudy{background:#E3E7EE;color:var(--shade)}
+  .m-search-status.night{background:var(--night);color:var(--sun)}
+  .m-search-empty{
+    padding:60px 24px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6;
+  }
+
+  /* Larger mobile pins */
+  @media (max-width:860px){
+    .leaflet-marker-icon{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="hero">
+    <div class="brand">
+      <div class="logo">☀️</div>
+      <div>
+        <h1>Sonne <em>Berlin</em></h1>
+        <p>Find the sunny terrace — right now, all across the city.</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search-wrap" id="search-wrap">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="text" placeholder="Search for a bar, café or restaurant…" autocomplete="off" spellcheck="false">
+      <button class="search-clear" id="search-clear" title="Clear">Clear</button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tab-map" class="active">🗺 Map</button>
+      <button id="tab-list">☰ List</button>
+    </div>
+    <div class="time-pill">
+      <button class="now-btn hidden" id="now-btn">Now</button>
+      <div class="time-display">
+        <span id="time-label">--:--</span>
+        <small id="time-day">today</small>
+      </div>
+      <input id="time" type="range" min="0" max="1440" step="5" value="0">
+    </div>
+  </div>
+
+  <div class="filters" id="filters">
+    <button class="chip" id="chip-nearme"><span class="ic">📍</span>Near me</button>
+    <button class="chip hidden" id="chip-walk5"><span class="ic">🚶</span>≤ 10 min</button>
+    <button class="chip hidden" id="chip-walk20"><span class="ic">🚶‍♀️</span>≤ 20 min</button>
+    <button class="chip sunny" id="chip-sunny"><span class="ic">☀️</span>Sunny <span class="count" id="count-sunny">—</span></button>
+    <button class="chip" id="chip-open"><span class="ic">🕐</span>Open now</button>
+    <button class="chip hidden" id="chip-fav"><span class="ic">★</span>Favorites <span class="count" id="count-fav">0</span></button>
+    <div class="chip weather" id="chip-weather" title="Live cloud cover over Berlin">
+      <span class="ic" id="weather-ic">🌤</span><span id="weather-label">—</span>
+      <span class="sun-info-inline" id="sun-info-inline">loading…</span>
+    </div>
+  </div>
+
+  <div class="stats-inline">
+    <span><b id="stat-sunny">—</b> sunny</span>
+    <span><b id="stat-shaded">—</b> shaded / no sun</span>
+    <span id="hidden-wrap" style="display:none">· <span class="hidden-link" id="hidden-link"><b id="stat-hidden">0</b> hidden — show all</span></span>
+    <span id="location-hint" style="margin-left:auto;color:var(--muted)">Tap <b>📍 Near me</b> to sort by distance</span>
+  </div>
+
+  <main id="main">
+    <div id="map"></div>
+    <div id="list"></div>
+
+    <div class="legend">
+      <div><span class="dot sunny"></span> In the sun</div>
+      <div><span class="dot cloudy"></span> Sun blocked by clouds</div>
+      <div><span class="dot shaded"></span> In the shade</div>
+      <div><span class="dot night"></span> Sun below horizon</div>
+    </div>
+
+    <div id="loader" class="loader">
+      <div class="sun-spin"></div>
+      <div class="title" id="loader-title">Warming up Berlin…</div>
+      <div class="detail" id="loader-detail">querying OpenStreetMap</div>
+      <div class="bar"><div id="loader-bar" style="width:10%"></div></div>
+    </div>
+  </main>
+
+</div>
+
+<!-- ============================================================
+     MOBILE UI — floats above map, hidden on desktop by CSS
+     ============================================================ -->
+<div class="mobile-ui" id="mobile-ui" aria-hidden="false">
+
+  <!-- Chips row (top, horizontal scroll) -->
+  <div class="m-chips" id="m-chips">
+    <button class="m-chip-search" id="m-chip-search" aria-label="Search">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    </button>
+    <button class="m-chip sunny" id="m-chip-sunny"><span>☀</span>Sunny <span class="cnt" id="m-cnt-sunny">—</span></button>
+    <button class="m-chip" id="m-chip-open"><span>🕐</span>Open now</button>
+    <button class="m-chip hidden" id="m-chip-fav"><span>★</span>Favorites <span class="cnt" id="m-cnt-fav">0</span></button>
+    <button class="m-chip" id="m-chip-nearme"><span>📍</span>Near me</button>
+    <button class="m-chip hidden" id="m-chip-walk5"><span>🚶</span>≤10 min</button>
+    <button class="m-chip hidden" id="m-chip-walk20"><span>🚶‍♀️</span>≤20 min</button>
+  </div>
+
+  <!-- Weather pill (top right, below chips) -->
+  <div class="m-weather" id="m-weather" role="status" aria-live="polite">
+    <span class="ic" id="m-weather-ic">🌤</span>
+    <span id="m-weather-label">—</span>
+  </div>
+
+  <!-- FAB (right, above sheet) -->
+  <button class="m-fab" id="m-fab" aria-label="Near me">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+    </svg>
+  </button>
+
+  <!-- Bottom sheet with sun ribbon + dynamic content -->
+  <div class="m-sheet" id="m-sheet">
+    <div class="m-sheet-handle-wrap" id="m-sheet-handle" role="button" aria-label="Drag sheet">
+      <div class="m-sheet-handle"></div>
+    </div>
+    <div class="m-sheet-body" id="m-sheet-body">
+      <div class="m-ribbon-wrap">
+        <div class="m-ribbon-head">
+          <span class="m-ribbon-time" id="m-ribbon-time">Today · <em>—:—</em></span>
+          <button class="m-ribbon-now-btn hidden" id="m-ribbon-now-btn">now</button>
+        </div>
+        <div class="m-ribbon" id="m-ribbon">
+          <div class="m-ribbon-clouds" id="m-ribbon-clouds"></div>
+          <div class="m-ribbon-nowline" id="m-ribbon-nowline"></div>
+          <div class="m-ribbon-nowdot" id="m-ribbon-nowdot"></div>
+        </div>
+        <div class="m-ribbon-scale" id="m-ribbon-scale"></div>
+      </div>
+      <div id="m-sheet-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Full-screen search overlay (mobile) -->
+<div class="m-search-overlay" id="m-search-overlay" aria-hidden="true">
+  <div class="m-search-topbar">
+    <button class="m-search-back" id="m-search-back" aria-label="Close search">←</button>
+    <div class="m-search-input-wrap" id="m-search-input-wrap">
+      <span class="ic"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+      <input class="m-search-input" id="m-search-input" type="text" placeholder="Bar, café, or restaurant…" autocomplete="off" spellcheck="false">
+      <button class="m-search-clear" id="m-search-clear" aria-label="Clear">×</button>
+    </div>
+  </div>
+  <div class="m-search-results" id="m-search-results"></div>
+</div>
+
+<div id="toast-root"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/opening_hours@3.8.0/build/opening_hours.min.js"></script>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const BBOX = { south: 52.488, west: 13.350, north: 52.550, east: 13.470 };
+const CENTER = [(BBOX.south + BBOX.north)/2, (BBOX.west + BBOX.east)/2];
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter"
+];
+const OVERPASS_TIMEOUT_MS = 45_000;                // per-endpoint timeout for the sequential waterfall (used by venues)
+const BUILDING_TILE_TIMEOUT_MS = 25_000;           // per-tile timeout — each tile hits ONE endpoint, no waterfall
+const BUILDING_WALLCLOCK_MS   = 75_000;            // outer wall-clock: after this we proceed with whatever tiles finished
+const BUILDING_TILES_PER_SIDE = 3;                 // split buildings query into 3×3 grid (9 small tiles)
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 3;        // OSM data: 3 days
+const WEATHER_TTL_MS = 1000 * 60 * 15;               // Weather: 15 min
+const DEFAULT_LEVELS = 5;
+const METERS_PER_LEVEL = 3.2;
+const MAX_SHADOW_SEARCH_RADIUS = 320;
+const SUN_WINDOW_STEP_MIN = 10;
+const CLOUD_SUNNY_THRESHOLD = 55;   // % — above this, "sunny" becomes "cloudy"
+const WALK_METERS_PER_MIN = 80;     // 4.8 km/h
+const WALK_DETOUR_FACTOR = 1.3;     // straight-line → actual walking dist
+
+/* ============================================================
+   MAP
+   ============================================================ */
+const map = L.map('map', {zoomControl:true, preferCanvas:true}).setView(CENTER, 14);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap &copy; CARTO · sun math: SunCalc · weather: Open-Meteo',
+  maxZoom:19
+}).addTo(map);
+const venueLayer = L.layerGroup().addTo(map);
+let userMarker = null;
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  venues:[],
+  buildings:[],
+  buildingsLocal:[],
+  sunrise:null, sunset:null, solarNoon:null,
+  localOrigin:null,
+  view:'map',
+  search:'',
+  selectedTimeMs:null,
+  markers:new Map(),
+  weather:null,               // {current:%, hourly:[%], hourlyTimeMs:[ms]}
+  userLoc:null,               // [lat, lng]
+  favorites:new Set(),
+  hidden:new Set(),
+  filters:{
+    nearMe:false,
+    walk5:false,
+    walk20:false,
+    sunnyOnly:false,
+    openNow:false,
+    favOnly:false,
+  },
+};
+
+/* ============================================================
+   STORAGE
+   ============================================================ */
+const LS = {
+  FAV:'sonne_favorites_v1',
+  HIDE:'sonne_hidden_v1',
+};
+function loadSet(key){
+  try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
+}
+function saveSet(key, s){
+  try { localStorage.setItem(key, JSON.stringify([...s])); } catch {}
+}
+
+/* ============================================================
+   COORDS
+   ============================================================ */
+function setLocalOrigin(lat, lng){
+  state.localOrigin = {lat, lng, cosLat: Math.cos(lat * Math.PI/180)};
+}
+function toMeters(lat, lng){
+  const o = state.localOrigin;
+  return [(lng - o.lng) * 111320 * o.cosLat, (lat - o.lat) * 110540];
+}
+function haversineM(lat1, lng1, lat2, lng2){
+  const R = 6371000;
+  const p1 = lat1*Math.PI/180, p2 = lat2*Math.PI/180;
+  const dp = (lat2-lat1)*Math.PI/180, dl = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function walkMinutes(meters){
+  return Math.round((meters * WALK_DETOUR_FACTOR) / WALK_METERS_PER_MIN);
+}
+
+/* ============================================================
+   OVERPASS / CACHE  (IndexedDB — handles multi-MB building blobs
+   that blow past localStorage's ~5MB quota)
+   ============================================================ */
+const IDB_NAME = 'sonne_cache';
+const IDB_STORE = 'kv';
+let _idbPromise = null;
+function idb(){
+  if (_idbPromise) return _idbPromise;
+  _idbPromise = new Promise((resolve) => {
+    try {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+  return _idbPromise;
+}
+async function idbGet(key){
+  const db = await idb(); if (!db) return null;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const r = tx.objectStore(IDB_STORE).get(key);
+      r.onsuccess = () => resolve(r.result || null);
+      r.onerror = () => resolve(null);
+    } catch { resolve(null); }
+  });
+}
+async function idbSet(key, val){
+  const db = await idb(); if (!db) return;
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    } catch { resolve(); }
+  });
+}
+async function readCache(k, ttl=CACHE_TTL_MS){
+  // Try IndexedDB first, fall back to legacy localStorage entry from earlier versions.
+  const rec = await idbGet(k);
+  if (rec && Date.now() - rec.ts <= ttl) return rec.data;
+  try {
+    const r = localStorage.getItem(k);
+    if (r) {
+      const o = JSON.parse(r);
+      if (Date.now() - o.ts <= ttl) return o.data;
+    }
+  } catch {}
+  return null;
+}
+async function writeCache(k, d){
+  await idbSet(k, {ts: Date.now(), data: d});
+  // Also attempt localStorage for small data; silently ignored if too big.
+  try { localStorage.setItem(k, JSON.stringify({ts: Date.now(), data: d})); } catch {}
+}
+
+async function overpassSingle(query, opts={}){
+  let lastErr = null;
+  for (const url of OVERPASS_ENDPOINTS){
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), opts.timeout || OVERPASS_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'data=' + encodeURIComponent(query),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) { lastErr = new Error('HTTP ' + res.status + ' from ' + url); continue; }
+      return await res.json();
+    } catch(e){
+      clearTimeout(timer);
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All Overpass endpoints failed');
+}
+
+async function overpass(query, cacheKey){
+  const cached = await readCache(cacheKey);
+  if (cached) return cached;
+  const json = await overpassSingle(query);
+  await writeCache(cacheKey, json);
+  return json;
+}
+
+// Fetch a single tile against ONE specific endpoint — no waterfall.
+// Spreads 9 tiles × 3 endpoints = ~3 parallel calls per endpoint instead of
+// hammering endpoint 1 then endpoint 2 then endpoint 3 sequentially.
+async function fetchTileOnce(url, query, timeoutMs){
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'data=' + encodeURIComponent(query),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' from ' + url);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Tiled building fetch — tolerant. Splits the bbox into N×N sub-bboxes,
+// round-robins each tile to a specific endpoint, fires all in parallel.
+// After a wall-clock timeout we proceed with whatever tiles finished, even
+// if that's zero. Caller (main) decides whether to proceed with partial
+// shadow data.
+async function overpassBuildings(bbox, tilesPerSide, cacheKey, onProgress){
+  const cached = await readCache(cacheKey);
+  if (cached) return cached;
+  const dLat = (bbox.north - bbox.south) / tilesPerSide;
+  const dLng = (bbox.east  - bbox.west ) / tilesPerSide;
+  const total = tilesPerSide * tilesPerSide;
+  let done = 0;
+  const tick = () => { done++; if (onProgress) onProgress(done, total); };
+  const tasks = [];
+  let tileIdx = 0;
+  for (let i = 0; i < tilesPerSide; i++){
+    for (let j = 0; j < tilesPerSide; j++){
+      const s = bbox.south + i * dLat;
+      const n = (i === tilesPerSide - 1) ? bbox.north : s + dLat;
+      const w = bbox.west  + j * dLng;
+      const e = (j === tilesPerSide - 1) ? bbox.east  : w + dLng;
+      const b = `${s},${w},${n},${e}`;
+      const q = `[out:json][timeout:60];(way["building"](${b}););out geom;`;
+      const endpoint = OVERPASS_ENDPOINTS[tileIdx % OVERPASS_ENDPOINTS.length];
+      tileIdx++;
+      tasks.push(
+        fetchTileOnce(endpoint, q, BUILDING_TILE_TIMEOUT_MS)
+          .then(j => { tick(); return {ok:true, data:j}; })
+          .catch(e => { tick(); return {ok:false, err:e}; })
+      );
+    }
+  }
+  // Outer wall-clock: race the full batch against a hard timeout so the UI
+  // never waits longer than BUILDING_WALLCLOCK_MS even if tiles hang.
+  const wallClock = new Promise(resolve =>
+    setTimeout(() => resolve('__timeout__'), BUILDING_WALLCLOCK_MS)
+  );
+  const batch = Promise.all(tasks);
+  const raced = await Promise.race([batch, wallClock]);
+  const results = raced === '__timeout__'
+    ? await Promise.all(tasks.map(t => t.catch(() => ({ok:false, err:new Error('wall-clock timeout')}))))
+    : raced;
+
+  const seen = new Set();
+  const all = [];
+  let okTiles = 0;
+  for (const r of results){
+    if (!r || !r.ok) continue;
+    okTiles++;
+    for (const el of (r.data.elements || [])){
+      if (!seen.has(el.id)) { seen.add(el.id); all.push(el); }
+    }
+  }
+  const merged = { elements: all, partial: okTiles < total, okTiles, total };
+  // Only cache if we got all tiles — don't persist a partial dataset.
+  if (okTiles === total) await writeCache(cacheKey, merged);
+  return merged; // always returns, even if okTiles === 0
+}
+
+/* ============================================================
+   DATA LOADERS — prefer static nightly bundles, fall back to live Overpass
+   ============================================================ */
+// Static JSON files are produced by scripts/bake-data.js (run nightly via
+// GitHub Actions). They give every visitor a sub-second cold start. If they
+// are missing (first deploy, or baked-data pipeline hasn't run yet) the app
+// falls back to hitting Overpass directly — slower, but the app still works.
+async function loadVenuesData(){
+  try {
+    const r = await fetch('data/venues.json', {cache: 'default'});
+    if (r.ok) {
+      const j = await r.json();
+      if (j && Array.isArray(j.elements)) {
+        console.info('[sonne] venues: static bundle (' + j.elements.length + ' elements)');
+        return j;
+      }
+    }
+  } catch(e){ /* fall through */ }
+  console.info('[sonne] venues: live Overpass (static bundle unavailable)');
+  return await overpass(venueQuery(), 'sonne_venues_v4_' + JSON.stringify(BBOX));
+}
+
+async function loadBuildingsData(onProgress){
+  try {
+    const r = await fetch('data/buildings.json', {cache: 'default'});
+    if (r.ok) {
+      const j = await r.json();
+      if (j && Array.isArray(j.elements)) {
+        console.info('[sonne] buildings: static bundle (' + j.elements.length + ' elements)');
+        if (onProgress) onProgress(1, 1);
+        // Normalize to our partial-aware shape.
+        return { elements: j.elements, okTiles: 1, total: 1, partial: false, source: 'static' };
+      }
+    }
+  } catch(e){ /* fall through */ }
+  console.info('[sonne] buildings: live Overpass (static bundle unavailable)');
+  return await overpassBuildings(
+    BBOX,
+    BUILDING_TILES_PER_SIDE,
+    'sonne_buildings_v5_' + JSON.stringify(BBOX),
+    onProgress
+  );
+}
+
+async function loadDataManifest(){
+  try {
+    const r = await fetch('data/manifest.json', {cache: 'default'});
+    if (r.ok) return await r.json();
+  } catch(e){}
+  return null;
+}
+
+/* ============================================================
+   QUERIES
+   ============================================================ */
+function venueQuery(){
+  const b = `${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east}`;
+  return `
+  [out:json][timeout:60];
+  (
+    node["amenity"~"^(bar|pub|cafe|restaurant|biergarten|ice_cream)$"]["outdoor_seating"="yes"](${b});
+    way ["amenity"~"^(bar|pub|cafe|restaurant|biergarten|ice_cream)$"]["outdoor_seating"="yes"](${b});
+    node["amenity"="biergarten"](${b});
+    way ["amenity"="biergarten"](${b});
+  );
+  out center tags;`;
+}
+function buildingQuery(){
+  const b = `${BBOX.south},${BBOX.west},${BBOX.north},${BBOX.east}`;
+  return `[out:json][timeout:90];(way["building"](${b}););out geom;`;
+}
+
+/* ============================================================
+   PARSE
+   ============================================================ */
+function parseVenues(json){
+  const out=[];
+  for (const el of json.elements||[]){
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    if (lat==null || lng==null) continue;
+    const t = el.tags || {};
+    if (t.outdoor_seating === 'no') continue;
+    if (!t.name) continue;
+    out.push({
+      id: `${el.type}/${el.id}`,
+      name: t.name,
+      lat, lng,
+      type: t.amenity || 'place',
+      cuisine: t.cuisine,
+      street: t['addr:street'] ? `${t['addr:street']} ${t['addr:housenumber']||''}`.trim() : null,
+      openingHoursStr: t.opening_hours || null,
+      website: t.website || t['contact:website'] || null,
+      imageRaw: t.image || null,
+      commonsFile: t['wikimedia_commons'] || null,
+      wikidataId: t.wikidata || null,
+      photoUrl: undefined,   // undefined = unresolved, null = resolved to nothing, string = URL
+      windows: [],
+    });
+  }
+  // Dedupe node+way for same spot
+  const seen = new Map();
+  for (const v of out){
+    const key = `${v.name.toLowerCase()}::${v.lat.toFixed(4)},${v.lng.toFixed(4)}`;
+    if (!seen.has(key)) seen.set(key, v);
+  }
+  return [...seen.values()];
+}
+function parseBuildings(json){
+  const out=[];
+  for (const el of json.elements||[]){
+    if (!el.geometry || el.geometry.length < 3) continue;
+    const t = el.tags || {};
+    out.push({polyLL: el.geometry.map(g => [g.lat, g.lon]), heightM: parseHeight(t)});
+  }
+  return out;
+}
+function parseHeight(t){
+  if (t.height){
+    const h = parseFloat(String(t.height).replace(',', '.'));
+    if (!isNaN(h) && h > 0) return h;
+  }
+  if (t['building:levels']){
+    const l = parseFloat(String(t['building:levels']).replace(',', '.'));
+    if (!isNaN(l) && l > 0) return l * METERS_PER_LEVEL;
+  }
+  return DEFAULT_LEVELS * METERS_PER_LEVEL;
+}
+
+/* ============================================================
+   SHADOW RAY-CASTING
+   ============================================================ */
+function preprocessBuildings(buildings){
+  const out=[];
+  for (const b of buildings){
+    const poly = b.polyLL.map(([lat,lng]) => toMeters(lat, lng));
+    let cx=0, cy=0;
+    for (const [x,y] of poly){ cx+=x; cy+=y; }
+    cx /= poly.length; cy /= poly.length;
+    let r=0;
+    for (const [x,y] of poly){
+      const d = Math.hypot(x-cx, y-cy);
+      if (d>r) r=d;
+    }
+    out.push({poly, heightM:b.heightM, cx, cy, br:r});
+  }
+  return out;
+}
+function rayFirstHit(ox, oy, dx, dy, poly){
+  let minT = Infinity;
+  for (let i=0; i<poly.length; i++){
+    const ax=poly[i][0], ay=poly[i][1];
+    const bx=poly[(i+1)%poly.length][0], by=poly[(i+1)%poly.length][1];
+    const ex=bx-ax, ey=by-ay;
+    const denom = dx*ey - dy*ex;
+    if (Math.abs(denom) < 1e-9) continue;
+    const t = ((ax-ox)*ey - (ay-oy)*ex)/denom;
+    const s = ((ax-ox)*dy - (ay-oy)*dx)/denom;
+    if (t > 1e-6 && s >= 0 && s <= 1 && t < minT) minT = t;
+  }
+  return minT === Infinity ? null : minT;
+}
+function pointInPoly(x, y, poly){
+  let inside=false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i][0], yi=poly[i][1];
+    const xj=poly[j][0], yj=poly[j][1];
+    const intersect = ((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function isShaded(xy, sunAz, sunAlt, bldgs){
+  if (sunAlt <= 0) return true;
+  const dx = -Math.sin(sunAz), dy = -Math.cos(sunAz);
+  const tanAlt = Math.tan(sunAlt);
+  const [ox, oy] = xy;
+  for (const b of bldgs){
+    const vx = b.cx - ox, vy = b.cy - oy;
+    const proj = vx*dx + vy*dy;
+    if (proj < -b.br) continue;
+    const perp = Math.abs(vx*dy - vy*dx);
+    if (perp > b.br + 2) continue;
+    if (proj > MAX_SHADOW_SEARCH_RADIUS + b.br) continue;
+    if (pointInPoly(ox, oy, b.poly)) continue;
+    const t = rayFirstHit(ox, oy, dx, dy, b.poly);
+    if (t == null) continue;
+    if (t > MAX_SHADOW_SEARCH_RADIUS) continue;
+    if (b.heightM / t > tanAlt) return true;
+  }
+  return false;
+}
+
+/* ============================================================
+   SUN WINDOWS
+   ============================================================ */
+function startOfToday(){
+  const d = new Date(); d.setHours(0,0,0,0); return d;
+}
+function computeTodaySunTimes(){
+  const t = SunCalc.getTimes(new Date(), CENTER[0], CENTER[1]);
+  state.sunrise = t.sunrise;
+  state.sunset  = t.sunset;
+  state.solarNoon = t.solarNoon;
+}
+async function computeAllWindows(progressCb){
+  const step = SUN_WINDOW_STEP_MIN * 60 * 1000;
+  const start = state.sunrise.getTime();
+  const end   = state.sunset.getTime();
+  const total = state.venues.length;
+  let done = 0;
+  for (let i=0; i<total; i += 24){
+    const slice = state.venues.slice(i, i+24);
+    for (const v of slice){
+      const xy = toMeters(v.lat, v.lng);
+      const wins = [];
+      let curStart = null;
+      for (let t=start; t<=end; t+=step){
+        const p = SunCalc.getPosition(new Date(t), v.lat, v.lng);
+        const sunny = p.altitude > 0 && !isShaded(xy, p.azimuth, p.altitude, state.buildingsLocal);
+        if (sunny && curStart === null) curStart = t;
+        else if (!sunny && curStart !== null){
+          wins.push([curStart, t - step/2]);
+          curStart = null;
+        }
+      }
+      if (curStart !== null) wins.push([curStart, end]);
+      v.windows = wins;
+      v.totalSunMin = wins.reduce((s,[a,b])=>s+(b-a)/60000, 0);
+      v.windowsComputed = true;  // now this venue can render with its real color
+    }
+    done += slice.length;
+    if (progressCb) progressCb(done, total);
+    await new Promise(r => requestAnimationFrame(r));
+  }
+}
+
+/* ============================================================
+   OPENING HOURS
+   ============================================================ */
+function parseAllOpeningHours(){
+  if (typeof opening_hours === 'undefined') return;
+  for (const v of state.venues){
+    if (!v.openingHoursStr) continue;
+    try {
+      v.hours = new opening_hours(v.openingHoursStr, {lat:v.lat, lon:v.lng, address:{country_code:'de'}});
+    } catch(e){
+      v.hours = null;
+    }
+  }
+}
+function isOpenAt(v, dateMs){
+  if (!v.hours) return null;                  // unknown
+  try { return v.hours.getState(new Date(dateMs)); } catch { return null; }
+}
+function nextOpenChange(v, dateMs){
+  if (!v.hours) return null;
+  try {
+    const d = new Date(dateMs);
+    const c = v.hours.getNextChange(d);
+    return c ? c.getTime() : null;
+  } catch { return null; }
+}
+
+/* ============================================================
+   WEATHER
+   ============================================================ */
+async function fetchWeather(){
+  const cacheKey = 'sonne_weather_v1';
+  const cached = readCache(cacheKey, WEATHER_TTL_MS);
+  if (cached){ state.weather = cached; return; }
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${CENTER[0]}&longitude=${CENTER[1]}&current=cloud_cover,temperature_2m&hourly=cloud_cover,temperature_2m&timezone=Europe%2FBerlin&forecast_days=1`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('weather HTTP ' + res.status);
+    const d = await res.json();
+    const hourlyTimeMs = (d.hourly.time || []).map(s => new Date(s).getTime());
+    state.weather = {
+      current: d.current.cloud_cover,
+      currentTempC: d.current.temperature_2m,
+      hourly: d.hourly.cloud_cover,
+      hourlyTempC: d.hourly.temperature_2m,
+      hourlyTimeMs
+    };
+    writeCache(cacheKey, state.weather);
+  } catch(e){
+    console.warn('weather fetch failed', e);
+    state.weather = null;
+  }
+}
+function cloudCoverAt(timeMs){
+  const w = state.weather;
+  if (!w || !w.hourlyTimeMs?.length) return null;
+  // Find closest hour
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i=0; i<w.hourlyTimeMs.length; i++){
+    const d = Math.abs(w.hourlyTimeMs[i] - timeMs);
+    if (d < bestDiff){ bestDiff = d; bestIdx = i; }
+  }
+  if (bestDiff > 60*60*1000) return null; // more than 1h away, too stale
+  return w.hourly[bestIdx];
+}
+function tempAt(timeMs){
+  const w = state.weather;
+  if (!w || !w.hourlyTimeMs?.length) return null;
+  let bestIdx = 0, bestDiff = Infinity;
+  for (let i=0; i<w.hourlyTimeMs.length; i++){
+    const d = Math.abs(w.hourlyTimeMs[i] - timeMs);
+    if (d < bestDiff){ bestDiff = d; bestIdx = i; }
+  }
+  return w.hourlyTempC[bestIdx];
+}
+
+/* ============================================================
+   GEOLOCATION
+   ============================================================ */
+function askLocation(){
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation){ reject(new Error('no-geolocation')); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve([pos.coords.latitude, pos.coords.longitude]),
+      err => reject(err),
+      {enableHighAccuracy:false, timeout:10000, maximumAge:60000}
+    );
+  });
+}
+function updateDistances(){
+  if (!state.userLoc){
+    for (const v of state.venues){ v.distM = null; v.walkMin = null; }
+    return;
+  }
+  const [ulat, ulng] = state.userLoc;
+  for (const v of state.venues){
+    v.distM = haversineM(ulat, ulng, v.lat, v.lng);
+    v.walkMin = walkMinutes(v.distM);
+  }
+}
+function renderUserMarker(){
+  if (userMarker){ map.removeLayer(userMarker); userMarker = null; }
+  if (!state.userLoc) return;
+  const icon = L.divIcon({className:'', html:'<div class="user-dot"></div>', iconSize:[18,18], iconAnchor:[9,9]});
+  userMarker = L.marker(state.userLoc, {icon, zIndexOffset:2000, interactive:false}).addTo(map);
+}
+
+/* ============================================================
+   VENUE STATE (what shows as sunny/shaded/cloudy/etc.)
+   ============================================================ */
+function currentTimeMs(){ return state.selectedTimeMs ?? Date.now(); }
+
+function venueStateAt(v, timeMs){
+  if (!state.sunrise || !state.sunset) return 'pending';
+  // Night
+  if (timeMs < state.sunrise.getTime() || timeMs > state.sunset.getTime()) return 'night';
+  // If sun windows haven't been computed for this venue yet, show as pending.
+  // This lets the map render immediately on cold start and colors fill in as
+  // the sun-math pass progresses.
+  if (!v.windowsComputed) return 'pending';
+  // Geometry-based sunny?
+  let geomSunny = false;
+  if (v.windows && v.windows.length){
+    for (const [s,e] of v.windows){
+      if (timeMs >= s && timeMs <= e){ geomSunny = true; break; }
+    }
+  }
+  if (!geomSunny){
+    return (v.windows || []).length === 0 ? 'nosun' : 'shaded';
+  }
+  // Cloud adjustment
+  const cc = cloudCoverAt(timeMs);
+  if (cc != null && cc >= CLOUD_SUNNY_THRESHOLD) return 'cloudy';
+  return 'sunny';
+}
+
+/* ============================================================
+   FILTERING
+   ============================================================ */
+function visibleVenues(){
+  const q = state.search.trim().toLowerCase();
+  const tMs = currentTimeMs();
+  let out = state.venues;
+
+  // Hidden
+  if (state.hidden.size) out = out.filter(v => !state.hidden.has(v.id));
+
+  // Search
+  if (q){
+    out = out.filter(v =>
+      v.name.toLowerCase().includes(q) ||
+      (v.cuisine && v.cuisine.toLowerCase().includes(q)) ||
+      (v.street && v.street.toLowerCase().includes(q)) ||
+      prettyType(v).toLowerCase().includes(q)
+    );
+  }
+
+  const f = state.filters;
+
+  if (f.favOnly) out = out.filter(v => state.favorites.has(v.id));
+  if (f.sunnyOnly) out = out.filter(v => venueStateAt(v, tMs) === 'sunny');
+
+  if (f.openNow){
+    out = out.filter(v => {
+      const open = isOpenAt(v, tMs);
+      // unknown hours → keep (no penalty for missing OSM data)
+      return open === null || open === true;
+    });
+  }
+
+  if ((f.walk5 || f.walk20) && state.userLoc){
+    const max = f.walk5 ? 10 : 20;
+    out = out.filter(v => v.walkMin != null && v.walkMin <= max);
+  }
+
+  return out;
+}
+
+/* ============================================================
+   RENDER: MAP
+   ============================================================ */
+function makeIcon(st){
+  const colors = {
+    sunny:   {bg:'#FFB627', ring:'rgba(255,182,39,.35)'},
+    cloudy:  {bg:'#C8CDD8', ring:'rgba(45,49,66,.18)'},
+    shaded:  {bg:'#2D3142', ring:'rgba(45,49,66,.22)'},
+    night:   {bg:'#0F1123', ring:'rgba(15,17,35,.22)'},
+    nosun:   {bg:'#BFBFBF', ring:'rgba(120,120,120,.25)'},
+    pending: {bg:'#E5E7EB', ring:'rgba(45,49,66,.12)'},  // neutral dot while sun math loads
+    closed:  {bg:'#8A2B1E', ring:'rgba(138,43,30,.2)'},
+  };
+  const c = colors[st] || colors.pending;
+  const sunnyExtra = st==='sunny'
+    ? `<div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle, ${c.ring} 0%, transparent 65%);animation:pulse 2.4s ease-in-out infinite"></div>`
+    : '';
+  const html = `
+    <div style="position:relative;width:16px;height:16px;">
+      ${sunnyExtra}
+      <div style="position:relative;width:16px;height:16px;border-radius:50%;background:${c.bg};box-shadow:0 0 0 3px ${c.ring},0 1px 2px rgba(0,0,0,.3);border:1.5px solid #fff;"></div>
+    </div>`;
+  return L.divIcon({className:'', html, iconSize:[16,16], iconAnchor:[8,8]});
+}
+function renderMap(){
+  const tMs = currentTimeMs();
+  const list = visibleVenues();
+  const keep = new Set(list.map(v => v.id));
+
+  for (const [id, m] of state.markers){
+    if (!keep.has(id)){
+      venueLayer.removeLayer(m);
+      state.markers.delete(id);
+    }
+  }
+
+  for (const v of list){
+    const st = venueStateAt(v, tMs);
+    let m = state.markers.get(v.id);
+    if (!m){
+      m = L.marker([v.lat, v.lng], {icon:makeIcon(st), title:v.name});
+      m.bindPopup(() => popupHTML(v, venueStateAt(v, currentTimeMs())), {
+        maxWidth: 340, minWidth: 340, autoPanPadding: [20, 20], closeButton: true, className: 'sonne-popup'
+      });
+      m.on('popupopen', async () => {
+        // Decide photo URL: use pre-resolved, or fetch Wikidata if possible
+        let url = v.photoUrl;
+        if (url === undefined && v.wikidataId){
+          url = await resolveWikidataPhoto(v);
+        }
+        if (!url) return;
+        // If the popup is still open, swap the fallback hero for the real photo
+        const popup = m.getPopup();
+        if (!popup || !popup.isOpen()) return;
+        const popupNode = popup.getElement();
+        if (!popupNode) return;
+        const hero = popupNode.querySelector('.hero-photo');
+        if (!hero || hero.querySelector('img')) return;
+        const img = document.createElement('img');
+        img.loading = 'eager';
+        img.alt = '';
+        img.src = url;
+        img.onerror = () => {
+          // Photo URL failed (e.g., Commons returned 404) → leave the fallback intact
+          img.remove();
+          hero.classList.add('fallback');
+        };
+        img.onload = () => {
+          hero.classList.remove('fallback');
+          const glyph = hero.querySelector('.hero-glyph');
+          if (glyph) glyph.remove();
+        };
+        hero.insertBefore(img, hero.firstChild);
+      });
+      venueLayer.addLayer(m);
+      state.markers.set(v.id, m);
+    } else {
+      m.setIcon(makeIcon(st));
+    }
+    m.setZIndexOffset(st === 'sunny' ? 1000 : (st === 'cloudy' ? 500 : 0));
+  }
+}
+function popupHTML(v, st){
+  const walk = v.walkMin != null ? ` · <b>🚶 ${v.walkMin} min</b>` : '';
+  const gmaps = gmapsUrl(v);
+
+  // ------ Hero badge text
+  const nowMs = currentTimeMs();
+  let badgeText, badgeIcon;
+  if (st === 'sunny'){
+    const win = (v.windows||[]).find(([s,e]) => nowMs >= s && nowMs <= e);
+    badgeText = win ? `sun until ${fmtTimeMs(win[1])}` : 'in the sun';
+    badgeIcon = '☀️';
+  } else if (st === 'cloudy'){
+    const win = (v.windows||[]).find(([s,e]) => nowMs >= s && nowMs <= e);
+    badgeText = win ? `sunny spot — but cloudy` : 'cloudy';
+    badgeIcon = '🌥';
+  } else if (st === 'shaded'){
+    const next = (v.windows||[]).find(([s]) => s > nowMs);
+    badgeText = next ? `sun returns at ${fmtTimeMs(next[0])}` : 'in the shade';
+    badgeIcon = '🏢';
+  } else if (st === 'nosun'){
+    badgeText = 'no direct sun today';
+    badgeIcon = '🙁';
+  } else if (st === 'night'){
+    badgeText = 'sun below horizon';
+    badgeIcon = '🌙';
+  } else {
+    badgeText = st;
+    badgeIcon = '·';
+  }
+
+  // ------ Hero (always render fallback — popupopen handler swaps in photo if we have one)
+  const heroInner = `<span class="hero-glyph">${venueEmoji(v)}</span>`;
+  const heroClass = 'hero-photo fallback';
+
+  // ------ Chart
+  const chart = sunChartSVG(v, nowMs);
+
+  // ------ Opening-hours line
+  const openNow = isOpenAt(v, nowMs);
+  let hoursLine, hoursCls = '';
+  const nextChangeStr = openingNextChangeStr(v, nowMs);
+  if (openNow === true){
+    hoursLine = `Open now${nextChangeStr ? ` · <b>closes ${nextChangeStr}</b>` : ''}`;
+    hoursCls = 'open';
+  } else if (openNow === false){
+    hoursLine = `Closed${nextChangeStr ? ` · <b>opens ${nextChangeStr}</b>` : ''}`;
+    hoursCls = 'closed';
+  } else {
+    hoursLine = v.openingHoursStr
+      ? `Hours: <b>${escapeHtml(v.openingHoursStr).slice(0,48)}</b>`
+      : `Opening hours unknown`;
+  }
+
+  return `
+    <div class="popup-v2" data-venue-id="${escapeHtml(v.id)}">
+      <div class="${heroClass}">
+        ${heroInner}
+        <div class="hero-badge ${st}"><span class="ic">${badgeIcon}</span>${escapeHtml(badgeText)}</div>
+      </div>
+      <div class="body">
+        <h3 class="name">${escapeHtml(v.name)}</h3>
+        <p class="meta">${escapeHtml(prettyType(v))}${v.street?' · '+escapeHtml(v.street):''}${walk}</p>
+        <div class="chart-card">
+          ${chart}
+          <p class="hours-text ${hoursCls}">${hoursLine}</p>
+        </div>
+        <a class="cta" target="_blank" rel="noopener" href="${gmaps}">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" fill="#3a2900"/>
+            <circle cx="12" cy="10" r="3" fill="#FFC340"/>
+          </svg>
+          Open in Google Maps
+        </a>
+        <button class="hide-link" onclick="hideVenue('${escapeHtml(v.id)}')">× no real terrace — hide</button>
+      </div>
+    </div>`;
+}
+
+/* ============================================================
+   SUN-QUALITY CHART (SVG) — hour-by-hour combining geometry + clouds
+   ============================================================ */
+function sunChartSVG(v, nowMs){
+  const sunriseH = state.sunrise ? state.sunrise.getHours() + state.sunrise.getMinutes()/60 : 6;
+  const sunsetH  = state.sunset  ? state.sunset.getHours()  + state.sunset.getMinutes()/60  : 20;
+  const startH = Math.max(4, Math.floor(sunriseH - 1));
+  const endH   = Math.min(23, Math.ceil(sunsetH + 1));
+  const hourSpan = endH - startH;
+  const W = 280, H = 70;
+  const pad = 4; // inset so the top edge doesn't clip
+
+  // Convert a Date/ms → x px
+  const xForMs = (ms) => {
+    const d = new Date(ms);
+    const h = d.getHours() + d.getMinutes()/60;
+    return ((h - startH) / hourSpan) * W;
+  };
+  // y from cloud %: 0% clouds → top (near 0), 100% → ~65% down
+  const yForCloud = (cc) => pad + (Math.max(0, Math.min(100, cc)) / 100) * (H - pad) * 0.7;
+
+  // Build one path per window with cloud-modulated top edge
+  let shapes = '';
+  for (const [s, e] of (v.windows || [])){
+    const sX = xForMs(s), eX = xForMs(e);
+    if (eX <= 0 || sX >= W) continue;
+    const x0 = Math.max(0, sX), x1 = Math.min(W, eX);
+    // Sample cloud at window midpoint
+    const midMs = (s + e) / 2;
+    const cc = cloudCoverAt(midMs);
+    const topY = cc != null ? yForCloud(cc) : pad;
+    shapes += `<path d="M ${x0.toFixed(1)} ${H} L ${x0.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${H} Z" fill="url(#sun-grad)" stroke="#FFA600" stroke-width="1.3" stroke-linejoin="round"/>`;
+  }
+
+  // Current time marker
+  const nowX = xForMs(nowMs);
+  const showNow = nowX >= 0 && nowX <= W;
+  const nowMark = showNow
+    ? `<line x1="${nowX.toFixed(1)}" y1="-2" x2="${nowX.toFixed(1)}" y2="${H+2}" stroke="#FF6B57" stroke-width="2" stroke-dasharray="3 2"/><circle cx="${nowX.toFixed(1)}" cy="-2" r="3" fill="#FF6B57"/>`
+    : '';
+
+  // X-axis ticks: every 2 hours
+  const ticks = [];
+  for (let h = startH; h <= endH; h += 2){
+    ticks.push(`<span>${h}</span>`);
+  }
+
+  return `
+    <div class="chart">
+      <div class="axis-y">
+        <span>☀️</span><span>🌤</span><span>⛅</span><span>☁️</span>
+      </div>
+      <div class="chart-inner">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="sun-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFC340" stop-opacity=".95"/>
+              <stop offset="100%" stop-color="#FFD75E" stop-opacity=".7"/>
+            </linearGradient>
+          </defs>
+          ${shapes}${nowMark}
+        </svg>
+      </div>
+      <div class="axis-x">${ticks.join('')}</div>
+    </div>`;
+}
+
+// Look up the next opening_hours change time as HH:MM
+function openingNextChangeStr(v, nowMs){
+  if (!v.hours) return null;
+  try {
+    const nextChange = v.hours.getNextChange(new Date(nowMs));
+    if (!nextChange) return null;
+    return fmtTime(nextChange);
+  } catch { return null; }
+}
+
+/* ============================================================
+   RENDER: LIST
+   ============================================================ */
+function renderList(){
+  const listEl = document.getElementById('list');
+  const tMs = currentTimeMs();
+  const all = visibleVenues().map(v => ({v, st: venueStateAt(v, tMs)}));
+
+  // Sort within groups by distance (if available) then by total sun
+  const sortFn = (a,b) => {
+    if (state.userLoc && a.v.walkMin != null && b.v.walkMin != null){
+      return a.v.walkMin - b.v.walkMin;
+    }
+    return (b.v.totalSunMin||0) - (a.v.totalSunMin||0);
+  };
+
+  const favorites = all.filter(x => state.favorites.has(x.v.id));
+  const sunny  = all.filter(x => x.st==='sunny'  && !state.favorites.has(x.v.id));
+  const cloudy = all.filter(x => x.st==='cloudy' && !state.favorites.has(x.v.id));
+  const shaded = all.filter(x => x.st==='shaded' && !state.favorites.has(x.v.id));
+  const nosun  = all.filter(x => x.st==='nosun'  && !state.favorites.has(x.v.id));
+  const night  = all.filter(x => x.st==='night'  && !state.favorites.has(x.v.id));
+
+  [favorites, sunny, cloudy, shaded, nosun, night].forEach(arr => arr.sort(sortFn));
+
+  let html='';
+  if (all.length === 0){
+    html = `<div class="empty">No venues match your filters${state.search?` / "<b>${escapeHtml(state.search)}</b>"`:''}. Try clearing them.</div>`;
+    listEl.innerHTML = html;
+    return;
+  }
+  if (favorites.length) html += section('★ Favorites', favorites.length, favorites);
+  if (sunny.length)  html += section('☀️ In the sun right now', sunny.length, sunny);
+  if (cloudy.length) html += section('🌥 Sunny spots — but cloudy right now', cloudy.length, cloudy);
+  if (shaded.length) html += section('In the shade', shaded.length, shaded);
+  if (nosun.length)  html += section('No direct sun today', nosun.length, nosun);
+  if (night.length)  html += section('🌙 Sun below horizon', night.length, night);
+  listEl.innerHTML = html;
+}
+function section(title, count, items){
+  return `
+    <div class="list-head"><h2>${title}</h2><span class="count">${count}</span></div>
+    <div class="venue-grid">${items.map(({v,st}) => venueCard(v, st)).join('')}</div>
+    <div style="height:24px"></div>`;
+}
+function venueCard(v, st){
+  const emoji = {sunny:'☀️', cloudy:'🌥', shaded:'🌥', night:'🌙', nosun:'🚫'}[st] || '•';
+  const tagText = {sunny:'in sun', cloudy:'cloudy', shaded:'in shade', night:'night', nosun:'no sun'}[st] || '';
+  const gmaps = gmapsUrl(v);
+  const windowsStr = formatWindows(v.windows);
+  const isFav = state.favorites.has(v.id);
+
+  const walkHtml = (v.walkMin != null)
+    ? `<span class="walk">🚶 ${v.walkMin} min</span>`
+    : '';
+
+  const openState = isOpenAt(v, currentTimeMs());
+  let openHtml = '';
+  if (openState === false){
+    const next = nextOpenChange(v, currentTimeMs());
+    openHtml = `<span style="color:#8A2B1E;font-weight:600">✕ closed${next?` · opens ${fmtTimeMs(next)}`:''}</span>`;
+  } else if (openState === true){
+    const next = nextOpenChange(v, currentTimeMs());
+    openHtml = `<span style="color:#0a7a0a;font-weight:600">● open${next?` · until ${fmtTimeMs(next)}`:''}</span>`;
+  }
+
+  const cc = cloudCoverAt(currentTimeMs());
+  const cloudNote = (st === 'cloudy' && cc != null) ? ` <span class="cloud-tint">(cloud ${Math.round(cc)}%)</span>` : '';
+
+  return `
+    <div class="venue ${st}${isFav?' favorite':''}" data-id="${escapeHtml(v.id)}" onclick="focusVenue('${escapeHtml(v.id)}', event)">
+      <div class="card-corner" onclick="event.stopPropagation()">
+        <button class="icon-btn fav-btn ${isFav?'on':''}" onclick="toggleFav('${escapeHtml(v.id)}')" title="Save as favorite" aria-label="Favorite">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5"/></svg>
+        </button>
+        <button class="icon-btn hide-btn" onclick="hideVenue('${escapeHtml(v.id)}')" title="Hide — this place has no real terrace" aria-label="Hide">×</button>
+      </div>
+
+      <div class="venue-head">
+        <div class="status-badge">${emoji}</div>
+        <div style="min-width:0;flex:1">
+          <div class="name">${escapeHtml(v.name)}</div>
+          <div class="meta">
+            <span>${escapeHtml(prettyType(v))}${v.street?' · '+escapeHtml(v.street):''}</span>
+            ${walkHtml}
+            ${openHtml}
+          </div>
+        </div>
+        <div class="tag ${st}">${tagText}</div>
+      </div>
+
+      ${windowsStr ? `
+      <div class="sun-window-label">
+        <span class="k">Sun today</span>
+        <b>${windowsStr}</b>${cloudNote}
+      </div>` : (st==='night' ? '' : '<div class="sun-window-label"><span class="k">Sun today</span> <span style="color:var(--muted)">none</span></div>')}
+
+      <div class="timeline-wrap">
+        ${timelineHTML(v)}
+      </div>
+
+      <div class="venue-actions" onclick="event.stopPropagation()">
+        <button onclick="focusVenue('${escapeHtml(v.id)}', event)">📍 Show on map</button>
+        <a class="primary" target="_blank" rel="noopener" href="${gmaps}">Google Maps ↗</a>
+      </div>
+    </div>`;
+}
+function timelineHTML(v){
+  if (!state.sunrise || !state.sunset) return '';
+  const sr = state.sunrise.getTime();
+  const ss = state.sunset.getTime();
+  const span = ss - sr;
+  const tMs = currentTimeMs();
+  // Cloud strip — 1 cell per hour between sunrise and sunset
+  let cloudHtml = '';
+  if (state.weather){
+    const hours = [];
+    const startH = new Date(sr); startH.setMinutes(0,0,0);
+    for (let t = startH.getTime(); t <= ss; t += 3600*1000) hours.push(t);
+    for (let i=0; i<hours.length; i++){
+      const t = hours[i];
+      const nextT = hours[i+1] ?? ss;
+      const cc = cloudCoverAt(t);
+      if (cc == null) continue;
+      const l = Math.max(0, ((t - sr)/span)*100);
+      const r = Math.min(100, ((nextT - sr)/span)*100);
+      const alpha = Math.min(0.55, cc/100 * 0.55);
+      cloudHtml += `<div class="cloud-cell" style="left:${l}%;width:${r-l}%;background:rgba(45,49,66,${alpha.toFixed(3)})"></div>`;
+    }
+  }
+  const segs = (v.windows||[]).map(([s,e])=>{
+    const l = ((s - sr)/span)*100;
+    const w = ((e - s)/span)*100;
+    return `<div class="seg" style="left:${l}%;width:${w}%"></div>`;
+  }).join('');
+  const nowPct = Math.max(0, Math.min(100, ((tMs - sr)/span)*100));
+  const inside = tMs >= sr && tMs <= ss;
+  const nowMark = inside ? `<div class="now-mark" style="left:calc(${nowPct}% - 1px)"></div>` : '';
+  const srLabel = fmtTime(state.sunrise);
+  const ssLabel = fmtTime(state.sunset);
+  return `
+    <div class="timeline">
+      ${segs}
+      <div class="cloud-strip">${cloudHtml}</div>
+      ${nowMark}
+      <div class="tick" style="left:0">${srLabel}</div>
+      <div class="tick" style="left:100%">${ssLabel}</div>
+    </div>`;
+}
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+function prettyType(v){
+  const m = {bar:'Bar', pub:'Pub', cafe:'Café', restaurant:'Restaurant',
+             biergarten:'Biergarten', ice_cream:'Ice cream'};
+  const t = m[v.type] || v.type;
+  return v.cuisine ? `${t} · ${v.cuisine}` : t;
+}
+function venueEmoji(v){
+  return ({bar:'🍸', pub:'🍺', cafe:'☕', restaurant:'🍽️',
+           biergarten:'🍻', ice_cream:'🍦'})[v.type] || '🍴';
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtTime(d){
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
+function fmtTimeMs(ms){ return fmtTime(new Date(ms)); }
+function formatWindows(wins){
+  if (!wins || wins.length===0) return '';
+  const merged = [];
+  for (const w of wins){
+    if (merged.length && (w[0] - merged[merged.length-1][1]) < 15*60*1000){
+      merged[merged.length-1][1] = w[1];
+    } else merged.push([...w]);
+  }
+  return merged.map(([s,e]) => `${fmtTimeMs(s)}–${fmtTimeMs(e)}`).join(', ');
+}
+function gmapsUrl(v){
+  // Search by name + street address — lets Google pick the richest venue page (photos, reviews, hours)
+  const parts = [v.name];
+  if (v.street) parts.push(v.street);
+  parts.push('Berlin');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(' '))}`;
+}
+
+/* ============================================================
+   PHOTO RESOLUTION: OSM image + Wikimedia Commons + Wikidata P18
+   ============================================================ */
+function commonsFilePathUrl(filename){
+  const clean = filename.replace(/^File:/i, '').trim();
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(clean)}?width=800`;
+}
+
+// Resolve photo-that-we-know-without-network synchronously for every venue
+function preResolveSimplePhotos(){
+  for (const v of state.venues){
+    if (v.photoUrl !== undefined) continue;
+    if (v.imageRaw){
+      if (/^https?:\/\//i.test(v.imageRaw)){
+        v.photoUrl = v.imageRaw;
+        continue;
+      }
+      if (/^File:/i.test(v.imageRaw)){
+        v.photoUrl = commonsFilePathUrl(v.imageRaw);
+        continue;
+      }
+    }
+    if (v.commonsFile && /^File:/i.test(v.commonsFile)){
+      v.photoUrl = commonsFilePathUrl(v.commonsFile);
+      continue;
+    }
+  }
+}
+
+const PHOTO_CACHE_KEY = 'sonne_photo_cache_v1';
+function loadPhotoCache(){
+  try { return JSON.parse(localStorage.getItem(PHOTO_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+function savePhotoCache(cache){
+  try { localStorage.setItem(PHOTO_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+// Async resolve: look up Wikidata P18 claim for venues that have wikidata tag but no photo yet
+async function resolveWikidataPhoto(v){
+  if (v.photoUrl !== undefined) return v.photoUrl;
+  if (!v.wikidataId) { v.photoUrl = null; return null; }
+  const cache = loadPhotoCache();
+  if (v.wikidataId in cache){
+    v.photoUrl = cache[v.wikidataId] || null;
+    return v.photoUrl;
+  }
+  try {
+    const url = `https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${encodeURIComponent(v.wikidataId)}&property=P18&format=json&origin=*`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('wikidata HTTP '+res.status);
+    const j = await res.json();
+    const filename = j.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+    v.photoUrl = filename ? commonsFilePathUrl(filename) : null;
+  } catch {
+    v.photoUrl = null;
+  }
+  cache[v.wikidataId] = v.photoUrl || '';
+  savePhotoCache(cache);
+  return v.photoUrl;
+}
+
+/* ============================================================
+   FAVORITES / HIDDEN (global for inline handlers)
+   ============================================================ */
+window.toggleFav = (id) => {
+  if (state.favorites.has(id)) state.favorites.delete(id);
+  else state.favorites.add(id);
+  saveSet(LS.FAV, state.favorites);
+  updateFavChip();
+  refresh();
+};
+window.hideVenue = (id) => {
+  state.hidden.add(id);
+  saveSet(LS.HIDE, state.hidden);
+  updateHiddenBar();
+  showToast('Hidden. It won\'t appear again on this device.', 'Undo', () => {
+    state.hidden.delete(id);
+    saveSet(LS.HIDE, state.hidden);
+    updateHiddenBar();
+    refresh();
+  });
+  refresh();
+};
+window.focusVenue = (id, ev) => {
+  ev && ev.stopPropagation && ev.stopPropagation();
+  const v = state.venues.find(x => x.id === id);
+  if (!v) return;
+  setView('map');
+  map.flyTo([v.lat, v.lng], 17, {duration: .6});
+  const m = state.markers.get(id);
+  if (m) setTimeout(() => m.openPopup(), 650);
+};
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+let toastTimer = null;
+function showToast(msg, actionLabel, onAction){
+  const root = document.getElementById('toast-root');
+  root.innerHTML = '';
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${escapeHtml(msg)}</span>${actionLabel ? `<button>${escapeHtml(actionLabel)}</button>` : ''}`;
+  if (actionLabel){
+    el.querySelector('button').onclick = () => { onAction && onAction(); clearToast(); };
+  }
+  root.appendChild(el);
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(clearToast, 5000);
+}
+function clearToast(){
+  document.getElementById('toast-root').innerHTML = '';
+  if (toastTimer){ clearTimeout(toastTimer); toastTimer = null; }
+}
+
+/* ============================================================
+   UI: CHIPS & FILTERS
+   ============================================================ */
+function bindChip(id, key){
+  const el = document.getElementById(id);
+  el.addEventListener('click', () => {
+    state.filters[key] = !state.filters[key];
+    el.classList.toggle('active', state.filters[key]);
+    // Walk chips are mutually exclusive
+    if (key === 'walk5' && state.filters.walk5){
+      state.filters.walk20 = false;
+      document.getElementById('chip-walk20').classList.remove('active');
+    } else if (key === 'walk20' && state.filters.walk20){
+      state.filters.walk5 = false;
+      document.getElementById('chip-walk5').classList.remove('active');
+    }
+    refresh();
+  });
+}
+bindChip('chip-sunny', 'sunnyOnly');
+bindChip('chip-open',  'openNow');
+bindChip('chip-fav',   'favOnly');
+bindChip('chip-walk5', 'walk5');
+bindChip('chip-walk20','walk20');
+
+document.getElementById('chip-nearme').addEventListener('click', async () => {
+  const btn = document.getElementById('chip-nearme');
+  if (state.userLoc){
+    // Toggle off
+    state.userLoc = null;
+    state.filters.walk5 = state.filters.walk20 = false;
+    updateDistances();
+    renderUserMarker();
+    updateNearMeUI();
+    refresh();
+    return;
+  }
+  btn.textContent = 'Locating…';
+  try {
+    const loc = await askLocation();
+    state.userLoc = loc;
+    updateDistances();
+    renderUserMarker();
+    // Center map
+    if (state.view === 'map') map.flyTo(loc, 15, {duration:.6});
+    updateNearMeUI();
+    refresh();
+    showToast('Got your location — walking times added.');
+  } catch(e){
+    showToast('Couldn\'t get your location. Allow location in your browser and try again.');
+    updateNearMeUI();
+  }
+});
+function updateNearMeUI(){
+  const btn = document.getElementById('chip-nearme');
+  const on = !!state.userLoc;
+  btn.innerHTML = on
+    ? `<span class="ic">📍</span>Location on`
+    : `<span class="ic">📍</span>Near me`;
+  btn.classList.toggle('active', on);
+  document.getElementById('chip-walk5').classList.toggle('hidden', !on);
+  document.getElementById('chip-walk20').classList.toggle('hidden', !on);
+  const hint = document.getElementById('location-hint');
+  if (hint) hint.style.display = on ? 'none' : '';
+}
+
+/* ============================================================
+   UI: TABS, SEARCH, TIME
+   ============================================================ */
+function setView(v){
+  state.view = v;
+  document.getElementById('tab-map').classList.toggle('active', v==='map');
+  document.getElementById('tab-list').classList.toggle('active', v==='list');
+  document.body.classList.toggle('view-list', v==='list');
+  if (v==='list') renderList();
+  if (v==='map')  setTimeout(()=>map.invalidateSize(), 50);
+}
+document.getElementById('tab-map').onclick  = () => setView('map');
+document.getElementById('tab-list').onclick = () => setView('list');
+
+const timeSlider = document.getElementById('time');
+const timeLabel  = document.getElementById('time-label');
+const timeDay    = document.getElementById('time-day');
+const nowBtn     = document.getElementById('now-btn');
+
+function updateTimeSliderToNow(){
+  const now = new Date();
+  timeSlider.value = now.getHours()*60 + now.getMinutes();
+}
+function updateTimeDisplay(){
+  const t = currentTimeMs();
+  const d = new Date(t);
+  timeLabel.textContent = fmtTime(d);
+  const isNow = !state.selectedTimeMs;
+  timeDay.textContent = isNow ? 'now' : 'today';
+  nowBtn.classList.toggle('hidden', isNow);
+}
+timeSlider.addEventListener('input', () => {
+  const m = parseInt(timeSlider.value, 10);
+  const d = startOfToday(); d.setMinutes(m);
+  state.selectedTimeMs = d.getTime();
+  updateTimeDisplay();
+  refresh();
+});
+nowBtn.addEventListener('click', () => {
+  state.selectedTimeMs = null;
+  updateTimeSliderToNow();
+  updateTimeDisplay();
+  refresh();
+});
+
+const searchInput = document.getElementById('search');
+const searchWrap  = document.getElementById('search-wrap');
+const searchClear = document.getElementById('search-clear');
+searchInput.addEventListener('input', () => {
+  state.search = searchInput.value;
+  searchWrap.classList.toggle('has-value', !!state.search);
+  refresh();
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = ''; state.search = '';
+  searchWrap.classList.remove('has-value');
+  refresh();
+  searchInput.focus();
+});
+
+/* ============================================================
+   UI: HIDDEN LINK / FAV CHIP
+   ============================================================ */
+function updateHiddenBar(){
+  const n = state.hidden.size;
+  document.getElementById('stat-hidden').textContent = n;
+  document.getElementById('hidden-wrap').style.display = n > 0 ? '' : 'none';
+}
+document.getElementById('hidden-link').addEventListener('click', () => {
+  state.hidden.clear();
+  saveSet(LS.HIDE, state.hidden);
+  updateHiddenBar();
+  refresh();
+  showToast('Hidden list cleared.');
+});
+function updateFavChip(){
+  const chip = document.getElementById('chip-fav');
+  const n = state.favorites.size;
+  document.getElementById('count-fav').textContent = n;
+  chip.classList.toggle('hidden', n === 0);
+  if (n === 0){
+    state.filters.favOnly = false;
+    chip.classList.remove('active');
+  }
+}
+
+/* ============================================================
+   REFRESH CYCLE
+   ============================================================ */
+function refresh(){
+  renderMap();
+  if (state.view === 'list') renderList();
+  updateStats();
+}
+function updateStats(){
+  const tMs = currentTimeMs();
+  const vis = visibleVenues();
+  let sunny=0, cloudy=0, shaded=0, night=0, nosun=0;
+  for (const v of vis){
+    const st = venueStateAt(v, tMs);
+    if (st==='sunny') sunny++;
+    else if (st==='cloudy') cloudy++;
+    else if (st==='shaded') shaded++;
+    else if (st==='night') night++;
+    else if (st==='nosun') nosun++;
+  }
+  document.getElementById('stat-sunny').textContent = sunny;
+  document.getElementById('stat-shaded').textContent = shaded + cloudy + nosun;
+  document.getElementById('count-sunny').textContent = sunny;
+
+  // Sun info
+  const pos = SunCalc.getPosition(new Date(tMs), CENTER[0], CENTER[1]);
+  const alt = pos.altitude * 180/Math.PI;
+  const sunsetMs = state.sunset?.getTime() ?? 0;
+  let info = '';
+  if (alt <= 0){
+    info = tMs > (state.sunrise?.getTime() ?? 0)
+      ? `sun set at ${fmtTime(state.sunset)}`
+      : `sun rises at ${fmtTime(state.sunrise)}`;
+  } else {
+    const minsLeft = Math.max(0, Math.round((sunsetMs - tMs)/60000));
+    const h = Math.floor(minsLeft/60), m = minsLeft%60;
+    info = `sun ${alt.toFixed(0)}° · sets in ${h>0?h+'h ':''}${m}m`;
+  }
+  document.getElementById('sun-info-inline').textContent = '· ' + info;
+
+  // Weather chip
+  const cc = cloudCoverAt(tMs);
+  const temp = tempAt(tMs);
+  const ic = document.getElementById('weather-ic');
+  const lb = document.getElementById('weather-label');
+  if (cc == null){
+    ic.textContent = '🌤'; lb.textContent = 'weather unknown';
+  } else {
+    let emoji = '☀️';
+    if (cc >= 85) emoji = '☁️';
+    else if (cc >= 55) emoji = '🌥';
+    else if (cc >= 25) emoji = '⛅';
+    ic.textContent = emoji;
+    const tempStr = temp != null ? ` · ${Math.round(temp)}°C` : '';
+    lb.textContent = `${Math.round(cc)}% cloud${tempStr}`;
+  }
+}
+
+/* ============================================================
+   MOBILE UI — chrome, sheet, ribbon scrubber, search overlay
+   ============================================================ */
+const isMobile = () => window.matchMedia('(max-width:860px)').matches;
+
+const mobile = {
+  selectedId: null,          // currently focused venue id on mobile
+  sheetMode: 'browse',       // 'browse' | 'peek' | 'details' | 'list'
+  snap: 'peek',              // 'peek' | 'mid' | 'full'
+  ribbonStartMin: 0,
+  ribbonEndMin: 1440,
+  _ribbonPx: null,
+  _sheetEls: null,
+};
+
+function mobileSnapHeights(){
+  const vh = window.innerHeight;
+  return {
+    peek: 230,
+    mid:  Math.round(vh * 0.55),
+    full: Math.round(vh * 0.92),
+  };
+}
+function setSheetSnap(snap, animate=true){
+  mobile.snap = snap;
+  const h = mobileSnapHeights()[snap];
+  const sheet = document.getElementById('m-sheet');
+  if (!sheet) return;
+  if (!animate) sheet.classList.add('dragging');
+  sheet.style.setProperty('--sheet-h', h + 'px');
+  positionFabForSheet();
+  if (!animate) requestAnimationFrame(() => sheet.classList.remove('dragging'));
+}
+function positionFabForSheet(){
+  const fab = document.getElementById('m-fab');
+  if (!fab) return;
+  const h = mobileSnapHeights()[mobile.snap];
+  fab.style.bottom = (h + 14) + 'px';
+}
+
+/* ---- ribbon scrubber ---- */
+function ribbonMinutesForX(clientX){
+  const el = document.getElementById('m-ribbon');
+  const r = el.getBoundingClientRect();
+  const x = Math.max(0, Math.min(r.width, clientX - r.left));
+  const pct = r.width > 0 ? x / r.width : 0;
+  return mobile.ribbonStartMin + pct * (mobile.ribbonEndMin - mobile.ribbonStartMin);
+}
+function applyRibbonFromMinutes(min){
+  const d = startOfToday(); d.setMinutes(Math.round(min));
+  state.selectedTimeMs = d.getTime();
+  // Mirror on desktop slider so everything stays in sync
+  const ts = document.getElementById('time');
+  if (ts) ts.value = Math.round(min);
+  updateTimeDisplay();
+  refresh();
+}
+function setRibbonRangeFromSun(){
+  if (!state.sunrise || !state.sunset) return;
+  // Pad 30 min before/after sunrise/sunset for context
+  const sr = state.sunrise.getHours()*60 + state.sunrise.getMinutes() - 30;
+  const ss = state.sunset.getHours()*60 + state.sunset.getMinutes() + 30;
+  mobile.ribbonStartMin = Math.max(0, Math.floor(sr/30)*30);
+  mobile.ribbonEndMin   = Math.min(1440, Math.ceil(ss/30)*30);
+  // scale labels
+  const scale = document.getElementById('m-ribbon-scale');
+  if (scale){
+    const span = mobile.ribbonEndMin - mobile.ribbonStartMin;
+    const steps = 6;
+    let html = '';
+    for (let i=0; i<=steps; i++){
+      const m = mobile.ribbonStartMin + (span * i / steps);
+      const h = Math.floor(m/60);
+      html += `<span>${h}</span>`;
+    }
+    scale.innerHTML = html;
+  }
+  // Rebuild cloud layer
+  rebuildRibbonClouds();
+}
+function rebuildRibbonClouds(){
+  const layer = document.getElementById('m-ribbon-clouds');
+  if (!layer || !state.weather) return;
+  const startMs = startOfToday().getTime() + mobile.ribbonStartMin*60000;
+  const endMs   = startOfToday().getTime() + mobile.ribbonEndMin*60000;
+  const span = endMs - startMs;
+  let html = '';
+  // sample every 30min
+  const step = 30*60*1000;
+  for (let t = startMs; t < endMs; t += step){
+    const cc = cloudCoverAt(t + step/2);
+    if (cc == null) continue;
+    const alpha = Math.max(0, Math.min(0.72, cc/100 * 0.72));
+    const l = ((t - startMs)/span)*100;
+    const w = (step/span)*100;
+    html += `<div style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;opacity:${alpha.toFixed(3)}"></div>`;
+  }
+  layer.innerHTML = html;
+}
+function updateRibbonNow(){
+  const tMs = currentTimeMs();
+  const d = new Date(tMs);
+  const min = d.getHours()*60 + d.getMinutes();
+  const nowline = document.getElementById('m-ribbon-nowline');
+  const dot = document.getElementById('m-ribbon-nowdot');
+  const label = document.getElementById('m-ribbon-time');
+  const nowBtn = document.getElementById('m-ribbon-now-btn');
+  if (!nowline || !dot) return;
+  const pct = Math.max(0, Math.min(100,
+    ((min - mobile.ribbonStartMin) / (mobile.ribbonEndMin - mobile.ribbonStartMin)) * 100
+  ));
+  nowline.style.left = pct + '%';
+  dot.style.left     = pct + '%';
+  if (label){
+    const isLive = !state.selectedTimeMs;
+    label.innerHTML = isLive
+      ? `Now · <em>${fmtTime(d)}</em>`
+      : `Today · <em>${fmtTime(d)}</em>`;
+  }
+  if (nowBtn) nowBtn.classList.toggle('hidden', !state.selectedTimeMs);
+}
+
+/* ---- chip bindings (mirror desktop filters) ---- */
+function syncMobileChipActives(){
+  const f = state.filters;
+  const toggle = (id, on) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.classList.toggle('active', !!on);
+  };
+  toggle('m-chip-sunny',  f.sunnyOnly);
+  toggle('m-chip-open',   f.openNow);
+  toggle('m-chip-fav',    f.favOnly);
+  toggle('m-chip-walk5',  f.walk5);
+  toggle('m-chip-walk20', f.walk20);
+  const near = document.getElementById('m-chip-nearme');
+  if (near){
+    const on = !!state.userLoc;
+    near.classList.toggle('active', on);
+    near.innerHTML = on ? `<span>📍</span>Location on` : `<span>📍</span>Near me`;
+  }
+  document.getElementById('m-chip-walk5').classList.toggle('hidden', !state.userLoc);
+  document.getElementById('m-chip-walk20').classList.toggle('hidden', !state.userLoc);
+  document.getElementById('m-chip-fav').classList.toggle('hidden', state.favorites.size === 0);
+}
+function bindMobileChip(id, key){
+  const el = document.getElementById(id); if (!el) return;
+  el.addEventListener('click', () => {
+    state.filters[key] = !state.filters[key];
+    // Walk chips mutually exclusive
+    if (key === 'walk5' && state.filters.walk5) state.filters.walk20 = false;
+    if (key === 'walk20' && state.filters.walk20) state.filters.walk5 = false;
+    syncMobileChipActives();
+    // Also reflect on desktop chips so they stay in sync if user rotates / resizes
+    const desktopId = {sunnyOnly:'chip-sunny', openNow:'chip-open', favOnly:'chip-fav', walk5:'chip-walk5', walk20:'chip-walk20'}[key];
+    if (desktopId){
+      const d = document.getElementById(desktopId);
+      if (d) d.classList.toggle('active', !!state.filters[key]);
+    }
+    refresh();
+  });
+}
+
+/* ---- mobile FAB (near me) ---- */
+function bindMobileNearMe(){
+  const handler = async (el) => {
+    if (state.userLoc){
+      state.userLoc = null;
+      state.filters.walk5 = state.filters.walk20 = false;
+      updateDistances();
+      renderUserMarker();
+      updateNearMeUI();
+      syncMobileChipActives();
+      refresh();
+      return;
+    }
+    el.classList.add('locating');
+    try {
+      const loc = await askLocation();
+      state.userLoc = loc;
+      updateDistances();
+      renderUserMarker();
+      if (state.view === 'map') map.flyTo(loc, 15, {duration:.6});
+      updateNearMeUI();
+      syncMobileChipActives();
+      refresh();
+      showToast('Got your location — walking times added.');
+    } catch(e){
+      showToast('Couldn\'t get your location. Allow location in your browser and try again.');
+    } finally {
+      el.classList.remove('locating');
+    }
+  };
+  const fab = document.getElementById('m-fab');
+  if (fab) fab.addEventListener('click', () => { fab.classList.toggle('on', !state.userLoc ? true : false); handler(fab); });
+  const chipNear = document.getElementById('m-chip-nearme');
+  if (chipNear) chipNear.addEventListener('click', () => handler(chipNear));
+}
+
+/* ---- search overlay ---- */
+function openMobileSearch(){
+  const ov = document.getElementById('m-search-overlay');
+  ov.classList.add('open');
+  ov.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('no-scroll');
+  setTimeout(() => document.getElementById('m-search-input').focus(), 180);
+  renderMobileSearch();
+}
+function closeMobileSearch(){
+  const ov = document.getElementById('m-search-overlay');
+  ov.classList.remove('open');
+  ov.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('no-scroll');
+}
+function highlightMatch(text, q){
+  if (!q) return escapeHtml(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return escapeHtml(text);
+  return `${escapeHtml(text.slice(0,i))}<b>${escapeHtml(text.slice(i, i+q.length))}</b>${escapeHtml(text.slice(i+q.length))}`;
+}
+function stateBadgeText(st){
+  return ({sunny:'sunny', cloudy:'cloudy', shaded:'shade', nosun:'no sun', night:'night', closed:'closed'})[st] || '';
+}
+function stateGlyph(st){
+  return ({sunny:'☀️', cloudy:'🌥', shaded:'🌑', nosun:'🚫', night:'🌙', closed:'✕'})[st] || '·';
+}
+function renderMobileSearch(){
+  const q = document.getElementById('m-search-input').value.trim();
+  const wrap = document.getElementById('m-search-input-wrap');
+  wrap.classList.toggle('has-value', !!q);
+  const results = document.getElementById('m-search-results');
+  const tMs = currentTimeMs();
+
+  let source = state.venues.filter(v => !state.hidden.has(v.id));
+  if (q){
+    const ql = q.toLowerCase();
+    source = source.filter(v =>
+      v.name.toLowerCase().includes(ql) ||
+      (v.cuisine && v.cuisine.toLowerCase().includes(ql)) ||
+      (v.street && v.street.toLowerCase().includes(ql)) ||
+      prettyType(v).toLowerCase().includes(ql)
+    );
+  } else {
+    // Default: nearest first if we have loc; else sunniest now
+    if (state.userLoc){
+      source = source.slice().sort((a,b) => (a.walkMin??999) - (b.walkMin??999));
+    } else {
+      source = source.slice().sort((a,b) => {
+        const sa = venueStateAt(a, tMs) === 'sunny' ? 0 : 1;
+        const sb = venueStateAt(b, tMs) === 'sunny' ? 0 : 1;
+        if (sa !== sb) return sa - sb;
+        return (b.totalSunMin||0) - (a.totalSunMin||0);
+      });
+    }
+  }
+  source = source.slice(0, 40);
+
+  if (source.length === 0){
+    results.innerHTML = `<div class="m-search-empty">No venues match "<b>${escapeHtml(q)}</b>".<br><small>Try a different spelling or a street name.</small></div>`;
+    return;
+  }
+
+  const sectionLabel = q
+    ? `${source.length} result${source.length===1?'':'s'}`
+    : (state.userLoc ? 'Closest to you' : 'Suggestions right now');
+
+  const items = source.map((v, i) => {
+    const st = venueStateAt(v, tMs);
+    const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
+    return `
+      <div class="m-search-item" style="animation-delay:${Math.min(i*15, 240)}ms" data-id="${escapeHtml(v.id)}">
+        <div class="m-search-avatar ${st}">${stateGlyph(st)}</div>
+        <div class="m-search-info">
+          <p class="name">${highlightMatch(v.name, q)}</p>
+          <p class="meta">${escapeHtml(prettyType(v))}${v.street?' · '+escapeHtml(v.street):''}${walk}</p>
+        </div>
+        <span class="m-search-status ${st}">${stateBadgeText(st)}</span>
+      </div>`;
+  }).join('');
+
+  results.innerHTML = `
+    <div class="m-search-section"><h5>${escapeHtml(sectionLabel)}</h5>${items}</div>`;
+
+  results.querySelectorAll('.m-search-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-id');
+      closeMobileSearch();
+      focusVenueMobile(id);
+    });
+  });
+}
+function bindMobileSearch(){
+  document.getElementById('m-chip-search').addEventListener('click', openMobileSearch);
+  document.getElementById('m-search-back').addEventListener('click', closeMobileSearch);
+  document.getElementById('m-search-input').addEventListener('input', renderMobileSearch);
+  document.getElementById('m-search-clear').addEventListener('click', () => {
+    const inp = document.getElementById('m-search-input');
+    inp.value = '';
+    renderMobileSearch();
+    inp.focus();
+  });
+}
+
+/* ---- sheet drag ---- */
+function bindSheetDrag(){
+  const sheet = document.getElementById('m-sheet');
+  const handle = document.getElementById('m-sheet-handle');
+  if (!sheet || !handle) return;
+  let startY = 0, startH = 0, dragging = false;
+
+  const onStart = (e) => {
+    const y = (e.touches ? e.touches[0].clientY : e.clientY);
+    startY = y;
+    startH = sheet.getBoundingClientRect().height;
+    dragging = true;
+    sheet.classList.add('dragging');
+    if (e.cancelable) e.preventDefault();
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY);
+    const dy = startY - y;
+    const vh = window.innerHeight;
+    const newH = Math.max(120, Math.min(vh * 0.95, startH + dy));
+    sheet.style.setProperty('--sheet-h', newH + 'px');
+    positionFabForSheet();
+  };
+  const onEnd = () => {
+    if (!dragging) return;
+    dragging = false;
+    sheet.classList.remove('dragging');
+    const h = sheet.getBoundingClientRect().height;
+    const {peek, mid, full} = mobileSnapHeights();
+    // snap to nearest
+    let target = 'peek';
+    const dP = Math.abs(h - peek), dM = Math.abs(h - mid), dF = Math.abs(h - full);
+    if (dF < dM && dF < dP) target = 'full';
+    else if (dM < dP) target = 'mid';
+    setSheetSnap(target);
+    // If we just expanded past peek, move sheet into "list" mode automatically
+    if (target !== 'peek' && mobile.sheetMode === 'peek'){
+      // leave peek on but show more — details row pinned on top
+    }
+    if (target !== 'peek' && !mobile.selectedId && mobile.sheetMode === 'browse'){
+      mobile.sheetMode = 'list';
+      renderMobileSheet();
+    }
+    if (target === 'peek' && mobile.sheetMode === 'list' && !mobile.selectedId){
+      mobile.sheetMode = 'browse';
+      renderMobileSheet();
+    }
+  };
+
+  handle.addEventListener('touchstart', onStart, {passive:false});
+  handle.addEventListener('touchmove',  onMove,  {passive:false});
+  handle.addEventListener('touchend',   onEnd);
+  handle.addEventListener('mousedown',  onStart);
+  window.addEventListener('mousemove',  onMove);
+  window.addEventListener('mouseup',    onEnd);
+
+  // Tap handle to cycle
+  let tapStart = 0;
+  handle.addEventListener('touchstart', () => tapStart = Date.now(), {passive:true});
+  handle.addEventListener('touchend', (e) => {
+    if (Date.now() - tapStart < 180){
+      const order = ['peek','mid','full'];
+      const idx = order.indexOf(mobile.snap);
+      setSheetSnap(order[(idx+1) % order.length]);
+      if (mobile.snap !== 'peek' && !mobile.selectedId) { mobile.sheetMode = 'list'; renderMobileSheet(); }
+      if (mobile.snap === 'peek' && !mobile.selectedId) { mobile.sheetMode = 'browse'; renderMobileSheet(); }
+    }
+  });
+}
+
+/* ---- ribbon drag ---- */
+function bindRibbonDrag(){
+  const rib = document.getElementById('m-ribbon');
+  const sheet = document.getElementById('m-sheet');
+  if (!rib) return;
+  let dragging = false;
+
+  const onDown = (e) => {
+    dragging = true;
+    sheet.classList.add('ribbon-dragging');
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    applyRibbonFromMinutes(ribbonMinutesForX(cx));
+    if (e.cancelable) e.preventDefault();
+  };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    applyRibbonFromMinutes(ribbonMinutesForX(cx));
+  };
+  const onUp = () => {
+    dragging = false;
+    sheet.classList.remove('ribbon-dragging');
+  };
+  rib.addEventListener('touchstart', onDown, {passive:false});
+  rib.addEventListener('touchmove',  onMove, {passive:false});
+  rib.addEventListener('touchend',   onUp);
+  rib.addEventListener('mousedown',  onDown);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup',   onUp);
+
+  document.getElementById('m-ribbon-now-btn').addEventListener('click', () => {
+    state.selectedTimeMs = null;
+    updateTimeSliderToNow();
+    updateTimeDisplay();
+    refresh();
+  });
+}
+
+/* ---- select venue on mobile (from map tap or search) ---- */
+function focusVenueMobile(id){
+  const v = state.venues.find(x => x.id === id);
+  if (!v) return;
+  mobile.selectedId = id;
+  mobile.sheetMode = 'peek';
+  // Ensure sheet is at least peek height so the card is visible
+  if (mobile.snap === 'full') setSheetSnap('mid');
+  else setSheetSnap('peek');
+  // Pan map gently so pin sits above the sheet
+  const sheetH = mobileSnapHeights()[mobile.snap];
+  const offsetY = Math.round((window.innerHeight - sheetH) * 0.5);
+  map.once('moveend', () => renderMobileSheet());
+  map.flyTo([v.lat, v.lng], Math.max(map.getZoom(), 16), {duration:.45});
+  // small delay for render even if moveend doesn't fire
+  setTimeout(renderMobileSheet, 120);
+}
+
+/* ---- render sheet content ---- */
+function renderMobileSheet(){
+  const root = document.getElementById('m-sheet-content');
+  if (!root) return;
+
+  if (mobile.sheetMode === 'peek' && mobile.selectedId){
+    const v = state.venues.find(x => x.id === mobile.selectedId);
+    if (!v){ mobile.sheetMode = 'browse'; return renderMobileSheet(); }
+    const tMs = currentTimeMs();
+    const st = venueStateAt(v, tMs);
+    const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
+    let badge = stateBadgeText(st) || 'loading…';
+    if (st === 'sunny'){
+      const win = (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e);
+      if (win) badge = `Sun until ${fmtTimeMs(win[1])}`;
+      else     badge = 'In the sun';
+    } else if (st === 'shaded'){
+      const next = (v.windows||[]).find(([s]) => s > tMs);
+      badge = next ? `Sun at ${fmtTimeMs(next[0])}` : 'In the shade';
+    } else if (st === 'cloudy'){
+      badge = 'Sunny spot, cloudy';
+    } else if (st === 'nosun'){
+      badge = 'No direct sun today';
+    } else if (st === 'night'){
+      badge = 'Sun below horizon';
+    }
+    root.innerHTML = `
+      <div class="m-peek" data-id="${escapeHtml(v.id)}">
+        <div class="m-peek-avatar ${st}">${stateGlyph(st)}</div>
+        <div class="m-peek-info">
+          <p class="m-peek-name">${escapeHtml(v.name)}</p>
+          <p class="m-peek-meta">${escapeHtml(prettyType(v))}${v.street?' · <b>'+escapeHtml(v.street)+'</b>':''}${walk}</p>
+          <span class="m-peek-status ${st}">${escapeHtml(badge)}</span>
+        </div>
+        <button class="m-peek-cta" aria-label="Show details">→</button>
+      </div>`;
+    root.querySelector('.m-peek').addEventListener('click', () => {
+      mobile.sheetMode = 'details';
+      setSheetSnap('mid');
+      renderMobileSheet();
+    });
+    return;
+  }
+
+  if (mobile.sheetMode === 'details' && mobile.selectedId){
+    const v = state.venues.find(x => x.id === mobile.selectedId);
+    if (!v){ mobile.sheetMode = 'browse'; return renderMobileSheet(); }
+    const tMs = currentTimeMs();
+    const st = venueStateAt(v, tMs);
+    let badge = stateBadgeText(st);
+    if (st === 'sunny'){
+      const win = (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e);
+      badge = win ? `☀️ Sun until ${fmtTimeMs(win[1])}` : '☀️ In the sun';
+    } else if (st === 'shaded'){
+      const next = (v.windows||[]).find(([s]) => s > tMs);
+      badge = next ? `🏢 Sun returns at ${fmtTimeMs(next[0])}` : '🏢 In the shade';
+    } else if (st === 'cloudy'){
+      badge = '🌥 Sunny spot, cloudy right now';
+    } else if (st === 'nosun'){
+      badge = '🙁 No direct sun today';
+    } else if (st === 'night'){
+      badge = '🌙 Sun below horizon';
+    }
+    const hero = v.photoUrl
+      ? `<img alt="" referrerpolicy="no-referrer" src="${escapeHtml(v.photoUrl)}" onload="this.classList.add('loaded')" onerror="this.remove(); this.parentElement.classList.add('fallback')">
+         <span class="hero-glyph">${venueEmoji(v)}</span>`
+      : `<span class="hero-glyph">${venueEmoji(v)}</span>`;
+    const heroCls = v.photoUrl ? '' : 'fallback';
+
+    const openNow = isOpenAt(v, tMs);
+    let hoursLine, hoursCls = '';
+    const nextChangeStr = openingNextChangeStr(v, tMs);
+    if (openNow === true){
+      hoursLine = `Open now${nextChangeStr ? ` · <b>closes ${nextChangeStr}</b>` : ''}`;
+      hoursCls = 'open';
+    } else if (openNow === false){
+      hoursLine = `Closed${nextChangeStr ? ` · <b>opens ${nextChangeStr}</b>` : ''}`;
+      hoursCls = 'closed';
+    } else {
+      hoursLine = v.openingHoursStr
+        ? `Hours: <b>${escapeHtml(v.openingHoursStr).slice(0,48)}</b>`
+        : `Opening hours unknown`;
+    }
+    const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
+    root.innerHTML = `
+      <div class="m-details-hero ${heroCls}">
+        ${hero}
+        <div class="m-details-badge ${st}">${escapeHtml(badge)}</div>
+      </div>
+      <div class="m-details-body">
+        <h3 class="m-details-title">${escapeHtml(v.name)}</h3>
+        <p class="m-details-meta">${escapeHtml(prettyType(v))}${v.street?' · <b>'+escapeHtml(v.street)+'</b>':''}${walk}</p>
+        <div class="m-details-chart">
+          ${sunChartSVG(v, tMs)}
+          <p class="m-details-hours ${hoursCls}">${hoursLine}</p>
+        </div>
+        <a class="m-cta-btn" target="_blank" rel="noopener" href="${gmapsUrl(v)}">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" fill="#3a2900"/>
+            <circle cx="12" cy="10" r="3" fill="#FFC340"/>
+          </svg>
+          Open in Google Maps
+        </a>
+        <button class="m-hide-link" data-hide-id="${escapeHtml(v.id)}">× no real terrace — hide</button>
+      </div>`;
+
+    const hideBtn = root.querySelector('.m-hide-link[data-hide-id]');
+    if (hideBtn){
+      hideBtn.addEventListener('click', () => {
+        const id = hideBtn.getAttribute('data-hide-id');
+        hideVenue(id);
+        mobile.selectedId = null;
+        mobile.sheetMode = 'browse';
+        setSheetSnap('peek');
+        renderMobileSheet();
+      });
+    }
+
+    // Resolve wikidata photo async if not yet
+    if (v.photoUrl === undefined && v.wikidataId){
+      resolveWikidataPhoto(v).then(url => {
+        if (!url) return;
+        if (mobile.selectedId !== v.id) return;
+        renderMobileSheet();
+      });
+    }
+    return;
+  }
+
+  if (mobile.sheetMode === 'list'){
+    renderMobileList(root);
+    return;
+  }
+
+  // Default browse card
+  const tMs = currentTimeMs();
+  const vis = visibleVenues();
+  const sunnyCount = vis.filter(v => venueStateAt(v, tMs) === 'sunny').length;
+  const cloudyCount = vis.filter(v => venueStateAt(v, tMs) === 'cloudy').length;
+  root.innerHTML = `
+    <div class="m-browse">
+      <p class="m-browse-summary"><b>${sunnyCount}</b> sunny terrace${sunnyCount===1?'':'s'} right now ${cloudyCount?` · ${cloudyCount} cloudy`:''}</p>
+      <p class="m-browse-hint">Tap a pin to see details, or drag up <span class="arr">↑</span> for the full list.</p>
+    </div>`;
+}
+
+function renderMobileList(root){
+  const tMs = currentTimeMs();
+  const all = visibleVenues().map(v => ({v, st: venueStateAt(v, tMs)}));
+  const sortFn = (a,b) => {
+    if (state.userLoc && a.v.walkMin != null && b.v.walkMin != null){
+      return a.v.walkMin - b.v.walkMin;
+    }
+    return (b.v.totalSunMin||0) - (a.v.totalSunMin||0);
+  };
+  const favorites = all.filter(x => state.favorites.has(x.v.id));
+  const sunny  = all.filter(x => x.st==='sunny'  && !state.favorites.has(x.v.id));
+  const cloudy = all.filter(x => x.st==='cloudy' && !state.favorites.has(x.v.id));
+  const shaded = all.filter(x => x.st==='shaded' && !state.favorites.has(x.v.id));
+  const nosun  = all.filter(x => x.st==='nosun'  && !state.favorites.has(x.v.id));
+  const night  = all.filter(x => x.st==='night'  && !state.favorites.has(x.v.id));
+  [favorites, sunny, cloudy, shaded, nosun, night].forEach(arr => arr.sort(sortFn));
+
+  if (all.length === 0){
+    root.innerHTML = `<div class="m-list-empty"><b>Nothing matches.</b><br>Try clearing filters or the search.</div>`;
+    return;
+  }
+
+  let i = 0;
+  const row = (x) => {
+    const {v, st} = x;
+    const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
+    const badgeTxt = st === 'sunny'
+      ? (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e)
+        ? `until ${fmtTimeMs((v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e)[1])}`
+        : 'sunny'
+      : st === 'shaded'
+        ? (() => { const n = (v.windows||[]).find(([s]) => s > tMs); return n ? `sun ${fmtTimeMs(n[0])}` : 'shade'; })()
+        : stateBadgeText(st);
+    const delay = Math.min(i*12, 240); i++;
+    return `
+      <div class="m-list-row" style="animation-delay:${delay}ms" data-id="${escapeHtml(v.id)}">
+        <div class="m-list-avatar ${st}">${stateGlyph(st)}</div>
+        <div class="m-list-info">
+          <p class="name">${escapeHtml(v.name)}</p>
+          <p class="meta">${escapeHtml(prettyType(v))}${v.street?' · '+escapeHtml(v.street):''}${walk}</p>
+        </div>
+        <span class="m-list-badge ${st}">${escapeHtml(badgeTxt)}</span>
+      </div>`;
+  };
+  const section = (title, items) => items.length
+    ? `<div class="m-list-section"><div class="m-list-section-h">${title}</div>${items.map(row).join('')}</div>`
+    : '';
+
+  root.innerHTML = `
+    <div class="m-list-head">
+      <h4>All terraces</h4>
+      <span class="cnt">${all.length}</span>
+    </div>
+    ${section('★ Favorites', favorites)}
+    ${section('☀️ In the sun now', sunny)}
+    ${section('🌥 Sunny spot · cloudy now', cloudy)}
+    ${section('In the shade', shaded)}
+    ${section('No direct sun today', nosun)}
+    ${section('🌙 Sun below horizon', night)}
+    <div style="height:40px"></div>`;
+
+  root.querySelectorAll('.m-list-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-id');
+      focusVenueMobile(id);
+    });
+  });
+}
+
+function updateMobileChipCounts(){
+  const tMs = currentTimeMs();
+  const vis = visibleVenues();
+  const sunnyCount = vis.filter(v => venueStateAt(v, tMs) === 'sunny').length;
+  const el = document.getElementById('m-cnt-sunny');
+  if (el) el.textContent = sunnyCount;
+  const favCnt = document.getElementById('m-cnt-fav');
+  if (favCnt) favCnt.textContent = state.favorites.size;
+}
+
+function updateMobileWeatherPill(){
+  const pill = document.getElementById('m-weather');
+  if (!pill) return;
+  const ic = document.getElementById('m-weather-ic');
+  const lb = document.getElementById('m-weather-label');
+  const cc = cloudCoverAt(currentTimeMs());
+  const temp = tempAt(currentTimeMs());
+  if (cc == null){
+    pill.classList.remove('visible');
+    return;
+  }
+  let emoji = '☀️';
+  if (cc >= 85) emoji = '☁️';
+  else if (cc >= 55) emoji = '🌥';
+  else if (cc >= 25) emoji = '⛅';
+  ic.textContent = emoji;
+  lb.innerHTML = temp != null
+    ? `${Math.round(temp)}°C <span class="muted">· ${Math.round(cc)}% cloud</span>`
+    : `${Math.round(cc)}% cloud`;
+  pill.classList.add('visible');
+}
+
+/* ---- bring it all online after data is loaded ---- */
+function initMobileUI(){
+  if (mobile._init) return;
+  mobile._init = true;
+  bindMobileChip('m-chip-sunny', 'sunnyOnly');
+  bindMobileChip('m-chip-open',  'openNow');
+  bindMobileChip('m-chip-fav',   'favOnly');
+  bindMobileChip('m-chip-walk5', 'walk5');
+  bindMobileChip('m-chip-walk20','walk20');
+  bindMobileNearMe();
+  bindMobileSearch();
+  bindSheetDrag();
+  bindRibbonDrag();
+  // Intercept mobile map-marker clicks → open the sheet (not Leaflet's native popup)
+  map.on('popupopen', (e) => {
+    if (!isMobile()) return;
+    e.popup._source && e.popup._source.closePopup();
+    const marker = e.popup._source;
+    if (!marker) return;
+    const entry = [...state.markers.entries()].find(([id, m]) => m === marker);
+    if (entry) focusVenueMobile(entry[0]);
+  });
+  // Close peek/details by tapping on map
+  map.on('click', () => {
+    if (!isMobile()) return;
+    if (mobile.selectedId){
+      mobile.selectedId = null;
+      mobile.sheetMode = mobile.snap === 'peek' ? 'browse' : 'list';
+      renderMobileSheet();
+    }
+  });
+  // Ready state triggers fade-in
+  requestAnimationFrame(() => {
+    document.getElementById('mobile-ui').classList.add('ready');
+  });
+  setSheetSnap('peek', false);
+  syncMobileChipActives();
+}
+
+/* Every refresh() should also update mobile UI */
+const _origRefresh = refresh;
+refresh = function(){
+  _origRefresh();
+  if (!mobile._init) return;
+  updateMobileChipCounts();
+  updateMobileWeatherPill();
+  updateRibbonNow();
+  renderMobileSheet();
+};
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+function setLoader({title, detail, pct, error}={}){
+  const el = document.getElementById('loader');
+  if (title === null){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.classList.toggle('error', !!error);
+  if (title  !== undefined) document.getElementById('loader-title').textContent = title;
+  if (detail !== undefined) document.getElementById('loader-detail').textContent = detail;
+  if (pct    !== undefined) document.getElementById('loader-bar').style.width = pct + '%';
+}
+
+async function main(){
+  setLocalOrigin(CENTER[0], CENTER[1]);
+  state.favorites = loadSet(LS.FAV);
+  state.hidden    = loadSet(LS.HIDE);
+  updateHiddenBar();
+
+  // ─── Phase 1: Venues — fast path, render the map immediately ───────────────
+  // Target: user sees the map with all venue markers within ~1s on a warm CDN.
+  setLoader({title:'Finding terraces…', pct:10});
+  let venuesJson;
+  try {
+    venuesJson = await loadVenuesData();
+  } catch(err){
+    return showFatalLoadError(err);
+  }
+  state.venues = parseVenues(venuesJson);
+  // Every venue starts with empty windows; computeAllWindows will fill them.
+  for (const v of state.venues){
+    if (!v.windows) v.windows = [];
+    v.windowsComputed = false;
+  }
+
+  computeTodaySunTimes();          // needed for venueStateAt → 'night' logic
+  parseAllOpeningHours();          // pure client-side, cheap
+  preResolveSimplePhotos();
+  updateTimeSliderToNow();
+  updateTimeDisplay();
+  updateFavChip();
+  updateNearMeUI();
+  setRibbonRangeFromSun();
+  initMobileUI();
+  refresh();                       // ← map + venues now visible to the user
+
+  // Keep the loader up but non-blocking: show it as a soft toast explaining
+  // what's still being computed in the background.
+  setLoader({
+    title:`${state.venues.length} terraces on map`,
+    detail:'Loading shadow data & weather…',
+    pct:25
+  });
+
+  // ─── Phase 2: Buildings + weather in parallel — background ─────────────────
+  const buildingsP = loadBuildingsData((done, total) => {
+    const pct = 25 + Math.round((done/total) * 25);
+    setLoader({detail:`Shadow data · tile ${done}/${total}…`, pct});
+  }).catch(e => {
+    console.warn('[sonne] buildings load failed, proceeding without shadows:', e);
+    return { elements: [], okTiles: 0, total: 1, partial: true };
+  });
+
+  const weatherP = fetchWeather().then(() => {
+    // Re-render as weather updates 'sunny' → 'cloudy' on cloudy venues.
+    refresh();
+  }).catch(e => {
+    console.warn('[sonne] weather load failed:', e);
+  });
+
+  const bldJson = await buildingsP;
+  state.buildings = parseBuildings(bldJson);
+  state.buildingsLocal = preprocessBuildings(state.buildings);
+  const coverage = (bldJson.okTiles !== undefined && bldJson.okTiles < bldJson.total)
+    ? ` (partial: ${bldJson.okTiles}/${bldJson.total})`
+    : '';
+  setLoader({
+    title:`${state.buildings.length} buildings${coverage}`,
+    detail:'Computing sun windows for each terrace…',
+    pct:55
+  });
+
+  // ─── Phase 3: Sun windows — progressive. Markers color in as we go. ───────
+  await computeAllWindows((done, total) => {
+    const pct = 55 + Math.round((done/total) * 44);
+    setLoader({detail:`${done} / ${total} venues — ${Math.round(done/total*100)}%`, pct});
+    // Refresh every ~200 venues so users see the map light up rather than
+    // waiting for the whole pass to finish in silence.
+    if (done % 240 === 0 || done === total) refresh();
+  });
+
+  await weatherP;  // make sure weather is settled before final render
+  setLoader({pct:100});
+  refresh();
+  setTimeout(() => setLoader({title:null}), 250);
+
+  // Live refresh every 60s
+  setInterval(async () => {
+    if (!state.selectedTimeMs){
+      if (Math.random() < 0.2) await fetchWeather();
+      updateTimeSliderToNow();
+      updateTimeDisplay();
+      refresh();
+    }
+  }, 60000);
+}
+
+function showFatalLoadError(err){
+  console.error(err);
+  setLoader({
+    title:'Could not load terraces',
+    detail:(err?.message || String(err)) + ' — tap to retry.',
+    error:true, pct:100
+  });
+  const loaderEl = document.getElementById('loader');
+  if (loaderEl) {
+    loaderEl.style.cursor = 'pointer';
+    loaderEl.onclick = () => { loaderEl.onclick = null; loaderEl.style.cursor = ''; main(); };
+  }
+}
+
+main();
+</script>
+</body>
+</html>
