@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+deploy/
+*.log
+
+# Legacy prototypes — not part of the shipped site
+browse-card-concepts.html
+mobile-concepts.html
+popup-concepts.html
+sonne-berlin.html
+
+# Drag-drop artifact for Cloudflare Pages
+sunmaxxing-deploy.zip
