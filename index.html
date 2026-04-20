@@ -174,6 +174,11 @@
   .chip.weather .sun-info-inline{color:var(--muted);font-weight:500;margin-left:6px}
   .chip .ic{font-size:13px}
   .chip.hidden{display:none}
+  .chip-sep{
+    display:inline-block;width:1px;height:20px;background:var(--border);
+    margin:0 4px;flex-shrink:0;align-self:center;
+  }
+  .chip.cat.active{background:#2d3142;color:#fff;border-color:#2d3142}
 
   .stats-inline{
     padding:6px 22px 10px;font-size:12.5px;color:var(--muted);
@@ -1081,6 +1086,12 @@
     <button class="chip sunny" id="chip-sunny"><span class="ic">☀️</span>Sunny <span class="count" id="count-sunny">—</span></button>
     <button class="chip" id="chip-open"><span class="ic">🕐</span>Open now</button>
     <button class="chip hidden" id="chip-fav"><span class="ic">★</span>Favorites <span class="count" id="count-fav">0</span></button>
+    <span class="chip-sep" aria-hidden="true"></span>
+    <button class="chip cat" id="chip-cat-restaurant"><span class="ic">🍽️</span>Restaurant</button>
+    <button class="chip cat" id="chip-cat-bar"><span class="ic">🍺</span>Bar</button>
+    <button class="chip cat" id="chip-cat-cafe"><span class="ic">☕</span>Café</button>
+    <button class="chip cat" id="chip-cat-icecream"><span class="ic">🍦</span>Ice cream</button>
+    <button class="chip cat" id="chip-cat-rooftop"><span class="ic">🏙️</span>Rooftop</button>
     <div class="chip weather" id="chip-weather" title="Live cloud cover over Berlin">
       <span class="ic" id="weather-ic">🌤</span><span id="weather-label">—</span>
       <span class="sun-info-inline" id="sun-info-inline">loading…</span>
@@ -1131,6 +1142,11 @@
     <button class="m-chip" id="m-chip-nearme"><span>📍</span>Near me</button>
     <button class="m-chip hidden" id="m-chip-walk5"><span>🚶</span>≤10 min</button>
     <button class="m-chip hidden" id="m-chip-walk20"><span>🚶‍♀️</span>≤20 min</button>
+    <button class="m-chip cat" id="m-chip-cat-restaurant"><span>🍽</span>Restaurant</button>
+    <button class="m-chip cat" id="m-chip-cat-bar"><span>🍺</span>Bar</button>
+    <button class="m-chip cat" id="m-chip-cat-cafe"><span>☕</span>Café</button>
+    <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span>Ice cream</button>
+    <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span>Rooftop</button>
   </div>
 
   <!-- Weather pill (top right, below chips) -->
@@ -1196,7 +1212,7 @@
 /* ============================================================
    CONFIG
    ============================================================ */
-const BBOX = { south: 52.488, west: 13.350, north: 52.550, east: 13.470 };
+const BBOX = { south: 52.470, west: 13.350, north: 52.550, east: 13.490 };
 const CENTER = [(BBOX.south + BBOX.north)/2, (BBOX.west + BBOX.east)/2];
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
@@ -1252,6 +1268,12 @@ const state = {
     sunnyOnly:false,
     openNow:false,
     favOnly:false,
+    // Category chips — OR within this group, AND with the rest.
+    catRestaurant:false,
+    catBar:false,
+    catCafe:false,
+    catIceCream:false,
+    catRooftop:false,
   },
 };
 
@@ -1541,6 +1563,23 @@ async function loadWindowsToday(){
     return j;
   } catch(e){
     console.warn('[sonne] windows-today load failed:', e);
+    return null;
+  }
+}
+
+// Rooftop chip backing data: curated list matched to OSM venue ids at bake time.
+// Missing file = no rooftops flagged; chip simply filters down to 0 matches.
+async function loadRooftopsToday(){
+  try {
+    const r = await fetch('data/rooftops-today.json', {cache: 'default'});
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !Array.isArray(j.ids)) return null;
+    console.info('[sonne] rooftops-today:', j.matchedCount + '/' + j.curatedCount,
+                 'curated rooftops matched');
+    return j;
+  } catch(e){
+    console.warn('[sonne] rooftops-today load failed:', e);
     return null;
   }
 }
@@ -1906,6 +1945,19 @@ function visibleVenues(){
   if ((f.walk5 || f.walk20) && state.userLoc){
     const max = f.walk5 ? 10 : 20;
     out = out.filter(v => v.walkMin != null && v.walkMin <= max);
+  }
+
+  // Category chips — union within, AND with everything else.
+  // Only applied when at least one category chip is active; otherwise all pass.
+  const catPreds = [
+    [f.catRestaurant, v => v.type === 'restaurant'],
+    [f.catBar,        v => v.type === 'bar' || v.type === 'pub' || v.type === 'biergarten'],
+    [f.catCafe,       v => v.type === 'cafe'],
+    [f.catIceCream,   v => v.type === 'ice_cream'],
+    [f.catRooftop,    v => v.isRooftop === true],
+  ].filter(([on]) => on);
+  if (catPreds.length){
+    out = out.filter(v => catPreds.some(([, pred]) => pred(v)));
   }
 
   return out;
@@ -2483,6 +2535,11 @@ bindChip('chip-open',  'openNow');
 bindChip('chip-fav',   'favOnly');
 bindChip('chip-walk5', 'walk5');
 bindChip('chip-walk20','walk20');
+bindChip('chip-cat-restaurant', 'catRestaurant');
+bindChip('chip-cat-bar',        'catBar');
+bindChip('chip-cat-cafe',       'catCafe');
+bindChip('chip-cat-icecream',   'catIceCream');
+bindChip('chip-cat-rooftop',    'catRooftop');
 
 document.getElementById('chip-nearme').addEventListener('click', async () => {
   const btn = document.getElementById('chip-nearme');
@@ -2835,6 +2892,11 @@ function syncMobileChipActives(){
   toggle('m-chip-fav',    f.favOnly);
   toggle('m-chip-walk5',  f.walk5);
   toggle('m-chip-walk20', f.walk20);
+  toggle('m-chip-cat-restaurant', f.catRestaurant);
+  toggle('m-chip-cat-bar',        f.catBar);
+  toggle('m-chip-cat-cafe',       f.catCafe);
+  toggle('m-chip-cat-icecream',   f.catIceCream);
+  toggle('m-chip-cat-rooftop',    f.catRooftop);
   const near = document.getElementById('m-chip-nearme');
   if (near){
     const on = !!state.userLoc;
@@ -2854,7 +2916,13 @@ function bindMobileChip(id, key){
     if (key === 'walk20' && state.filters.walk20) state.filters.walk5 = false;
     syncMobileChipActives();
     // Also reflect on desktop chips so they stay in sync if user rotates / resizes
-    const desktopId = {sunnyOnly:'chip-sunny', openNow:'chip-open', favOnly:'chip-fav', walk5:'chip-walk5', walk20:'chip-walk20'}[key];
+    const desktopId = {
+      sunnyOnly:'chip-sunny', openNow:'chip-open', favOnly:'chip-fav',
+      walk5:'chip-walk5', walk20:'chip-walk20',
+      catRestaurant:'chip-cat-restaurant', catBar:'chip-cat-bar',
+      catCafe:'chip-cat-cafe', catIceCream:'chip-cat-icecream',
+      catRooftop:'chip-cat-rooftop',
+    }[key];
     if (desktopId){
       const d = document.getElementById(desktopId);
       if (d) d.classList.toggle('active', !!state.filters[key]);
@@ -3386,6 +3454,11 @@ function initMobileUI(){
   bindMobileChip('m-chip-fav',   'favOnly');
   bindMobileChip('m-chip-walk5', 'walk5');
   bindMobileChip('m-chip-walk20','walk20');
+  bindMobileChip('m-chip-cat-restaurant', 'catRestaurant');
+  bindMobileChip('m-chip-cat-bar',        'catBar');
+  bindMobileChip('m-chip-cat-cafe',       'catCafe');
+  bindMobileChip('m-chip-cat-icecream',   'catIceCream');
+  bindMobileChip('m-chip-cat-rooftop',    'catRooftop');
   bindMobileNearMe();
   bindMobileSearch();
   bindSheetDrag();
@@ -3461,6 +3534,20 @@ async function main(){
     if (!v.windows) v.windows = [];
     v.windowsComputed = false;
   }
+
+  // Apply curated rooftop flags (tiny file, loaded in parallel with windows).
+  // Doesn't block first paint; needed before the Rooftop chip is tapped.
+  loadRooftopsToday().then(rt => {
+    if (!rt || !rt.ids) return;
+    const idSet = new Set(rt.ids);
+    let n = 0;
+    for (const v of state.venues){
+      if (idSet.has(v.id)){ v.isRooftop = true; n++; }
+    }
+    console.info('[sonne] rooftops applied:', n, 'venues flagged');
+    // If Rooftop chip is already active (e.g. tapped mid-load), refresh.
+    if (state.filters.catRooftop) refresh();
+  });
 
   computeTodaySunTimes();          // needed for venueStateAt → 'night' logic
   parseAllOpeningHours();          // pure client-side, cheap

@@ -1,0 +1,30 @@
+{
+  "_note": "Curated list of well-known Berlin rooftops, terraces and beer gardens. The nightly baker matches each entry to the nearest venue in OSM (within ~80 m, name-fuzzy) and emits data/rooftops-today.json as the id list the client actually filters on. If an entry doesn't match, it's logged and simply skipped — famous spots without outdoor_seating=yes in OSM won't show up until we extend the venue-ingest path.",
+  "rooftops": [
+    { "name": "Klunkerkranich",            "lat": 52.4778, "lng": 13.4398 },
+    { "name": "Monkey Bar",                "lat": 52.5049, "lng": 13.3382 },
+    { "name": "NENI",                      "lat": 52.5049, "lng": 13.3382 },
+    { "name": "Deck 5",                    "lat": 52.5499, "lng": 13.4120 },
+    { "name": "House of Weekend",          "lat": 52.5208, "lng": 13.4114 },
+    { "name": "Amano Rooftop Bar",         "lat": 52.5253, "lng": 13.3953 },
+    { "name": "Amano Grand Central",       "lat": 52.5293, "lng": 13.3718 },
+    { "name": "Hotel de Rome Rooftop",     "lat": 52.5156, "lng": 13.3947 },
+    { "name": "Sage Beach",                "lat": 52.4947, "lng": 13.4207 },
+    { "name": "Hallmann & Klee",           "lat": 52.4767, "lng": 13.4353 },
+    { "name": "Birgit & Bier",             "lat": 52.4972, "lng": 13.4486 },
+    { "name": "Frannz Club",               "lat": 52.5394, "lng": 13.4156 },
+    { "name": "Prince Charles",            "lat": 52.5018, "lng": 13.4096 },
+    { "name": "Café am Neuen See",         "lat": 52.5125, "lng": 13.3475 },
+    { "name": "Zollpackhof",               "lat": 52.5243, "lng": 13.3675 },
+    { "name": "Strandbar Mitte",           "lat": 52.5250, "lng": 13.3898 },
+    { "name": "Haubentaucher",             "lat": 52.5078, "lng": 13.4541 },
+    { "name": "Holzmarkt 25",              "lat": 52.5115, "lng": 13.4252 },
+    { "name": "Freischwimmer",             "lat": 52.5017, "lng": 13.4478 },
+    { "name": "Zenner",                    "lat": 52.4901, "lng": 13.4625 },
+    { "name": "Jaja",                      "lat": 52.4844, "lng": 13.4376 },
+    { "name": "Golgatha",                  "lat": 52.4856, "lng": 13.3852 },
+    { "name": "Zur letzten Instanz",       "lat": 52.5175, "lng": 13.4133 },
+    { "name": "Klub der Republik",         "lat": 52.5403, "lng": 13.4115 },
+    { "name": "BRLO Brwhouse",             "lat": 52.4971, "lng": 13.3745 }
+  ]
+}

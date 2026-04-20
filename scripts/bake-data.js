@@ -25,7 +25,9 @@ const SunCalc = require('suncalc');
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 // Keep this in sync with the BBOX constant in index.html.
-const BBOX = { south: 52.488, west: 13.350, north: 52.550, east: 13.470 };
+// Expanded Apr 2026 to pick up famous rooftops in Neukölln (Klunkerkranich,
+// Hallmann & Klee, Jaja) and beer gardens in Treptow (Zenner, Freischwimmer).
+const BBOX = { south: 52.470, west: 13.350, north: 52.550, east: 13.490 };
 
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -398,6 +400,156 @@ function bakeWindows(venuesJson, buildingsJson){
   };
 }
 
+// ─── Rooftop matching ──────────────────────────────────────────────────────
+// Hand-curated list of well-known Berlin rooftops/terraces/beer gardens
+// (data/rooftops.json) gets matched to venues in the OSM dataset at bake time.
+// Output data/rooftops-today.json = { bakeDate, ids: [venueId, …] } — tiny.
+// Client sets v.isRooftop = true for matched ids and exposes a Rooftop chip.
+//
+// Matcher is deliberately conservative:
+//   · 120 m search radius, name-fuzzy within that preferred
+//   · fallback: one candidate within 40 m even without name match
+// If something doesn't match it's logged, not a crash. Easy to tune over time.
+
+function haversineMeters(lat1, lng1, lat2, lng2){
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2
+          + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180)
+          * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function normalizeName(s){
+  return (s || '').toLowerCase().normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '').trim();
+}
+function nameSimilar(a, b){
+  const na = normalizeName(a), nb = normalizeName(b);
+  if (!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
+// Supplemental fetch: pull named venues within 100 m of each curated rooftop,
+// ignoring outdoor_seating. Famous rooftops like Klunkerkranich are effectively
+// all outdoor and often aren't tagged outdoor_seating=yes, so the main query
+// misses them. We merge only the ones that end up matching a curated rooftop
+// back into venues — unmatched supplement venues are discarded so venues.json
+// stays focused on outdoor-seating terraces.
+function readCuratedRooftops(){
+  const rooftopsPath = path.resolve(__dirname, '..', 'data', 'rooftops.json');
+  if (!fs.existsSync(rooftopsPath)) return [];
+  return JSON.parse(fs.readFileSync(rooftopsPath, 'utf8')).rooftops || [];
+}
+async function fetchVenueSupplement(){
+  const curated = readCuratedRooftops();
+  if (!curated.length) return { elements: [] };
+  console.log(`▸ Fetching supplemental venues near ${curated.length} curated rooftops…`);
+  const parts = curated.map(r =>
+    `  nwr["amenity"~"^(bar|pub|cafe|restaurant|biergarten|ice_cream)$"](around:100,${r.lat},${r.lng});`
+  ).join('\n');
+  const query = `[out:json][timeout:60];\n(\n${parts}\n);\nout center tags;`;
+  try {
+    return await fetchOverpass(query, 'rooftop supplement');
+  } catch(e){
+    console.warn('  supplement fetch failed, continuing without it:', e.message);
+    return { elements: [] };
+  }
+}
+
+function bakeRooftops(venuesJson, supplementJson){
+  console.log('▸ Matching curated rooftops…');
+  const curated = readCuratedRooftops();
+  if (!curated.length){
+    console.log('  (no data/rooftops.json — skipping)');
+    return {
+      bakeDate: berlinDateStr(), bakedAt: new Date().toISOString(),
+      curatedCount: 0, matchedCount: 0, ids: [], supplementAdded: [],
+    };
+  }
+
+  // Build a merged pool: main venues ∪ supplement (by OSM id), so the matcher
+  // can pick up rooftops that lack outdoor_seating=yes. We remember which ids
+  // came only from supplement — those get merged into venues.json iff matched.
+  const mainElements = venuesJson.elements || [];
+  const suppElements = supplementJson?.elements || [];
+  const mainIds = new Set(mainElements.map(el => `${el.type}/${el.id}`));
+  const suppOnly = new Map(); // OSM id → supplement element (for post-match merge)
+  const merged = [...mainElements];
+  for (const el of suppElements){
+    const id = `${el.type}/${el.id}`;
+    if (mainIds.has(id)) continue;
+    if (!el.tags || !el.tags.name) continue;
+    suppOnly.set(id, el);
+    merged.push(el);
+  }
+  console.log(`  main venues: ${mainElements.length}, supplemental candidates: ${suppOnly.size}`);
+
+  const venues = dedupeVenues(merged);
+
+  const NEAR_M_STRICT    = 40;
+  const NEAR_M_WITH_NAME = 120;
+
+  const matchedIds = new Set();
+  const matches = [];
+  const unmatched = [];
+  for (const r of curated){
+    const candidates = venues
+      .map(v => ({ v, d: haversineMeters(r.lat, r.lng, v.lat, v.lng) }))
+      .filter(c => c.d <= NEAR_M_WITH_NAME)
+      .sort((a, b) => a.d - b.d);
+    if (!candidates.length){
+      unmatched.push(`${r.name} (no venues within ${NEAR_M_WITH_NAME}m)`);
+      continue;
+    }
+    // 1) Preferred: any candidate whose name fuzzy-matches.
+    let pick = candidates.find(c => nameSimilar(c.v.name, r.name));
+    // 2) Fallback: exactly one candidate within a strict radius.
+    if (!pick){
+      const tight = candidates.filter(c => c.d <= NEAR_M_STRICT);
+      if (tight.length === 1) pick = tight[0];
+    }
+    if (pick){
+      if (!matchedIds.has(pick.v.id)){
+        matchedIds.add(pick.v.id);
+        const tag = suppOnly.has(pick.v.id) ? ' [supp]' : '';
+        matches.push(`${r.name} → ${pick.v.name} (${Math.round(pick.d)}m)${tag}`);
+      } else {
+        matches.push(`${r.name} → ${pick.v.name} (dup, already matched)`);
+      }
+    } else {
+      const nearby = candidates.slice(0, 3)
+        .map(c => `${c.v.name} ${Math.round(c.d)}m`).join(', ');
+      unmatched.push(`${r.name} (near: ${nearby})`);
+    }
+  }
+
+  // Promote matched supplement venues to first-class venues for venues.json.
+  const supplementAdded = [];
+  for (const [id, el] of suppOnly){
+    if (matchedIds.has(id)) supplementAdded.push(el);
+  }
+
+  console.log(`  matched: ${matches.length}/${curated.length} curated rooftops`);
+  for (const m of matches) console.log(`    ✓ ${m}`);
+  if (unmatched.length){
+    console.log('  unmatched (will not show in Rooftop filter):');
+    for (const m of unmatched) console.log(`    · ${m}`);
+  }
+  if (supplementAdded.length){
+    console.log(`  promoted ${supplementAdded.length} supplemental venues into venues.json`);
+  }
+
+  return {
+    bakeDate:     berlinDateStr(),
+    bakedAt:      new Date().toISOString(),
+    curatedCount: curated.length,
+    matchedCount: matchedIds.size,
+    ids:          [...matchedIds],
+    supplementAdded,
+  };
+}
+
 // ─── Manifest ───────────────────────────────────────────────────────────────
 function buildManifest(venues, buildings){
   return {
@@ -416,13 +568,24 @@ function buildManifest(venues, buildings){
 (async () => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const venues    = await bakeVenues();
-  const buildings = await bakeBuildings();
+  const venues     = await bakeVenues();
+  const supplement = await fetchVenueSupplement();
+  const buildings  = await bakeBuildings();
 
   // Don't persist the internal coverage flag in the JSON the browser reads.
   const buildingsOut = { elements: buildings.elements || [] };
 
-  // Compute today's sun windows for every venue, using freshly-baked buildings.
+  // Match curated rooftops against main ∪ supplement; this also returns any
+  // supplement venues that matched, which we promote into venues.json so the
+  // client can show them + bake their sun windows.
+  const rooftopsToday = bakeRooftops(venues, supplement);
+  if (rooftopsToday.supplementAdded && rooftopsToday.supplementAdded.length){
+    venues.elements = [...(venues.elements || []), ...rooftopsToday.supplementAdded];
+  }
+  // Don't persist `supplementAdded` in rooftops-today.json.
+  delete rooftopsToday.supplementAdded;
+
+  // Compute today's sun windows for every venue (incl. promoted rooftops).
   const windowsToday = bakeWindows(venues, buildingsOut);
 
   const manifest = buildManifest(venues, buildings);
@@ -430,17 +593,20 @@ function buildManifest(venues, buildings){
   const venuesPath    = path.join(OUT_DIR, 'venues.json');
   const buildingsPath = path.join(OUT_DIR, 'buildings.json');
   const windowsPath   = path.join(OUT_DIR, 'windows-today.json');
+  const rooftopsPath  = path.join(OUT_DIR, 'rooftops-today.json');
   const manifestPath  = path.join(OUT_DIR, 'manifest.json');
 
   fs.writeFileSync(venuesPath,    JSON.stringify(venues));
   fs.writeFileSync(buildingsPath, JSON.stringify(buildingsOut));
   fs.writeFileSync(windowsPath,   JSON.stringify(windowsToday));
+  fs.writeFileSync(rooftopsPath,  JSON.stringify(rooftopsToday));
   fs.writeFileSync(manifestPath,  JSON.stringify(manifest, null, 2));
 
   const sizes = [
     ['venues.json',         fs.statSync(venuesPath).size],
     ['buildings.json',      fs.statSync(buildingsPath).size],
     ['windows-today.json',  fs.statSync(windowsPath).size],
+    ['rooftops-today.json', fs.statSync(rooftopsPath).size],
     ['manifest.json',       fs.statSync(manifestPath).size],
   ];
   console.log('');
@@ -450,6 +616,7 @@ function buildManifest(venues, buildings){
   }
   console.log(`  manifest: ${manifest.venues.count} venues · ${manifest.buildings.count} buildings · ${manifest.bakedAt}`);
   console.log(`  windows: baked for ${windowsToday.bakeDate} (Europe/Berlin), ${windowsToday.venueCount} venues`);
+  console.log(`  rooftops: ${rooftopsToday.matchedCount}/${rooftopsToday.curatedCount} curated entries matched`);
 })().catch(err => {
   console.error('\n✗ Bake failed:', err);
   process.exit(1);
