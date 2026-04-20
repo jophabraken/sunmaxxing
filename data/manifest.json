@@ -1,0 +1,20 @@
+{
+  "bakedAt": "2026-04-20T20:25:58.609Z",
+  "bbox": {
+    "south": 52.488,
+    "west": 13.35,
+    "north": 52.55,
+    "east": 13.47
+  },
+  "venues": {
+    "count": 2381
+  },
+  "buildings": {
+    "count": 34083,
+    "tileCoverage": {
+      "okTiles": 16,
+      "totalTiles": 16
+    }
+  },
+  "version": 1
+}
