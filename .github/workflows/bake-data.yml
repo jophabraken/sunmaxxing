@@ -1,0 +1,56 @@
+name: Bake OSM data nightly
+
+# What this does:
+#   1. Runs nightly at 03:40 UTC (~05:40 Berlin in summer, 04:40 in winter)
+#   2. Fetches venues + buildings from Overpass via scripts/bake-data.js
+#   3. Commits data/*.json if anything changed
+#   4. Cloudflare Pages, connected to this repo, auto-deploys on push
+#
+# First-time setup required:
+#   - Settings → Actions → General → Workflow permissions: "Read and write"
+#     (so the workflow can push the refreshed data/ files back to main)
+#
+# Manual trigger: Actions tab → "Bake OSM data nightly" → Run workflow
+
+on:
+  schedule:
+    # 03:40 UTC daily. Off the hour on purpose to avoid everyone else's cron.
+    - cron: '40 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to commit refreshed data/*.json back to main
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25   # if Overpass is really bad, don't hang the CI runner
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run baker
+        run: node scripts/bake-data.js
+
+      - name: Show output sizes
+        run: |
+          ls -lh data/ || true
+          echo "---"
+          cat data/manifest.json || true
+
+      - name: Commit refreshed data if changed
+        run: |
+          git config user.name  "sunmaxxing-baker"
+          git config user.email "noreply@sunmaxxing.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No data changes — nothing to commit."
+          else
+            git commit -m "chore(data): nightly bake $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
