@@ -1,0 +1,8 @@
+{
+  "name": "sunmaxxing-baker",
+  "private": true,
+  "description": "Nightly data baker for sunmaxxing.com. Only used by GitHub Actions.",
+  "dependencies": {
+    "suncalc": "^1.9.0"
+  }
+}

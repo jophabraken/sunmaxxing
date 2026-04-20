@@ -1513,6 +1513,38 @@ async function loadDataManifest(){
   return null;
 }
 
+// Today's sun windows, pre-computed by the nightly baker on the GitHub runner.
+// When this loads successfully we can skip buildings.json + the client-side
+// shadow pass entirely — the biggest single first-load win.
+function berlinDateStr(d = new Date()){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Europe/Berlin', year:'numeric', month:'2-digit', day:'2-digit',
+  }).formatToParts(d);
+  const get = k => parts.find(p => p.type === k).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+async function loadWindowsToday(){
+  try {
+    const r = await fetch('data/windows-today.json', {cache: 'default'});
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !j.windows || !j.bakeDate) return null;
+    // Only trust the bake if it's actually for today's Berlin date — otherwise
+    // the window timestamps belong to a different day and will produce wrong
+    // sunny/shaded colors.
+    if (j.bakeDate !== berlinDateStr()){
+      console.info('[sonne] windows-today: bake is for', j.bakeDate,
+                   '— using client-side fallback for', berlinDateStr());
+      return null;
+    }
+    console.info('[sonne] windows-today:', j.venueCount, 'venues (baked ' + j.bakedAt + ')');
+    return j;
+  } catch(e){
+    console.warn('[sonne] windows-today load failed:', e);
+    return null;
+  }
+}
+
 /* ============================================================
    QUERIES
    ============================================================ */
@@ -1920,6 +1952,7 @@ function renderMap(){
     let m = state.markers.get(v.id);
     if (!m){
       m = L.marker([v.lat, v.lng], {icon:makeIcon(st), title:v.name});
+      m._lastState = st;
       m.bindPopup(() => popupHTML(v, venueStateAt(v, currentTimeMs())), {
         maxWidth: 340, minWidth: 340, autoPanPadding: [20, 20], closeButton: true, className: 'sonne-popup'
       });
@@ -1955,10 +1988,16 @@ function renderMap(){
       });
       venueLayer.addLayer(m);
       state.markers.set(v.id, m);
-    } else {
+    } else if (m._lastState !== st){
       m.setIcon(makeIcon(st));
+      m._lastState = st;
     }
-    m.setZIndexOffset(st === 'sunny' ? 1000 : (st === 'cloudy' ? 500 : 0));
+    // z-index: only update when it would change, to avoid layout work per tick
+    const newZ = st === 'sunny' ? 1000 : (st === 'cloudy' ? 500 : 0);
+    if (m._lastZ !== newZ){
+      m.setZIndexOffset(newZ);
+      m._lastZ = newZ;
+    }
   }
 }
 function popupHTML(v, st){
@@ -2522,7 +2561,8 @@ timeSlider.addEventListener('input', () => {
   const d = startOfToday(); d.setMinutes(m);
   state.selectedTimeMs = d.getTime();
   updateTimeDisplay();
-  refresh();
+  markScrub();
+  scheduleRefresh();
 });
 nowBtn.addEventListener('click', () => {
   state.selectedTimeMs = null;
@@ -2575,11 +2615,41 @@ function updateFavChip(){
 /* ============================================================
    REFRESH CYCLE
    ============================================================ */
+let _suppressListRerender = false;
 function refresh(){
   renderMap();
-  if (state.view === 'list') renderList();
+  if (state.view === 'list' && !_suppressListRerender) renderList();
   updateStats();
 }
+
+/* Coalesce refresh calls during time-scrub so we paint at most once per frame.
+   Marker-diffing in renderMap makes the map update ~free; the expensive bit
+   is the full-innerHTML list rebuild with SVG timelines. During active scrub
+   we suppress that and trigger a single trailing list render 180ms after
+   the user stops moving the slider. */
+let _scheduledRefresh = false;
+let _listDebounceTimer = null;
+let _scrubActive = false;
+let _scrubEndTimer = null;
+function markScrub(){
+  _scrubActive = true;
+  clearTimeout(_scrubEndTimer);
+  _scrubEndTimer = setTimeout(() => {
+    _scrubActive = false;
+    if (state.view === 'list') renderList();   // trailing list catch-up
+  }, 180);
+}
+function scheduleRefresh(){
+  if (_scheduledRefresh) return;
+  _scheduledRefresh = true;
+  requestAnimationFrame(() => {
+    _scheduledRefresh = false;
+    _suppressListRerender = _scrubActive;
+    refresh();                      // wrapped refresh runs mobile UI hooks too
+    _suppressListRerender = false;
+  });
+}
+
 function updateStats(){
   const tMs = currentTimeMs();
   const vis = visibleVenues();
@@ -2685,7 +2755,8 @@ function applyRibbonFromMinutes(min){
   const ts = document.getElementById('time');
   if (ts) ts.value = Math.round(min);
   updateTimeDisplay();
-  refresh();
+  markScrub();
+  scheduleRefresh();
 }
 function setRibbonRangeFromSun(){
   if (!state.sunrise || !state.sunset) return;
@@ -3410,15 +3481,7 @@ async function main(){
     pct:25
   });
 
-  // ─── Phase 2: Buildings + weather in parallel — background ─────────────────
-  const buildingsP = loadBuildingsData((done, total) => {
-    const pct = 25 + Math.round((done/total) * 25);
-    setLoader({detail:`Shadow data · tile ${done}/${total}…`, pct});
-  }).catch(e => {
-    console.warn('[sonne] buildings load failed, proceeding without shadows:', e);
-    return { elements: [], okTiles: 0, total: 1, partial: true };
-  });
-
+  // ─── Phase 1.5: Weather starts loading immediately, regardless of path ─────
   const weatherP = fetchWeather().then(() => {
     // Re-render as weather updates 'sunny' → 'cloudy' on cloudy venues.
     refresh();
@@ -3426,31 +3489,68 @@ async function main(){
     console.warn('[sonne] weather load failed:', e);
   });
 
-  const bldJson = await buildingsP;
-  state.buildings = parseBuildings(bldJson);
-  state.buildingsLocal = preprocessBuildings(state.buildings);
-  const coverage = (bldJson.okTiles !== undefined && bldJson.okTiles < bldJson.total)
-    ? ` (partial: ${bldJson.okTiles}/${bldJson.total})`
-    : '';
-  setLoader({
-    title:`${state.buildings.length} buildings${coverage}`,
-    detail:'Computing sun windows for each terrace…',
-    pct:55
-  });
+  // ─── Fast path: apply pre-baked sun windows, skip ~17 MB of buildings ──────
+  const baked = await loadWindowsToday();
+  if (baked){
+    // Pin sunrise/sunset from the bake so client timestamps line up exactly.
+    state.sunrise = new Date(baked.sunrise);
+    state.sunset  = new Date(baked.sunset);
+    let matched = 0;
+    for (const v of state.venues){
+      const w = baked.windows[v.id];
+      if (w && Array.isArray(w.w)){
+        v.windows = w.w;
+        v.totalSunMin = w.m || 0;
+        v.windowsComputed = true;
+        matched++;
+      } else {
+        // venue in today's list but not in bake (e.g. new in OSM) — still
+        // render as pending so it's visible; it'll be picked up tomorrow.
+        v.windows = [];
+        v.windowsComputed = true;
+        v.totalSunMin = 0;
+      }
+    }
+    console.info('[sonne] windows-today: applied to', matched, '/', state.venues.length, 'venues');
+    setRibbonRangeFromSun();       // pick up baked sunrise/sunset
+    setLoader({pct:85, detail:'Finishing up…'});
+    await weatherP;
+    setLoader({pct:100});
+    refresh();
+    setTimeout(() => setLoader({title:null}), 250);
+  } else {
+    // ─── Fallback: no baked windows → compute client-side (old path) ─────────
+    const buildingsP = loadBuildingsData((done, total) => {
+      const pct = 25 + Math.round((done/total) * 25);
+      setLoader({detail:`Shadow data · tile ${done}/${total}…`, pct});
+    }).catch(e => {
+      console.warn('[sonne] buildings load failed, proceeding without shadows:', e);
+      return { elements: [], okTiles: 0, total: 1, partial: true };
+    });
 
-  // ─── Phase 3: Sun windows — progressive. Markers color in as we go. ───────
-  await computeAllWindows((done, total) => {
-    const pct = 55 + Math.round((done/total) * 44);
-    setLoader({detail:`${done} / ${total} venues — ${Math.round(done/total*100)}%`, pct});
-    // Refresh every ~200 venues so users see the map light up rather than
-    // waiting for the whole pass to finish in silence.
-    if (done % 240 === 0 || done === total) refresh();
-  });
+    const bldJson = await buildingsP;
+    state.buildings = parseBuildings(bldJson);
+    state.buildingsLocal = preprocessBuildings(state.buildings);
+    const coverage = (bldJson.okTiles !== undefined && bldJson.okTiles < bldJson.total)
+      ? ` (partial: ${bldJson.okTiles}/${bldJson.total})`
+      : '';
+    setLoader({
+      title:`${state.buildings.length} buildings${coverage}`,
+      detail:'Computing sun windows for each terrace…',
+      pct:55
+    });
 
-  await weatherP;  // make sure weather is settled before final render
-  setLoader({pct:100});
-  refresh();
-  setTimeout(() => setLoader({title:null}), 250);
+    await computeAllWindows((done, total) => {
+      const pct = 55 + Math.round((done/total) * 44);
+      setLoader({detail:`${done} / ${total} venues — ${Math.round(done/total*100)}%`, pct});
+      if (done % 240 === 0 || done === total) refresh();
+    });
+
+    await weatherP;
+    setLoader({pct:100});
+    refresh();
+    setTimeout(() => setLoader({title:null}), 250);
+  }
 
   // Live refresh every 60s
   setInterval(async () => {
@@ -3478,6 +3578,17 @@ function showFatalLoadError(err){
 }
 
 main();
+
+// Register service worker for offline + instant repeat loads.
+// Only in production (skip localhost/file://).
+if ('serviceWorker' in navigator &&
+    (location.hostname === 'sunmaxxing.com' || location.hostname.endsWith('.pages.dev'))){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err =>
+      console.warn('[sonne] SW register failed:', err)
+    );
+  });
+}
 </script>
 </body>
 </html>

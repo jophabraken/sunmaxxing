@@ -1,0 +1,20 @@
+# Cloudflare Pages response headers
+# https://developers.cloudflare.com/pages/platform/headers/
+
+# App shell: must always revalidate so deploys reach users immediately.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Nightly-baked data: OK to serve cached for up to 1h, and stale-serve while
+# revalidating for a day. Bake pipeline runs once per day, so visitors at worst
+# see data ~1h old.
+/data/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+
+# PWA manifest / icons (if we add them later)
+/manifest.webmanifest
+  Cache-Control: public, max-age=86400

@@ -21,6 +21,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const SunCalc = require('suncalc');
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 // Keep this in sync with the BBOX constant in index.html.
@@ -216,6 +217,187 @@ async function bakeBuildings(){
   return { elements: merged, _coverage: { okTiles: ok, totalTiles: tiles.length } };
 }
 
+// ─── Sun windows (the big first-load win) ──────────────────────────────────
+// Port of the client-side shadow math from index.html. We do the ray-cast
+// once per night on a big GitHub Actions runner so every visitor skips it.
+//
+// The output `windows-today.json` contains a { venueId → [[startMs,endMs]…] }
+// map. The client loads it in phase 1 (alongside venues) and can skip
+// buildings.json entirely on the critical path — ~17 MB of bandwidth and
+// several seconds of main-thread work per visitor, eliminated.
+
+const CENTER = [52.520, 13.405];            // keep in sync with index.html
+const SUN_WINDOW_STEP_MIN = 5;
+const MAX_SHADOW_SEARCH_RADIUS = 500;       // metres
+const METERS_PER_LEVEL = 3.0;
+
+function toMeters(lat, lng){
+  const latRad = CENTER[0] * Math.PI / 180;
+  const x = (lng - CENTER[1]) * Math.cos(latRad) * 111320;
+  const y = (lat - CENTER[0]) * 111320;
+  return [x, y];
+}
+function parseHeightTags(t){
+  if (t && t.height){
+    const h = parseFloat(String(t.height).replace(',', '.'));
+    if (!isNaN(h) && h > 0) return h;
+  }
+  if (t && t['building:levels']){
+    const l = parseFloat(String(t['building:levels']).replace(',', '.'));
+    if (!isNaN(l) && l > 0) return l * METERS_PER_LEVEL;
+  }
+  return 8; // default ~2-3 stories — matches client assumption
+}
+function preprocessBuildings(elements){
+  const out = [];
+  for (const el of elements){
+    if (!el.geometry || el.geometry.length < 3) continue;
+    const poly = el.geometry.map(g => toMeters(g.lat, g.lon));
+    let cx=0, cy=0;
+    for (const [x,y] of poly){ cx+=x; cy+=y; }
+    cx /= poly.length; cy /= poly.length;
+    let r=0;
+    for (const [x,y] of poly){
+      const d = Math.hypot(x-cx, y-cy);
+      if (d>r) r=d;
+    }
+    out.push({ poly, heightM: parseHeightTags(el.tags), cx, cy, br: r });
+  }
+  return out;
+}
+function rayFirstHit(ox, oy, dx, dy, poly){
+  let minT = Infinity;
+  for (let i=0; i<poly.length; i++){
+    const ax=poly[i][0], ay=poly[i][1];
+    const bx=poly[(i+1)%poly.length][0], by=poly[(i+1)%poly.length][1];
+    const ex=bx-ax, ey=by-ay;
+    const denom = dx*ey - dy*ex;
+    if (Math.abs(denom) < 1e-9) continue;
+    const t = ((ax-ox)*ey - (ay-oy)*ex)/denom;
+    const s = ((ax-ox)*dy - (ay-oy)*dx)/denom;
+    if (t > 1e-6 && s >= 0 && s <= 1 && t < minT) minT = t;
+  }
+  return minT === Infinity ? null : minT;
+}
+function pointInPoly(x, y, poly){
+  let inside=false;
+  for (let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i][0], yi=poly[i][1];
+    const xj=poly[j][0], yj=poly[j][1];
+    const intersect = ((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function isShaded(xy, sunAz, sunAlt, bldgs){
+  if (sunAlt <= 0) return true;
+  const dx = -Math.sin(sunAz), dy = -Math.cos(sunAz);
+  const tanAlt = Math.tan(sunAlt);
+  const [ox, oy] = xy;
+  for (const b of bldgs){
+    const vx = b.cx - ox, vy = b.cy - oy;
+    const proj = vx*dx + vy*dy;
+    if (proj < -b.br) continue;
+    const perp = Math.abs(vx*dy - vy*dx);
+    if (perp > b.br + 2) continue;
+    if (proj > MAX_SHADOW_SEARCH_RADIUS + b.br) continue;
+    if (pointInPoly(ox, oy, b.poly)) continue;
+    const t = rayFirstHit(ox, oy, dx, dy, b.poly);
+    if (t == null) continue;
+    if (t > MAX_SHADOW_SEARCH_RADIUS) continue;
+    if (b.heightM / t > tanAlt) return true;
+  }
+  return false;
+}
+
+// Same dedupe key the browser uses in parseVenues, so baked window ids match
+// whichever v.id the client keeps after dedupe.
+function dedupeVenues(elements){
+  const parsed = [];
+  for (const el of elements || []){
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    if (lat==null || lng==null) continue;
+    const t = el.tags || {};
+    if (t.outdoor_seating === 'no') continue;
+    if (!t.name) continue;
+    parsed.push({
+      id: `${el.type}/${el.id}`,
+      name: t.name,
+      lat, lng,
+    });
+  }
+  const seen = new Map();
+  for (const v of parsed){
+    const key = `${v.name.toLowerCase()}::${v.lat.toFixed(4)},${v.lng.toFixed(4)}`;
+    if (!seen.has(key)) seen.set(key, v);
+  }
+  return [...seen.values()];
+}
+
+function berlinDateStr(d = new Date()){
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year:'numeric', month:'2-digit', day:'2-digit',
+  }).formatToParts(d);
+  const get = k => parts.find(p => p.type === k).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function bakeWindows(venuesJson, buildingsJson){
+  console.log('▸ Baking sun windows for today…');
+  const bldgs = preprocessBuildings(buildingsJson.elements || []);
+  const venues = dedupeVenues(venuesJson.elements);
+  console.log(`  ${venues.length} venues × ${bldgs.length} buildings`);
+
+  // Anchor on Berlin "today noon" so the same calendar day in Berlin is baked
+  // regardless of when the runner kicks off (03:40 UTC or manual trigger at 15:00).
+  const bakeDate = berlinDateStr();
+  const anchor = new Date(bakeDate + 'T12:00:00+00:00');  // roughly Berlin mid-day
+  const sunTimes = SunCalc.getTimes(anchor, CENTER[0], CENTER[1]);
+  const start = sunTimes.sunrise.getTime();
+  const end   = sunTimes.sunset.getTime();
+  const step  = SUN_WINDOW_STEP_MIN * 60 * 1000;
+
+  const windows = {};
+  const t0 = Date.now();
+  for (let i=0; i<venues.length; i++){
+    const v = venues[i];
+    const xy = toMeters(v.lat, v.lng);
+    const wins = [];
+    let curStart = null;
+    for (let t=start; t<=end; t+=step){
+      const p = SunCalc.getPosition(new Date(t), v.lat, v.lng);
+      const sunny = p.altitude > 0 && !isShaded(xy, p.azimuth, p.altitude, bldgs);
+      if (sunny && curStart === null) curStart = t;
+      else if (!sunny && curStart !== null){
+        wins.push([curStart, t - step/2]);
+        curStart = null;
+      }
+    }
+    if (curStart !== null) wins.push([curStart, end]);
+    const totalMin = Math.round(wins.reduce((s,[a,b]) => s+(b-a)/60000, 0));
+    windows[v.id] = { w: wins, m: totalMin };
+    if ((i+1) % 250 === 0 || i+1 === venues.length){
+      const pct = ((i+1)/venues.length*100).toFixed(0);
+      const et  = ((Date.now()-t0)/1000).toFixed(0);
+      console.log(`  windows: ${i+1}/${venues.length} (${pct}%, ${et}s)`);
+    }
+  }
+
+  return {
+    bakeDate,                                // "2026-04-20" in Europe/Berlin
+    bakedAt:  new Date().toISOString(),
+    sunrise:  sunTimes.sunrise.toISOString(),
+    sunset:   sunTimes.sunset.toISOString(),
+    stepMin:  SUN_WINDOW_STEP_MIN,
+    center:   CENTER,
+    venueCount: venues.length,
+    buildingCount: bldgs.length,
+    windows,
+  };
+}
+
 // ─── Manifest ───────────────────────────────────────────────────────────────
 function buildManifest(venues, buildings){
   return {
@@ -240,20 +422,26 @@ function buildManifest(venues, buildings){
   // Don't persist the internal coverage flag in the JSON the browser reads.
   const buildingsOut = { elements: buildings.elements || [] };
 
+  // Compute today's sun windows for every venue, using freshly-baked buildings.
+  const windowsToday = bakeWindows(venues, buildingsOut);
+
   const manifest = buildManifest(venues, buildings);
 
   const venuesPath    = path.join(OUT_DIR, 'venues.json');
   const buildingsPath = path.join(OUT_DIR, 'buildings.json');
+  const windowsPath   = path.join(OUT_DIR, 'windows-today.json');
   const manifestPath  = path.join(OUT_DIR, 'manifest.json');
 
   fs.writeFileSync(venuesPath,    JSON.stringify(venues));
   fs.writeFileSync(buildingsPath, JSON.stringify(buildingsOut));
+  fs.writeFileSync(windowsPath,   JSON.stringify(windowsToday));
   fs.writeFileSync(manifestPath,  JSON.stringify(manifest, null, 2));
 
   const sizes = [
-    ['venues.json',    fs.statSync(venuesPath).size],
-    ['buildings.json', fs.statSync(buildingsPath).size],
-    ['manifest.json',  fs.statSync(manifestPath).size],
+    ['venues.json',         fs.statSync(venuesPath).size],
+    ['buildings.json',      fs.statSync(buildingsPath).size],
+    ['windows-today.json',  fs.statSync(windowsPath).size],
+    ['manifest.json',       fs.statSync(manifestPath).size],
   ];
   console.log('');
   console.log('✓ Baked.');
@@ -261,6 +449,7 @@ function buildManifest(venues, buildings){
     console.log(`  ${name}: ${(bytes/1024/1024).toFixed(2)} MB`);
   }
   console.log(`  manifest: ${manifest.venues.count} venues · ${manifest.buildings.count} buildings · ${manifest.bakedAt}`);
+  console.log(`  windows: baked for ${windowsToday.bakeDate} (Europe/Berlin), ${windowsToday.venueCount} venues`);
 })().catch(err => {
   console.error('\n✗ Bake failed:', err);
   process.exit(1);
