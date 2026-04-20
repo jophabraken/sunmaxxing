@@ -53,6 +53,10 @@ jobs:
             echo "bake=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Install bake dependencies
+        if: steps.decide.outputs.bake == 'true'
+        run: npm install --no-audit --no-fund
+
       - name: Run baker
         if: steps.decide.outputs.bake == 'true'
         run: node scripts/bake-data.js
