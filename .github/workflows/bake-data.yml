@@ -61,6 +61,26 @@ jobs:
         if: steps.decide.outputs.bake == 'true'
         run: node scripts/bake-data.js
 
+      # Fail loud if the baker silently skipped windows-today.json (e.g. an
+      # uncaught exception inside bakeWindows). Without this, the site deploys
+      # cleanly but every visitor hits the 15s client-side shadow compute
+      # fallback and we only find out from user complaints.
+      - name: Assert required bake outputs exist
+        if: steps.decide.outputs.bake == 'true'
+        run: |
+          missing=0
+          for f in data/venues.json data/buildings.json data/windows-today.json data/rooftops-today.json data/manifest.json; do
+            if [ ! -s "$f" ]; then
+              echo "::error::required bake output missing or empty: $f"
+              missing=1
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "::error::bake completed but produced no usable output — refusing to commit/deploy"
+            exit 1
+          fi
+          echo "All required bake outputs present."
+
       - name: Show output sizes
         if: steps.decide.outputs.bake == 'true'
         run: |

@@ -551,9 +551,16 @@ function bakeRooftops(venuesJson, supplementJson){
 }
 
 // ─── Manifest ───────────────────────────────────────────────────────────────
-function buildManifest(venues, buildings){
+// windowsBakedAt + bakeDate let the client detect stale bakes cheaply — it
+// already loads manifest.json, so no extra round-trip. If bakeDate != today's
+// Berlin date on page load, we warn loud in console so a silent cron failure
+// is visible without inspecting data/ in git.
+function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   return {
     bakedAt: new Date().toISOString(),
+    bakeDate:         windowsToday ? windowsToday.bakeDate : null,
+    windowsBakedAt:   windowsToday ? windowsToday.bakedAt  : null,
+    rooftopsBakedAt:  rooftopsToday ? rooftopsToday.bakedAt : null,
     bbox: BBOX,
     venues: { count: (venues.elements || []).length },
     buildings: {
@@ -588,7 +595,7 @@ function buildManifest(venues, buildings){
   // Compute today's sun windows for every venue (incl. promoted rooftops).
   const windowsToday = bakeWindows(venues, buildingsOut);
 
-  const manifest = buildManifest(venues, buildings);
+  const manifest = buildManifest(venues, buildings, windowsToday, rooftopsToday);
 
   const venuesPath    = path.join(OUT_DIR, 'venues.json');
   const buildingsPath = path.join(OUT_DIR, 'buildings.json');

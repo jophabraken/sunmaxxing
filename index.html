@@ -1527,12 +1527,33 @@ async function loadBuildingsData(onProgress){
   );
 }
 
+// Manifest is tiny (<1 KB) and carries a cheap freshness signal: bakeDate.
+// The nightly runner writes it every time it bakes, so if bakeDate isn't
+// today's Berlin date we know the pipeline is stale before we even try to
+// load windows-today.json. Worth logging loud — a silent cron failure
+// otherwise only shows up as "site is slow" user reports.
 async function loadDataManifest(){
   try {
     const r = await fetch('data/manifest.json', {cache: 'default'});
     if (r.ok) return await r.json();
   } catch(e){}
   return null;
+}
+function warnIfManifestStale(manifest){
+  if (!manifest) return;
+  const today = berlinDateStr();
+  if (manifest.bakeDate && manifest.bakeDate !== today){
+    console.warn(
+      '%c[sonne] STALE BAKE: manifest.bakeDate is ' + manifest.bakeDate +
+      ' but today (Europe/Berlin) is ' + today + '. ' +
+      'The nightly bake hasn\u2019t run today — site will fall back to the ' +
+      'slow client-side shadow compute. Trigger GitHub Actions → "Build and deploy" → Run workflow.',
+      'background:#C94F4F;color:#fff;padding:2px 6px;border-radius:3px;font-weight:700'
+    );
+  } else if (manifest.bakedAt){
+    console.info('[sonne] manifest: baked ' + manifest.bakedAt +
+                 ' (bakeDate ' + (manifest.bakeDate || '—') + ')');
+  }
 }
 
 // Today's sun windows, pre-computed by the nightly baker on the GitHub runner.
@@ -3519,6 +3540,11 @@ async function main(){
   state.hidden    = loadSet(LS.HIDE);
   updateHiddenBar();
 
+  // ─── Phase 0: Manifest — cheap freshness check, non-blocking ───────────────
+  // Fires a loud console.warn on stale bake (bakeDate != today). Used as
+  // diagnostic context if we end up in the slow path later.
+  const manifestP = loadDataManifest().then(m => { warnIfManifestStale(m); return m; });
+
   // ─── Phase 1: Venues — fast path, render the map immediately ───────────────
   // Target: user sees the map with all venue markers within ~1s on a warm CDN.
   setLoader({title:'Finding terraces…', pct:10});
@@ -3607,6 +3633,20 @@ async function main(){
     setTimeout(() => setLoader({title:null}), 250);
   } else {
     // ─── Fallback: no baked windows → compute client-side (old path) ─────────
+    // Loud log so a dev-tools glance reveals the slow path is active.
+    // If this fires on production, the nightly bake hasn't written
+    // data/windows-today.json — trigger a manual workflow run in GitHub Actions.
+    const mf = await manifestP;
+    const mfCtx = mf
+      ? ' (manifest bakeDate=' + (mf.bakeDate || '—') +
+        ', bakedAt=' + (mf.windowsBakedAt || mf.bakedAt || '—') + ')'
+      : ' (manifest.json also missing)';
+    console.warn(
+      '%c[sonne] SLOW PATH: windows-today.json missing or stale — ' +
+      'falling back to ~17 MB buildings.json + client-side shadow compute. ' +
+      'Trigger a nightly bake to fix.' + mfCtx,
+      'background:#FFB627;color:#3a2900;padding:2px 6px;border-radius:3px;font-weight:700'
+    );
     const buildingsP = loadBuildingsData((done, total) => {
       const pct = 25 + Math.round((done/total) * 25);
       setLoader({detail:`Shadow data · tile ${done}/${total}…`, pct});
