@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+# /data/ is ~25MB of baked JSON (venues, buildings, sun windows). Crawlers
+# have no reason to index it, and serving it wastes bandwidth + clutters
+# Search Console with non-page "indexing failed" noise.
+Disallow: /data/
+# Same logic for the service worker + icon endpoints.
+Disallow: /sw.js
+
+Sitemap: https://sunmaxxing.com/sitemap.xml

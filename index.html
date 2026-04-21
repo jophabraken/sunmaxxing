@@ -3,7 +3,76 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Sonne Berlin — find the sunny terrace, right now</title>
+<title>Sonne Berlin — find the sunniest terrace, right now</title>
+
+<!-- ─── SEO / discovery ─────────────────────────────────────────────────
+     Sunmaxxing is a one-URL tool, so traffic mostly comes via social shares
+     rather than organic search. We optimise for:
+       1) SERP snippets (meta description + canonical)
+       2) Rich share previews (og:image + twitter:card)
+       3) Google understanding the site's shape (JSON-LD WebApplication)
+     Core Web Vitals — the other major ranking signal — live in the code
+     path, not the head, and are handled by the windows-today.json bake +
+     parallelised init path in main().
+     ────────────────────────────────────────────────────────────────────── -->
+<meta name="description" content="Find the sunniest terraces, rooftop bars, and beer gardens in Berlin — live. Weather-aware, shadow-tracked, updated every minute. Free, no app needed.">
+<meta name="theme-color" content="#F5A623">
+<link rel="canonical" href="https://sunmaxxing.com/">
+
+<!-- Open Graph — used by Facebook, LinkedIn, WhatsApp, Telegram, Signal,
+     Slack, iMessage, Discord. Same image at 1200×630 (standard size) so
+     every client gets a crisp preview. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Sonne Berlin">
+<meta property="og:title" content="Sonne Berlin — find the sunniest terrace, right now">
+<meta property="og:description" content="Live map of Berlin's sunniest terraces, rooftops, and beer gardens — weather-aware and shadow-tracked.">
+<meta property="og:url" content="https://sunmaxxing.com/">
+<meta property="og:image" content="https://sunmaxxing.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Sonne Berlin — find the sunniest terrace in Berlin, right now. sunmaxxing.com">
+<meta property="og:locale" content="en_US">
+
+<!-- Twitter/X — summary_large_image gets the full 1200×630 treatment.
+     No @handle yet, so we skip twitter:site/twitter:creator. -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sonne Berlin — find the sunniest terrace, right now">
+<meta name="twitter:description" content="Live map of Berlin's sunniest terraces, rooftops, and beer gardens — weather-aware and shadow-tracked.">
+<meta name="twitter:image" content="https://sunmaxxing.com/og-image.png">
+<meta name="twitter:image:alt" content="Sonne Berlin — find the sunniest terrace in Berlin, right now.">
+
+<!-- Favicons. SVG first (scales to any density), PNG fallback for older
+     browsers + the iOS Home Screen bookmark. -->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+<!-- JSON-LD structured data. WebApplication tells Google this is a free
+     tool serving Berlin, which nudges the SERP rendering toward a "site
+     card" style result rather than a generic blue link. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Sonne Berlin",
+  "alternateName": "sunmaxxing.com",
+  "url": "https://sunmaxxing.com/",
+  "description": "Live map of Berlin's sunniest terraces, rooftops, and beer gardens. Weather-aware, shadow-tracked, updated every minute.",
+  "applicationCategory": "TravelApplication",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript. Works on modern mobile + desktop browsers.",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "inLanguage": "en",
+  "areaServed": { "@type": "City", "name": "Berlin", "addressCountry": "DE" }
+}
+</script>
+
+<!-- Google Search Console verification. Once you've added sunmaxxing.com
+     as a property in search.google.com/search-console, Google will give
+     you a verification meta tag — paste its `content` value below and
+     uncomment. (Alternative: verify via DNS TXT record at Cloudflare,
+     which is more robust since it survives HTML rewrites.) -->
+<!-- <meta name="google-site-verification" content="PASTE_TOKEN_HERE"> -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

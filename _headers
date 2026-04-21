@@ -18,3 +18,17 @@
 # PWA manifest / icons (if we add them later)
 /manifest.webmanifest
   Cache-Control: public, max-age=86400
+
+# Favicons + share assets: rarely change, safe to cache a week.
+/favicon.svg
+  Cache-Control: public, max-age=604800
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800
+/og-image.png
+  Cache-Control: public, max-age=604800
+
+# Crawler hints: small files, revalidate daily so a sitemap edit propagates.
+/robots.txt
+  Cache-Control: public, max-age=86400
+/sitemap.xml
+  Cache-Control: public, max-age=86400
