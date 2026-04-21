@@ -419,21 +419,11 @@
     box-shadow:0 0 0 3px var(--sun-glow);
   }
   .legend .dot.catch-now{
-    background:var(--sun);width:10px;height:10px;
-  }
-  .legend .dot.catch-now::before{
-    content:'';position:absolute;inset:-5px;border-radius:50%;
-    border:2px solid var(--coral);
-    animation:catchPulse 1.4s ease-in-out infinite;
+    background:#FFE08A;
+    box-shadow:0 0 0 2px rgba(255,224,138,.35);
   }
   .legend .dot.off{
     background:#8892A6;width:9px;height:9px;opacity:.7;
-  }
-
-  /* ---------- SUN-STATE MARKER ANIMATIONS ---------- */
-  @keyframes catchPulse{
-    0%,100%{transform:scale(1);opacity:.9}
-    50%{transform:scale(1.18);opacity:.35}
   }
 
   /* ---------- USER LOCATION ---------- */
@@ -898,7 +888,7 @@
     font-size:11.5px;color:var(--muted);font-weight:500;margin:0;
     padding:0 14px 8px;
   }
-  .m-browse-sub .catch{color:var(--coral);font-weight:700}
+  .m-browse-sub .catch{color:var(--sun-ink,#B4710E);font-weight:700}
   .m-browse-hint{
     font-size:11.5px;color:var(--muted);font-weight:500;
     display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
@@ -935,9 +925,9 @@
     box-shadow:0 2px 6px rgba(255,182,39,.25);
   }
   .m-browse-row-avatar.catch{
-    background:radial-gradient(circle at 35% 30%, #FFE2B0, #FFB627 60%);
-    border:2px solid var(--coral);
-    box-shadow:0 0 0 3px rgba(255,107,53,.18);
+    background:radial-gradient(circle at 35% 30%, #FFF2C2, #FFE08A 70%);
+    border-color:rgba(255,224,138,.55);
+    box-shadow:0 2px 6px rgba(255,224,138,.3);
   }
   .m-browse-row-main{flex:1;min-width:0}
   .m-browse-row-name{
@@ -952,7 +942,7 @@
     font-variant-numeric:tabular-nums;
   }
   .m-browse-row-meta .sun{color:var(--sun-ink,#B4710E);font-weight:700}
-  .m-browse-row-meta .catch{color:var(--coral);font-weight:700}
+  .m-browse-row-meta .catch{color:var(--sun-ink,#B4710E);font-weight:700}
   .m-browse-row-chev{
     flex-shrink:0;color:var(--muted);font-size:18px;line-height:1;font-weight:500;
   }
@@ -1286,9 +1276,9 @@
     <div id="list"></div>
 
     <div class="legend">
-      <div><span class="dot locked-in"></span> Locked in <span style="color:var(--muted);font-weight:400">· sun for 30+ min</span></div>
-      <div><span class="dot catch-now"></span> Catch it now <span style="color:var(--muted);font-weight:400">· &lt;30 min left</span></div>
-      <div><span class="dot off"></span> Not now <span style="color:var(--muted);font-weight:400">· shade, cloud or night</span></div>
+      <div><span class="dot locked-in"></span> Sun for 60+ min</div>
+      <div><span class="dot catch-now"></span> Sun for &lt;60 min</div>
+      <div><span class="dot off"></span> No sun</div>
     </div>
 
     <div id="loader" class="loader">
@@ -2129,12 +2119,12 @@ function venueStateAt(v, timeMs){
 
 /* Display state — drives the map marker + legend (3-state model).
    Collapses the finer-grained venueStateAt() into three buckets:
-     'locked-in' — in direct sun AND 30+ min of sun remaining
-     'catch-now' — in direct sun but <30 min left (urgent)
+     'locked-in' — in direct sun AND 60+ min of sun remaining
+     'catch-now' — in direct sun but <60 min left
      'off'       — no direct sun right now (shade / cloud / night / no-sun-ever)
      'pending'   — sun math still computing
    Kept thresholds as a single constant so we can tune. */
-const LOCKED_IN_MIN = 30;
+const LOCKED_IN_MIN = 60;
 function venueDisplayState(v, timeMs){
   const st = venueStateAt(v, timeMs);
   if (st === 'pending') return 'pending';
@@ -2203,8 +2193,8 @@ function visibleVenues(){
    ============================================================ */
 /* Map marker rendering — keyed on the 3-state display model
    ('locked-in' | 'catch-now' | 'off' | 'pending').
-   - locked-in: full-size orange dot with soft glow (the "sit and relax" pick)
-   - catch-now: small orange dot + pulsing coral ring (urgency cue)
+   - locked-in: full bright-yellow dot with soft glow (60+ min of sun left)
+   - catch-now: same size dot in a paler yellow (<60 min of sun left)
    - off:       muted small grey dot — readable but visually recessive
    - pending:   neutral light-grey dot while sun math loads */
 function makeIcon(st){
@@ -2218,14 +2208,10 @@ function makeIcon(st){
     return L.divIcon({className:'', html, iconSize:[16,16], iconAnchor:[8,8]});
   }
   if (st === 'catch-now'){
-    // Smaller orange dot + pulsing coral ring — signals "go now"
-    const bg = '#FFB627', ring = '#FF6B35';
-    const html = `
-      <div style="position:relative;width:22px;height:22px;">
-        <div style="position:absolute;inset:0;border-radius:50%;border:2px solid ${ring};animation:catchPulse 1.4s ease-in-out infinite;box-shadow:0 0 6px rgba(255,107,53,.35);"></div>
-        <div style="position:absolute;left:6px;top:6px;width:10px;height:10px;border-radius:50%;background:${bg};border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.3);"></div>
-      </div>`;
-    return L.divIcon({className:'', html, iconSize:[22,22], iconAnchor:[11,11]});
+    // Same size as locked-in but a paler yellow — signals "less sun left"
+    const bg = '#FFE08A', ring = 'rgba(255,224,138,.35)';
+    const html = `<div style="width:14px;height:14px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring},0 1px 2px rgba(0,0,0,.25);border:1.5px solid #fff;"></div>`;
+    return L.divIcon({className:'', html, iconSize:[14,14], iconAnchor:[7,7]});
   }
   if (st === 'pending'){
     const bg = '#E5E7EB', ring = 'rgba(45,49,66,.12)';
@@ -3636,8 +3622,8 @@ function renderMobileSheet(){
   }
 
   const subParts = [];
-  if (lockedInCount) subParts.push(`${lockedInCount} locked in for 30+ min`);
-  if (catchNowCount) subParts.push(`<span class="catch">${catchNowCount} you'd need to catch now</span>`);
+  if (lockedInCount) subParts.push(`${lockedInCount} with 60+ min of sun`);
+  if (catchNowCount) subParts.push(`<span class="catch">${catchNowCount} with &lt;60 min</span>`);
 
   root.innerHTML = `
     <div class="m-browse">
