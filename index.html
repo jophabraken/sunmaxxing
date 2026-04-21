@@ -410,11 +410,31 @@
     border:1px solid var(--border);font-weight:500;
   }
   .legend div{display:flex;align-items:center;gap:8px;margin:4px 0}
-  .legend .dot{width:10px;height:10px;border-radius:50%}
-  .legend .dot.sunny{background:var(--sun);box-shadow:0 0 0 3px var(--sun-glow)}
-  .legend .dot.cloudy{background:#C8CDD8}
-  .legend .dot.shaded{background:var(--shade)}
-  .legend .dot.night{background:var(--night)}
+  .legend .dot{
+    width:12px;height:12px;border-radius:50%;flex-shrink:0;
+    position:relative;
+  }
+  .legend .dot.locked-in{
+    background:var(--sun);
+    box-shadow:0 0 0 3px var(--sun-glow);
+  }
+  .legend .dot.catch-now{
+    background:var(--sun);width:10px;height:10px;
+  }
+  .legend .dot.catch-now::before{
+    content:'';position:absolute;inset:-5px;border-radius:50%;
+    border:2px solid var(--coral);
+    animation:catchPulse 1.4s ease-in-out infinite;
+  }
+  .legend .dot.off{
+    background:#8892A6;width:9px;height:9px;opacity:.7;
+  }
+
+  /* ---------- SUN-STATE MARKER ANIMATIONS ---------- */
+  @keyframes catchPulse{
+    0%,100%{transform:scale(1);opacity:.9}
+    50%{transform:scale(1.18);opacity:.35}
+  }
 
   /* ---------- USER LOCATION ---------- */
   .user-dot{
@@ -856,17 +876,33 @@
 
   /* Default ribbon-only "browse" card */
   .m-browse{
-    padding:14px;animation:peekIn .4s cubic-bezier(.22,1,.36,1);
+    padding:0;animation:peekIn .4s cubic-bezier(.22,1,.36,1);
   }
-  .m-browse-summary{
-    font-size:14px;font-weight:600;margin:0 0 4px;color:var(--text);
-    letter-spacing:-0.01em;
+  .m-browse-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 14px 10px;gap:12px;
   }
-  .m-browse-summary b{font-size:17px;font-weight:800;color:var(--sun);
-    font-variant-numeric:tabular-nums;
+  .m-browse-count{
+    display:flex;align-items:baseline;gap:6px;min-width:0;
+  }
+  .m-browse-count .n{
+    font-size:22px;font-weight:800;color:var(--sun);
     font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+    font-variant-numeric:tabular-nums;line-height:1;
   }
-  .m-browse-hint{font-size:12px;color:var(--muted);font-weight:500;margin:0}
+  .m-browse-count .lbl{
+    font-size:13.5px;font-weight:600;color:var(--text);
+    letter-spacing:-0.01em;line-height:1.2;
+  }
+  .m-browse-sub{
+    font-size:11.5px;color:var(--muted);font-weight:500;margin:0;
+    padding:0 14px 8px;
+  }
+  .m-browse-sub .catch{color:var(--coral);font-weight:700}
+  .m-browse-hint{
+    font-size:11.5px;color:var(--muted);font-weight:500;
+    display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
+  }
   .m-browse-hint .arr{
     display:inline-block;animation:bob 1.6s ease-in-out infinite;
     transform-origin:center;
@@ -874,6 +910,57 @@
   @keyframes bob{
     0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}
   }
+  /* Compact venue rows shown under the count header */
+  .m-browse-rows{
+    border-top:1px solid var(--border);
+  }
+  .m-browse-row{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 14px;width:100%;
+    border:none;background:transparent;text-align:left;
+    cursor:pointer;border-bottom:1px solid var(--border);
+    transition:background .12s;
+  }
+  .m-browse-row:last-child{border-bottom:none}
+  .m-browse-row:active{background:var(--bg-2)}
+  .m-browse-row-avatar{
+    flex-shrink:0;width:40px;height:40px;border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-2);font-size:18px;
+    border:1px solid var(--border);
+  }
+  .m-browse-row-avatar.sun{
+    background:radial-gradient(circle at 35% 30%, #FFD97A, #FFB627 70%);
+    border-color:rgba(255,182,39,.45);
+    box-shadow:0 2px 6px rgba(255,182,39,.25);
+  }
+  .m-browse-row-avatar.catch{
+    background:radial-gradient(circle at 35% 30%, #FFE2B0, #FFB627 60%);
+    border:2px solid var(--coral);
+    box-shadow:0 0 0 3px rgba(255,107,53,.18);
+  }
+  .m-browse-row-main{flex:1;min-width:0}
+  .m-browse-row-name{
+    font-size:14.5px;font-weight:700;color:var(--text);
+    letter-spacing:-0.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    margin-bottom:2px;
+  }
+  .m-browse-row-meta{
+    font-size:12px;color:var(--muted);font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-variant-numeric:tabular-nums;
+  }
+  .m-browse-row-meta .sun{color:var(--sun-ink,#B4710E);font-weight:700}
+  .m-browse-row-meta .catch{color:var(--coral);font-weight:700}
+  .m-browse-row-chev{
+    flex-shrink:0;color:var(--muted);font-size:18px;line-height:1;font-weight:500;
+  }
+  .m-browse-empty{
+    padding:18px 14px 16px;text-align:center;
+    color:var(--muted);font-size:13px;font-weight:500;
+  }
+  .m-browse-empty b{color:var(--text);font-weight:700;display:block;margin-bottom:3px;font-size:14px}
 
   /* Sheet — venue details */
   .m-details-hero{
@@ -1199,10 +1286,9 @@
     <div id="list"></div>
 
     <div class="legend">
-      <div><span class="dot sunny"></span> In the sun</div>
-      <div><span class="dot cloudy"></span> Sun blocked by clouds</div>
-      <div><span class="dot shaded"></span> In the shade</div>
-      <div><span class="dot night"></span> Sun below horizon</div>
+      <div><span class="dot locked-in"></span> Locked in <span style="color:var(--muted);font-weight:400">· sun for 30+ min</span></div>
+      <div><span class="dot catch-now"></span> Catch it now <span style="color:var(--muted);font-weight:400">· &lt;30 min left</span></div>
+      <div><span class="dot off"></span> Not now <span style="color:var(--muted);font-weight:400">· shade, cloud or night</span></div>
     </div>
 
     <div id="loader" class="loader">
@@ -2041,6 +2127,25 @@ function venueStateAt(v, timeMs){
   return 'sunny';
 }
 
+/* Display state — drives the map marker + legend (3-state model).
+   Collapses the finer-grained venueStateAt() into three buckets:
+     'locked-in' — in direct sun AND 30+ min of sun remaining
+     'catch-now' — in direct sun but <30 min left (urgent)
+     'off'       — no direct sun right now (shade / cloud / night / no-sun-ever)
+     'pending'   — sun math still computing
+   Kept thresholds as a single constant so we can tune. */
+const LOCKED_IN_MIN = 30;
+function venueDisplayState(v, timeMs){
+  const st = venueStateAt(v, timeMs);
+  if (st === 'pending') return 'pending';
+  if (st !== 'sunny') return 'off';
+  // Sunny — how much of the current window is left?
+  const win = (v.windows || []).find(([s,e]) => timeMs >= s && timeMs <= e);
+  if (!win) return 'off'; // defensive; shouldn't happen if st === 'sunny'
+  const minutesLeft = (win[1] - timeMs) / 60000;
+  return minutesLeft < LOCKED_IN_MIN ? 'catch-now' : 'locked-in';
+}
+
 /* ============================================================
    FILTERING
    ============================================================ */
@@ -2096,26 +2201,41 @@ function visibleVenues(){
 /* ============================================================
    RENDER: MAP
    ============================================================ */
+/* Map marker rendering — keyed on the 3-state display model
+   ('locked-in' | 'catch-now' | 'off' | 'pending').
+   - locked-in: full-size orange dot with soft glow (the "sit and relax" pick)
+   - catch-now: small orange dot + pulsing coral ring (urgency cue)
+   - off:       muted small grey dot — readable but visually recessive
+   - pending:   neutral light-grey dot while sun math loads */
 function makeIcon(st){
-  const colors = {
-    sunny:   {bg:'#FFB627', ring:'rgba(255,182,39,.35)'},
-    cloudy:  {bg:'#C8CDD8', ring:'rgba(45,49,66,.18)'},
-    shaded:  {bg:'#2D3142', ring:'rgba(45,49,66,.22)'},
-    night:   {bg:'#0F1123', ring:'rgba(15,17,35,.22)'},
-    nosun:   {bg:'#BFBFBF', ring:'rgba(120,120,120,.25)'},
-    pending: {bg:'#E5E7EB', ring:'rgba(45,49,66,.12)'},  // neutral dot while sun math loads
-    closed:  {bg:'#8A2B1E', ring:'rgba(138,43,30,.2)'},
-  };
-  const c = colors[st] || colors.pending;
-  const sunnyExtra = st==='sunny'
-    ? `<div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle, ${c.ring} 0%, transparent 65%);animation:pulse 2.4s ease-in-out infinite"></div>`
-    : '';
-  const html = `
-    <div style="position:relative;width:16px;height:16px;">
-      ${sunnyExtra}
-      <div style="position:relative;width:16px;height:16px;border-radius:50%;background:${c.bg};box-shadow:0 0 0 3px ${c.ring},0 1px 2px rgba(0,0,0,.3);border:1.5px solid #fff;"></div>
-    </div>`;
-  return L.divIcon({className:'', html, iconSize:[16,16], iconAnchor:[8,8]});
+  if (st === 'locked-in'){
+    const bg = '#FFB627', ring = 'rgba(255,182,39,.35)';
+    const html = `
+      <div style="position:relative;width:16px;height:16px;">
+        <div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle, ${ring} 0%, transparent 65%);animation:pulse 2.4s ease-in-out infinite"></div>
+        <div style="position:relative;width:16px;height:16px;border-radius:50%;background:${bg};box-shadow:0 0 0 3px ${ring},0 1px 2px rgba(0,0,0,.3);border:1.5px solid #fff;"></div>
+      </div>`;
+    return L.divIcon({className:'', html, iconSize:[16,16], iconAnchor:[8,8]});
+  }
+  if (st === 'catch-now'){
+    // Smaller orange dot + pulsing coral ring — signals "go now"
+    const bg = '#FFB627', ring = '#FF6B35';
+    const html = `
+      <div style="position:relative;width:22px;height:22px;">
+        <div style="position:absolute;inset:0;border-radius:50%;border:2px solid ${ring};animation:catchPulse 1.4s ease-in-out infinite;box-shadow:0 0 6px rgba(255,107,53,.35);"></div>
+        <div style="position:absolute;left:6px;top:6px;width:10px;height:10px;border-radius:50%;background:${bg};border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.3);"></div>
+      </div>`;
+    return L.divIcon({className:'', html, iconSize:[22,22], iconAnchor:[11,11]});
+  }
+  if (st === 'pending'){
+    const bg = '#E5E7EB', ring = 'rgba(45,49,66,.12)';
+    const html = `<div style="width:12px;height:12px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring},0 1px 2px rgba(0,0,0,.2);border:1px solid #fff;"></div>`;
+    return L.divIcon({className:'', html, iconSize:[12,12], iconAnchor:[6,6]});
+  }
+  // 'off' — unified muted grey for shade/cloud/night/no-sun-ever
+  const bg = '#8892A6', ring = 'rgba(45,49,66,.18)';
+  const html = `<div style="width:10px;height:10px;border-radius:50%;background:${bg};opacity:.75;box-shadow:0 0 0 2px ${ring},0 1px 1px rgba(0,0,0,.2);border:1px solid #fff;"></div>`;
+  return L.divIcon({className:'', html, iconSize:[10,10], iconAnchor:[5,5]});
 }
 function renderMap(){
   const tMs = currentTimeMs();
@@ -2130,7 +2250,7 @@ function renderMap(){
   }
 
   for (const v of list){
-    const st = venueStateAt(v, tMs);
+    const st = venueDisplayState(v, tMs);   // 3-state display model
     let m = state.markers.get(v.id);
     if (!m){
       m = L.marker([v.lat, v.lng], {icon:makeIcon(st), title:v.name});
@@ -2174,8 +2294,8 @@ function renderMap(){
       m.setIcon(makeIcon(st));
       m._lastState = st;
     }
-    // z-index: only update when it would change, to avoid layout work per tick
-    const newZ = st === 'sunny' ? 1000 : (st === 'cloudy' ? 500 : 0);
+    // z-index: keep actionable pins on top. catch-now first (most urgent), then locked-in, then rest.
+    const newZ = st === 'catch-now' ? 1100 : (st === 'locked-in' ? 1000 : 0);
     if (m._lastZ !== newZ){
       m.setZIndexOffset(newZ);
       m._lastZ = newZ;
@@ -2920,7 +3040,9 @@ const mobile = {
 function mobileSnapHeights(){
   const vh = window.innerHeight;
   return {
-    peek: 230,
+    // Peek tall enough to show ribbon + count header + first row FULL + second row
+    // peeking (~40% visible) — the cut-off row is the drag-up affordance.
+    peek: 300,
     mid:  Math.round(vh * 0.55),
     full: Math.round(vh * 0.92),
   };
@@ -3457,16 +3579,88 @@ function renderMobileSheet(){
     return;
   }
 
-  // Default browse card
+  // Default browse card — count header + top sunny rows peeking (drag-up affordance)
   const tMs = currentTimeMs();
   const vis = visibleVenues();
-  const sunnyCount = vis.filter(v => venueStateAt(v, tMs) === 'sunny').length;
-  const cloudyCount = vis.filter(v => venueStateAt(v, tMs) === 'cloudy').length;
+  // Rank candidates for peek: sort by the same rule renderMobileList uses
+  // so the user sees what they'd see if they actually dragged up.
+  const candidates = vis
+    .map(v => ({v, ds: venueDisplayState(v, tMs)}))
+    .filter(x => x.ds === 'locked-in' || x.ds === 'catch-now');
+  candidates.sort((a,b) => {
+    if (state.userLoc && a.v.walkMin != null && b.v.walkMin != null){
+      return a.v.walkMin - b.v.walkMin;
+    }
+    return (b.v.totalSunMin||0) - (a.v.totalSunMin||0);
+  });
+  const lockedInCount = candidates.filter(x => x.ds === 'locked-in').length;
+  const catchNowCount = candidates.filter(x => x.ds === 'catch-now').length;
+
+  // Show 3 rows so there's always something peeking below the sheet's peek height
+  const top = candidates.slice(0, 3);
+
+  const rowHTML = (x) => {
+    const {v, ds} = x;
+    const win = (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e);
+    const sunTxt = win ? `sun until ${fmtTimeMs(win[1])}` : 'in the sun';
+    const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
+    const avatarCls = ds === 'catch-now' ? 'catch' : 'sun';
+    const timeCls   = ds === 'catch-now' ? 'catch'   : 'sun';
+    return `
+      <button class="m-browse-row" data-id="${escapeHtml(v.id)}" type="button">
+        <div class="m-browse-row-avatar ${avatarCls}">☀️</div>
+        <div class="m-browse-row-main">
+          <div class="m-browse-row-name">${escapeHtml(v.name)}</div>
+          <div class="m-browse-row-meta"><span class="${timeCls}">${sunTxt}</span>${walk}</div>
+        </div>
+        <span class="m-browse-row-chev">›</span>
+      </button>`;
+  };
+
+  if (!candidates.length){
+    root.innerHTML = `
+      <div class="m-browse">
+        <div class="m-browse-head">
+          <div class="m-browse-count">
+            <span class="n" style="color:var(--shade)">0</span>
+            <span class="lbl">terraces in the sun right now</span>
+          </div>
+          <span class="m-browse-hint">Swipe up <span class="arr">↑</span></span>
+        </div>
+        <div class="m-browse-empty">
+          <b>Nothing sunny right now.</b>
+          Drag up to see all terraces, or scrub the time bar to find a sunny window.
+        </div>
+      </div>`;
+    return;
+  }
+
+  const subParts = [];
+  if (lockedInCount) subParts.push(`${lockedInCount} locked in for 30+ min`);
+  if (catchNowCount) subParts.push(`<span class="catch">${catchNowCount} you'd need to catch now</span>`);
+
   root.innerHTML = `
     <div class="m-browse">
-      <p class="m-browse-summary"><b>${sunnyCount}</b> sunny terrace${sunnyCount===1?'':'s'} right now ${cloudyCount?` · ${cloudyCount} cloudy`:''}</p>
-      <p class="m-browse-hint">Tap a pin to see details, or drag up <span class="arr">↑</span> for the full list.</p>
+      <div class="m-browse-head">
+        <div class="m-browse-count">
+          <span class="n">${candidates.length}</span>
+          <span class="lbl">sunny terrace${candidates.length===1?'':'s'} nearby</span>
+        </div>
+        <span class="m-browse-hint">Swipe up <span class="arr">↑</span></span>
+      </div>
+      ${subParts.length ? `<p class="m-browse-sub">${subParts.join(' · ')}</p>` : ''}
+      <div class="m-browse-rows">
+        ${top.map(rowHTML).join('')}
+      </div>
     </div>`;
+
+  // Wire row taps → open venue details (same flow as tapping a pin)
+  root.querySelectorAll('.m-browse-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-id');
+      focusVenueMobile(id);
+    });
+  });
 }
 
 function renderMobileList(root){
