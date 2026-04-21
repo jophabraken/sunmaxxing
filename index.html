@@ -268,6 +268,153 @@
   }
   .stats-inline b{color:var(--text);font-weight:700}
 
+  /* ============================================================
+     TOPBAR — compact brand + search + readout + heatmap band
+     ============================================================ */
+  .topbar{
+    background:var(--bg);
+    border-bottom:1px solid var(--border);
+    padding:10px 22px 6px;
+    display:flex;flex-direction:column;gap:6px;
+  }
+  .topbar-main{
+    display:flex;align-items:center;gap:12px;
+  }
+  .brand-compact{
+    display:flex;align-items:center;gap:10px;
+    text-decoration:none;color:var(--text);flex:0 0 auto;
+  }
+  .brand-compact .logo{
+    width:32px;height:32px;border-radius:9px;
+    background:radial-gradient(circle at 30% 30%, #FFD75E, var(--sun) 70%);
+    box-shadow:0 2px 8px var(--sun-glow), inset 0 -1px 2px rgba(0,0,0,.06);
+    display:grid;place-items:center;font-size:17px;
+    animation:none;
+  }
+  .brand-compact .brand-text{
+    font-weight:800;font-size:15px;letter-spacing:-0.01em;line-height:1;
+    white-space:nowrap;
+  }
+  .brand-compact .brand-text em{
+    font-family:'Fraunces', serif;font-style:italic;font-weight:600;
+    color:var(--coral);font-size:16px;
+  }
+  .topbar .search-wrap{
+    flex:1;min-width:220px;height:38px;
+  }
+  .topbar .tabs{height:38px}
+  .btn-filters{
+    display:inline-flex;align-items:center;gap:8px;
+    height:38px;padding:0 14px;border-radius:999px;
+    background:var(--card);border:1px solid var(--border);
+    font:inherit;font-size:13px;font-weight:600;color:var(--text);
+    cursor:pointer;box-shadow:var(--shadow-sm);flex:0 0 auto;
+    transition:all .15s;
+  }
+  .btn-filters:hover{border-color:var(--border-strong)}
+  .btn-filters.on{background:var(--shade);color:#fff;border-color:var(--shade)}
+  .btn-filters .count{
+    background:var(--bg-2);border-radius:999px;padding:1px 7px;font-size:11px;
+    font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700;
+  }
+  .btn-filters .count.has-active{background:var(--sun);color:#3a2900}
+  .btn-filters.on .count{background:rgba(255,255,255,.22);color:#fff}
+  .filters.collapsed{display:none}
+
+  .topbar-readout{
+    display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+    padding:2px 2px 0;flex-wrap:wrap;
+  }
+  .readout-main{display:flex;align-items:baseline;gap:8px;font-size:14px;color:var(--muted)}
+  .readout-main .r-time{
+    font-weight:800;color:var(--coral);
+    font-variant-numeric:tabular-nums;font-size:15px;
+  }
+  .readout-main .r-sep{color:var(--muted);opacity:.55}
+  .readout-main .r-num{font-weight:800;color:var(--text);font-size:22px;font-variant-numeric:tabular-nums}
+  .readout-main .r-label{color:var(--muted)}
+  .readout-main .now-btn-small{
+    border:none;background:var(--sun);color:#3a2900;font-weight:700;
+    height:24px;padding:0 10px;border-radius:999px;font-size:11px;letter-spacing:.02em;
+    box-shadow:0 2px 6px var(--sun-glow);margin-left:6px;cursor:pointer;
+    align-self:center;transition:transform .08s;
+  }
+  .readout-main .now-btn-small:active{transform:scale(.96)}
+  .readout-main .now-btn-small.hidden{display:none}
+  .readout-meta{
+    font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;
+    flex-wrap:wrap;white-space:nowrap;
+  }
+  .readout-meta b{color:var(--text);font-weight:700}
+  .readout-meta .r-meta-sep{opacity:.45}
+  .readout-meta .r-peak{color:#0E8F5B;font-weight:700}
+  .readout-meta .r-peak::before{content:"● ";opacity:.8}
+
+  .topbar-band-wrap{padding:4px 0 2px;position:relative}
+  .hm-band{
+    position:relative;height:30px;border-radius:10px;
+    box-shadow:inset 0 0 0 1px rgba(180,113,14,.18);
+    background:linear-gradient(90deg, #F4F5F9 0%, #FCEAA8 25%, #F5C43B 50%, #FCEAA8 75%, #F4F5F9 100%);
+    cursor:pointer;touch-action:none;user-select:none;
+  }
+  .hm-band::before,
+  .hm-band::after{
+    content:"";position:absolute;top:0;bottom:0;width:0;
+    pointer-events:none;
+  }
+  .hm-handle{
+    position:absolute;top:-6px;bottom:-6px;left:0;width:2px;
+    pointer-events:none;transform:translateX(-1px);
+    transition:left .08s linear;
+  }
+  .hm-handle.dragging{transition:none}
+  .hm-handle-stem{
+    position:absolute;inset:0;background:#14181F;border-radius:2px;
+    box-shadow:0 0 0 1px #fff, 0 2px 6px rgba(0,0,0,.2);
+  }
+  .hm-handle-knob{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:18px;height:18px;border-radius:50%;
+    background:#14181F;border:2px solid #fff;
+    box-shadow:0 3px 8px rgba(0,0,0,.25);
+    pointer-events:auto;cursor:grab;
+  }
+  .hm-handle-knob:active{cursor:grabbing}
+  .hm-handle-label{
+    position:absolute;top:-30px;left:50%;transform:translateX(-50%);
+    background:#14181F;color:#fff;font-size:11px;font-weight:800;
+    padding:3px 8px;border-radius:6px;white-space:nowrap;
+    font-variant-numeric:tabular-nums;pointer-events:none;
+    box-shadow:0 3px 8px rgba(0,0,0,.18);
+  }
+  .hm-handle-label::after{
+    content:"";position:absolute;bottom:-3px;left:50%;
+    transform:translateX(-50%) rotate(45deg);
+    width:6px;height:6px;background:#14181F;
+  }
+
+  .topbar-axis{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:2px 2px 4px;font-size:11px;color:var(--muted);font-weight:600;
+    gap:14px;
+  }
+  .topbar-axis b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
+  .ax-mid{display:flex;gap:18px;align-items:center;opacity:.8}
+  .ax-mid span{font-variant-numeric:tabular-nums}
+  .ax-peak{color:#0E8F5B;font-weight:700;opacity:1}
+  .ax-peak b{color:#0E8F5B}
+  .ax-legend{display:flex;align-items:center;gap:6px}
+  .ax-legend .swatch{
+    display:inline-block;width:56px;height:6px;border-radius:3px;
+    background:linear-gradient(90deg, #F4F5F9, #FCEAA8, #F5C43B, #E3A611);
+    border:1px solid rgba(180,113,14,.22);
+  }
+
+  .sr-only{
+    position:absolute !important;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+
   /* ---------- MAIN ---------- */
   main{position:relative;overflow:hidden}
   #map{width:100%;height:100%;background:var(--bg-2)}
@@ -608,7 +755,7 @@
 
   @media (max-width:860px){
     /* Hide desktop chrome, let the map eat the viewport */
-    .hero, .toolbar, .filters, .stats-inline, .legend{display:none}
+    .hero, .toolbar, .topbar, .filters, .stats-inline, .legend{display:none}
     .app{grid-template-rows:1fr;height:100dvh}
     main{height:100dvh;overflow:hidden}
     .view-list #map{display:block}
@@ -1214,39 +1361,77 @@
 
 <div class="app">
 
-  <header class="hero">
-    <div class="brand">
-      <div class="logo">☀️</div>
-      <div>
-        <h1>Sonne <em>Berlin</em></h1>
-        <p>Find the sunny terrace — right now, all across the city.
-          <a href="/best-rooftops-berlin/" class="hero-guide-link">Guide: the 10 sunniest rooftop bars in Berlin →</a>
-        </p>
-      </div>
-    </div>
-  </header>
+  <div class="topbar" id="topbar">
 
-  <div class="toolbar">
-    <div class="search-wrap" id="search-wrap">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input id="search" type="text" placeholder="Search for a bar, café or restaurant…" autocomplete="off" spellcheck="false">
-      <button class="search-clear" id="search-clear" title="Clear">Clear</button>
-    </div>
-    <div class="tabs" role="tablist">
-      <button id="tab-map" class="active">🗺 Map</button>
-      <button id="tab-list">☰ List</button>
-    </div>
-    <div class="time-pill">
-      <button class="now-btn hidden" id="now-btn">Now</button>
-      <div class="time-display">
-        <span id="time-label">--:--</span>
-        <small id="time-day">today</small>
+    <!-- Row 1: brand + search + tabs + filters button -->
+    <div class="topbar-main">
+      <a class="brand-compact" href="/" aria-label="Sonne Berlin — home">
+        <div class="logo">☀️</div>
+        <div class="brand-text">Sonne <em>Berlin</em></div>
+      </a>
+      <div class="search-wrap" id="search-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="search" type="text" placeholder="Search for a bar, café or restaurant…" autocomplete="off" spellcheck="false">
+        <button class="search-clear" id="search-clear" title="Clear">Clear</button>
       </div>
-      <span class="weather-inline" id="weather-inline" title="Live weather over Berlin">
-        <span class="ic" id="weather-ic">🌤</span><span id="weather-label">—</span>
-      </span>
-      <input id="time" type="range" min="0" max="1440" step="5" value="0">
+      <div class="tabs" role="tablist">
+        <button id="tab-map" class="active">🗺 Map</button>
+        <button id="tab-list">☰ List</button>
+      </div>
+      <button class="btn-filters" id="btn-filters-toggle" aria-expanded="true">
+        Filters <span class="count" id="btn-filters-count">0</span>
+      </button>
     </div>
+
+    <!-- Row 2: readout (live time + sunny count) + meta (weather, peak, sunset) -->
+    <div class="topbar-readout">
+      <div class="readout-main">
+        <span class="r-time" id="r-time">—:—</span>
+        <span class="r-sep">·</span>
+        <span class="r-num" id="r-num">—</span>
+        <span class="r-label" id="r-label">terraces in sun</span>
+        <button class="now-btn-small hidden" id="now-btn" title="Jump to now">Now</button>
+      </div>
+      <div class="readout-meta" id="readout-meta">
+        <span id="weather-ic">🌤</span>
+        <b id="weather-label">—</b>
+        <span class="r-meta-sep">·</span>
+        <span class="r-peak" id="r-peak">peak —</span>
+        <span class="r-meta-sep">·</span>
+        <span id="r-sunset">sets —</span>
+      </div>
+    </div>
+
+    <!-- Row 3: heatmap band (the scrubber) -->
+    <div class="topbar-band-wrap">
+      <div class="hm-band" id="hm-band" role="slider"
+           aria-label="Time of day — drag to preview sun at another time"
+           aria-valuemin="0" aria-valuemax="1440" aria-valuenow="0">
+        <div class="hm-handle" id="hm-handle">
+          <div class="hm-handle-label" id="hm-handle-label">—:—</div>
+          <div class="hm-handle-stem"></div>
+          <div class="hm-handle-knob"></div>
+        </div>
+      </div>
+      <!-- Hidden range input: preserves existing scrub state + mobile code paths -->
+      <input id="time" class="sr-only" type="range" min="0" max="1440" step="5" value="0" aria-hidden="true" tabindex="-1">
+      <!-- Legacy hidden fields for existing code paths -->
+      <span id="time-label" class="sr-only">--:--</span>
+      <span id="time-day" class="sr-only">today</span>
+    </div>
+
+    <!-- Row 4: axis -->
+    <div class="topbar-axis">
+      <span>🌅 <b id="ax-sunrise">—:—</b></span>
+      <div class="ax-mid">
+        <span id="ax-peak" class="ax-peak">peak <b id="ax-peak-time">—:—</b></span>
+      </div>
+      <div class="ax-legend" aria-hidden="true">
+        fewer <span class="swatch"></span> more terraces in sun
+      </div>
+      <span>🌇 <b id="ax-sunset">—:—</b></span>
+    </div>
+
   </div>
 
   <div class="filters" id="filters">
@@ -1262,14 +1447,13 @@
     <button class="chip cat" id="chip-cat-cafe"><span class="ic">☕</span>Café</button>
     <button class="chip cat" id="chip-cat-icecream"><span class="ic">🍦</span>Ice cream</button>
     <button class="chip cat" id="chip-cat-rooftop"><span class="ic">🏙️</span>Rooftop</button>
-    <span class="sun-info-inline" id="sun-info-inline">loading…</span>
+    <!-- legacy span preserved for code that still writes to it; visually hidden on desktop -->
+    <span class="sun-info-inline sr-only" id="sun-info-inline">loading…</span>
   </div>
 
-  <div class="stats-inline">
-    <span><b id="stat-sunny">—</b> sunny</span>
-    <span><b id="stat-shaded">—</b> shaded / no sun</span>
-    <span id="location-hint" style="margin-left:auto;color:var(--muted)">Tap <b>📍 Near me</b> to sort by distance</span>
-  </div>
+  <!-- Legacy hidden stats (used by internal code paths; no longer shown on desktop) -->
+  <span class="sr-only" id="stat-sunny">—</span>
+  <span class="sr-only" id="stat-shaded">—</span>
 
   <main id="main">
     <div id="map"></div>
@@ -2772,6 +2956,20 @@ function clearToast(){
 /* ============================================================
    UI: CHIPS & FILTERS
    ============================================================ */
+function countActiveFilters(){
+  let n = 0;
+  for (const k of Object.keys(state.filters)){
+    if (state.filters[k]) n++;
+  }
+  return n;
+}
+function updateFiltersToggleBadge(){
+  const c = document.getElementById('btn-filters-count');
+  if (!c) return;
+  const n = countActiveFilters();
+  c.textContent = n;
+  c.classList.toggle('has-active', n > 0);
+}
 function bindChip(id, key){
   const el = document.getElementById(id);
   el.addEventListener('click', () => {
@@ -2785,9 +2983,21 @@ function bindChip(id, key){
       state.filters.walk5 = false;
       document.getElementById('chip-walk5').classList.remove('active');
     }
+    updateFiltersToggleBadge();
     refresh();
   });
 }
+// Topbar "Filters" button toggles the chip row visibility.
+(function(){
+  const btn = document.getElementById('btn-filters-toggle');
+  const row = document.getElementById('filters');
+  if (!btn || !row) return;
+  btn.addEventListener('click', () => {
+    const open = !row.classList.contains('collapsed');
+    row.classList.toggle('collapsed', open);
+    btn.setAttribute('aria-expanded', String(!open));
+  });
+})();
 bindChip('chip-sunny', 'sunnyOnly');
 bindChip('chip-open',  'openNow');
 bindChip('chip-fav',   'favOnly');
@@ -2883,8 +3093,188 @@ nowBtn.addEventListener('click', () => {
   state.selectedTimeMs = null;
   updateTimeSliderToNow();
   updateTimeDisplay();
+  hmApplyBandGradient();   // recompute peak / axis for "now"
+  hmUpdateHandle();
   refresh();
 });
+
+/* ============================================================
+   DESKTOP HEATMAP BAND SCRUBBER
+   ------------------------------------------------------------
+   The top of the page is a single horizontal band whose gradient
+   encodes "what % of visible venues are in direct sun" across the
+   day. A draggable handle scrubs time; the readout above updates
+   the sunny count + live time. The hidden <input id="time"> range
+   stays in sync so all existing code paths (mobile ribbon,
+   updateStats, renderMap) keep working without changes.
+   ============================================================ */
+const hmBand        = document.getElementById('hm-band');
+const hmHandle      = document.getElementById('hm-handle');
+const hmHandleLabel = document.getElementById('hm-handle-label');
+
+// Coverage color stops — pale cream → soft amber → deep amber.
+// Saturates around 70% so 70%+ all look like peak; anything
+// below ~5% reads as "no sun" (same tone as night edges).
+const HM_STOPS = [
+  { p:0.00, c:[244,245,249] },  // #F4F5F9  — effectively "no sun"
+  { p:0.10, c:[252,234,168] },  // #FCEAA8  — a little sun
+  { p:0.35, c:[245,196, 59] },  // #F5C43B  — good sun
+  { p:0.70, c:[227,166, 17] },  // #E3A611  — peak
+];
+function hmColorForPct(pct){
+  const p = Math.max(0, Math.min(1, pct));
+  for (let i=1; i<HM_STOPS.length; i++){
+    const a = HM_STOPS[i-1], b = HM_STOPS[i];
+    if (p <= b.p){
+      const t = (p - a.p) / (b.p - a.p || 1);
+      const r = Math.round(a.c[0] + (b.c[0]-a.c[0])*t);
+      const g = Math.round(a.c[1] + (b.c[1]-a.c[1])*t);
+      const bl= Math.round(a.c[2] + (b.c[2]-a.c[2])*t);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  const last = HM_STOPS[HM_STOPS.length-1].c;
+  return `rgb(${last[0]},${last[1]},${last[2]})`;
+}
+const HM_NIGHT_COLOR = 'rgb(244,245,249)';  // matches the 0-pct stop
+
+// How often to sample the day. 15-min buckets → 96 buckets → a
+// smooth-enough gradient without blowing up the color-stop string.
+const HM_STEP_MIN = 15;
+
+// Minute-of-day → pct across the 0–1440 band.
+function hmMinToPct(min){ return Math.max(0, Math.min(100, (min/1440)*100)); }
+
+/* Returns an array of { min, pct, count, total } for the whole day,
+   sampled every HM_STEP_MIN minutes. Runs venueStateAt over all
+   loaded venues; cheap (~2,800 venues × 96 buckets, each lookup is
+   a short window scan) and only called when venue data or sun
+   times change. */
+function hmComputeCoverage(){
+  const out = [];
+  const venues = state.venues || [];
+  const total = venues.length;
+  const sod = startOfToday().getTime();
+  const srMs = state.sunrise ? state.sunrise.getTime() : null;
+  const ssMs = state.sunset  ? state.sunset.getTime()  : null;
+  for (let m = 0; m <= 1440; m += HM_STEP_MIN){
+    const tMs = sod + m*60000;
+    let count = 0;
+    // Night minutes short-circuit to 0 without scanning venues.
+    if (srMs != null && ssMs != null && (tMs < srMs || tMs > ssMs)){
+      out.push({ min:m, pct:0, count:0, total });
+      continue;
+    }
+    for (let i=0; i<venues.length; i++){
+      if (venueStateAt(venues[i], tMs) === 'sunny') count++;
+    }
+    const pct = total ? count/total : 0;
+    out.push({ min:m, pct, count, total });
+  }
+  return out;
+}
+
+let hmCoverage = null;  // cached; invalidated on data/weather refresh
+let hmPeak = null;      // { min, count } of sunniest bucket
+
+/* Rebuild the band gradient from the coverage buckets. Also picks
+   the peak and pushes sunrise / peak-time / sunset labels into the
+   axis row and the meta readout. */
+function hmApplyBandGradient(){
+  if (!hmBand) return;
+  hmCoverage = hmComputeCoverage();
+  // Build the CSS gradient — one color stop per bucket, positioned
+  // at its minute-of-day as a pct of 1440.
+  const parts = [];
+  let peak = { min: null, count: -1, pct: 0 };
+  for (const b of hmCoverage){
+    const color = hmColorForPct(b.pct);
+    parts.push(`${color} ${hmMinToPct(b.min).toFixed(2)}%`);
+    if (b.count > peak.count){ peak = { min:b.min, count:b.count, pct:b.pct }; }
+  }
+  hmPeak = peak;
+  hmBand.style.background = `linear-gradient(90deg, ${parts.join(', ')})`;
+
+  // Axis labels
+  const axSR = document.getElementById('ax-sunrise');
+  const axSS = document.getElementById('ax-sunset');
+  const axPeakTime = document.getElementById('ax-peak-time');
+  if (state.sunrise && axSR) axSR.textContent = fmtTime(state.sunrise);
+  if (state.sunset  && axSS) axSS.textContent = fmtTime(state.sunset);
+  if (peak.min != null && axPeakTime){
+    const pd = startOfToday(); pd.setMinutes(peak.min);
+    axPeakTime.textContent = fmtTime(pd);
+  }
+
+  // Meta readout: "peak HH:MM · sets HH:MM"
+  const rPeak = document.getElementById('r-peak');
+  const rSunset = document.getElementById('r-sunset');
+  if (peak.min != null && rPeak){
+    const pd = startOfToday(); pd.setMinutes(peak.min);
+    rPeak.textContent = `peak ${fmtTime(pd)}`;
+  }
+  if (state.sunset && rSunset){
+    rSunset.textContent = `sets ${fmtTime(state.sunset)}`;
+  }
+}
+
+/* Position the draggable handle over the band at the current
+   scrub time, update its popover label, and keep ARIA valuenow
+   in sync for screen readers. */
+function hmUpdateHandle(){
+  if (!hmBand || !hmHandle) return;
+  const min = parseInt(timeSlider.value, 10) || 0;
+  const pct = hmMinToPct(min);
+  hmHandle.style.left = pct + '%';
+  hmBand.setAttribute('aria-valuenow', String(min));
+  if (hmHandleLabel){
+    const d = startOfToday(); d.setMinutes(min);
+    const isNow = !state.selectedTimeMs;
+    hmHandleLabel.textContent = (isNow ? 'now · ' : '') + fmtTime(d);
+  }
+}
+
+/* Pointer-based scrubbing on the band. Mirrors the slider listener:
+   update #time, state.selectedTimeMs, readouts, then paint. */
+function hmScrubTo(clientX){
+  if (!hmBand) return;
+  const r = hmBand.getBoundingClientRect();
+  const x = Math.max(0, Math.min(r.width, clientX - r.left));
+  const min = Math.round((x / r.width) * 1440 / 5) * 5;   // 5-min steps, matches slider
+  timeSlider.value = min;
+  const d = startOfToday(); d.setMinutes(min);
+  state.selectedTimeMs = d.getTime();
+  updateTimeDisplay();
+  hmUpdateHandle();
+  markScrub();
+  scheduleRefresh();
+}
+if (hmBand){
+  let scrubId = null;
+  hmBand.addEventListener('pointerdown', (e) => {
+    scrubId = e.pointerId;
+    hmBand.setPointerCapture(scrubId);
+    if (hmHandle) hmHandle.classList.add('dragging');
+    hmScrubTo(e.clientX);
+  });
+  hmBand.addEventListener('pointermove', (e) => {
+    if (scrubId !== e.pointerId) return;
+    hmScrubTo(e.clientX);
+  });
+  const endScrub = (e) => {
+    if (scrubId !== e.pointerId) return;
+    try { hmBand.releasePointerCapture(scrubId); } catch(_){}
+    scrubId = null;
+    if (hmHandle) hmHandle.classList.remove('dragging');
+  };
+  hmBand.addEventListener('pointerup', endScrub);
+  hmBand.addEventListener('pointercancel', endScrub);
+  // Keyboard access for the hidden range input → still move the handle.
+  timeSlider.addEventListener('input', () => {
+    // The input listener above already handles state; we just sync the handle.
+    hmUpdateHandle();
+  });
+}
 
 const searchInput = document.getElementById('search');
 const searchWrap  = document.getElementById('search-wrap');
@@ -2968,6 +3358,14 @@ function updateStats(){
   document.getElementById('stat-sunny').textContent = sunny;
   document.getElementById('stat-shaded').textContent = shaded + cloudy + nosun;
   document.getElementById('count-sunny').textContent = sunny;
+
+  // Desktop topbar readout: live sunny count + current/scrubbed time.
+  const rNum  = document.getElementById('r-num');
+  const rTime = document.getElementById('r-time');
+  if (rNum)  rNum.textContent  = sunny;
+  if (rTime) rTime.textContent = fmtTime(new Date(tMs));
+  // Keep the heatmap handle + aria in sync on every refresh (cheap).
+  if (typeof hmUpdateHandle === 'function') hmUpdateHandle();
 
   // Sun info
   const pos = SunCalc.getPosition(new Date(tMs), CENTER[0], CENTER[1]);
@@ -3820,6 +4218,7 @@ async function main(){
   const windowsP = loadWindowsToday();           // 220KB
   const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
     refresh();  // 'sunny' → 'cloudy' update when it lands
+    if (state.venues?.length) { hmApplyBandGradient(); hmUpdateHandle(); }
   }).catch(e => {
     console.warn('[sonne] weather load failed:', e);
   });
@@ -3896,7 +4295,10 @@ async function main(){
   updateTimeDisplay();
   updateFavChip();
   updateNearMeUI();
+  updateFiltersToggleBadge();      // seed Filters button badge to 0
   setRibbonRangeFromSun();
+  hmApplyBandGradient();           // desktop sun-coverage band (early paint)
+  hmUpdateHandle();
   initMobileUI();
   refresh();                       // ← map + venues now visible to the user
 
@@ -3934,6 +4336,8 @@ async function main(){
     }
     console.info('[sonne] windows-today: applied to', matched, '/', state.venues.length, 'venues');
     setRibbonRangeFromSun();       // pick up baked sunrise/sunset
+    hmApplyBandGradient();         // paint desktop sun-coverage band
+    hmUpdateHandle();
     setLoader({pct:100});
     refresh();
     // Weather is still in-flight most of the time — don't block the loader
