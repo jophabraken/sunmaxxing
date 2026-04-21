@@ -1,0 +1,13 @@
+# Cloudflare Pages _redirects
+#
+# Rule syntax:   <source>   <destination>   <status>
+# status=200  → rewrite (URL stays, different file served)
+# status=301  → permanent redirect (URL changes)
+#
+# The DE homepage shares index.html with / — language detection is
+# done in JS based on location.pathname. Exact-match only so that inner
+# DE pages (/de/biergarten-berlin/ etc.) keep serving their own index.html.
+/de/    /index.html    200
+/de     /de/           301
+
+# Everything else: let Pages serve the file at the path (default behavior).

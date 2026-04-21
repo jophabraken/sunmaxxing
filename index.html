@@ -19,6 +19,13 @@
 <meta name="theme-color" content="#F5A623">
 <link rel="canonical" href="https://sunmaxxing.com/">
 
+<!-- Bilingual pair. /de/ is the canonical DE homepage and is rewritten to
+     index.html by _redirects (status=200), so the JS detects the path and
+     swaps the language dict. x-default falls through to English. -->
+<link rel="alternate" hreflang="en" href="https://sunmaxxing.com/">
+<link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/">
+<link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/">
+
 <!-- Open Graph — used by Facebook, LinkedIn, WhatsApp, Telegram, Signal,
      Slack, iMessage, Discord. Same image at 1200×630 (standard size) so
      every client gets a crisp preview. -->
@@ -322,6 +329,17 @@
   }
   .btn-filters .count.has-active{background:var(--sun);color:#3a2900}
   .btn-filters.on .count{background:rgba(255,255,255,.22);color:#fff}
+  .lang-toggle{
+    display:inline-flex;align-items:center;justify-content:center;
+    height:38px;min-width:44px;padding:0 12px;border-radius:999px;
+    background:var(--card);border:1px solid var(--border);
+    font:inherit;font-size:12px;font-weight:700;color:var(--text);
+    letter-spacing:.05em;
+    cursor:pointer;box-shadow:var(--shadow-sm);flex:0 0 auto;
+    transition:all .15s;
+  }
+  .lang-toggle:hover{border-color:var(--border-strong);color:var(--sun-strong)}
+  .m-lang-toggle{font-weight:700;letter-spacing:.05em;min-width:40px;justify-content:center}
   .filters.collapsed{display:none}
 
   .topbar-readout{
@@ -1368,22 +1386,23 @@
 
     <!-- Row 1: brand + search + tabs + filters button -->
     <div class="topbar-main">
-      <a class="brand-compact" href="/" aria-label="Sonne Berlin — home">
+      <a class="brand-compact" href="/" data-i18n-aria-label="topbar_brand_label" aria-label="Sonne Berlin — home">
         <div class="logo">☀️</div>
         <div class="brand-text">Sonne <em>Berlin</em></div>
       </a>
       <div class="search-wrap" id="search-wrap">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input id="search" type="text" placeholder="Search for a bar, café or restaurant…" autocomplete="off" spellcheck="false">
-        <button class="search-clear" id="search-clear" title="Clear">Clear</button>
+        <input id="search" type="text" data-i18n-placeholder="topbar_search_placeholder" placeholder="Search for a bar, café or restaurant…" autocomplete="off" spellcheck="false">
+        <button class="search-clear" id="search-clear" data-i18n="topbar_search_clear" data-i18n-title="topbar_search_clear" title="Clear">Clear</button>
       </div>
       <div class="tabs" role="tablist">
-        <button id="tab-map" class="active">🗺 Map</button>
-        <button id="tab-list">☰ List</button>
+        <button id="tab-map" class="active" data-i18n="topbar_tab_map">🗺 Map</button>
+        <button id="tab-list" data-i18n="topbar_tab_list">☰ List</button>
       </div>
       <button class="btn-filters" id="btn-filters-toggle" aria-expanded="true">
-        Filters <span class="count" id="btn-filters-count">0</span>
+        <span data-i18n="topbar_filters_label">Filters</span> <span class="count" id="btn-filters-count">0</span>
       </button>
+      <button class="lang-toggle" id="lang-toggle" aria-label="Auf Deutsch wechseln" title="Auf Deutsch wechseln">DE</button>
     </div>
 
     <!-- Row 2: readout (live time + sunny count) + meta (weather, peak, sunset) -->
@@ -1392,8 +1411,8 @@
         <span class="r-time" id="r-time">—:—</span>
         <span class="r-sep">·</span>
         <span class="r-num" id="r-num">—</span>
-        <span class="r-label" id="r-label">terraces in sun</span>
-        <button class="now-btn-small hidden" id="now-btn" title="Jump to now">Now</button>
+        <span class="r-label" id="r-label" data-i18n="topbar_time_label">terraces in sun</span>
+        <button class="now-btn-small hidden" id="now-btn" data-i18n="topbar_now_button" data-i18n-title="m_ribbon_jump_aria" title="Jump to now">Now</button>
       </div>
       <div class="readout-meta" id="readout-meta">
         <span id="weather-ic">🌤</span>
@@ -1408,6 +1427,7 @@
     <!-- Row 3: heatmap band (the scrubber) -->
     <div class="topbar-band-wrap">
       <div class="hm-band" id="hm-band" role="slider"
+           data-i18n-aria-label="topbar_band_aria"
            aria-label="Time of day — drag to preview sun at another time"
            aria-valuemin="0" aria-valuemax="1440" aria-valuenow="0">
         <div class="hm-handle" id="hm-handle">
@@ -1430,7 +1450,7 @@
         <span id="ax-peak" class="ax-peak">peak <b id="ax-peak-time">—:—</b></span>
       </div>
       <div class="ax-legend" aria-hidden="true">
-        fewer <span class="swatch"></span> more terraces in sun
+        <span data-i18n="topbar_axis_legend_fewer">fewer</span> <span class="swatch"></span> <span data-i18n="topbar_axis_legend_more">more terraces in sun</span>
       </div>
       <span>🌇 <b id="ax-sunset">—:—</b></span>
     </div>
@@ -1438,18 +1458,18 @@
   </div>
 
   <div class="filters" id="filters">
-    <button class="chip" id="chip-nearme"><span class="ic">📍</span>Near me</button>
-    <button class="chip hidden" id="chip-walk5"><span class="ic">🚶</span>≤ 10 min</button>
-    <button class="chip hidden" id="chip-walk20"><span class="ic">🚶‍♀️</span>≤ 20 min</button>
-    <button class="chip sunny" id="chip-sunny"><span class="ic">☀️</span>Sunny <span class="count" id="count-sunny">—</span></button>
-    <button class="chip" id="chip-open"><span class="ic">🕐</span>Open now</button>
-    <button class="chip hidden" id="chip-fav"><span class="ic">★</span>Favorites <span class="count" id="count-fav">0</span></button>
+    <button class="chip" id="chip-nearme"><span class="ic">📍</span><span data-i18n="chip_nearme">Near me</span></button>
+    <button class="chip hidden" id="chip-walk5"><span class="ic">🚶</span><span data-i18n="chip_walk5">≤ 10 min</span></button>
+    <button class="chip hidden" id="chip-walk20"><span class="ic">🚶‍♀️</span><span data-i18n="chip_walk20">≤ 20 min</span></button>
+    <button class="chip sunny" id="chip-sunny"><span class="ic">☀️</span><span data-i18n="chip_sunny">Sunny</span> <span class="count" id="count-sunny">—</span></button>
+    <button class="chip" id="chip-open"><span class="ic">🕐</span><span data-i18n="chip_open">Open now</span></button>
+    <button class="chip hidden" id="chip-fav"><span class="ic">★</span><span data-i18n="chip_fav">Favorites</span> <span class="count" id="count-fav">0</span></button>
     <span class="chip-sep" aria-hidden="true"></span>
-    <button class="chip cat" id="chip-cat-restaurant"><span class="ic">🍽️</span>Restaurant</button>
-    <button class="chip cat" id="chip-cat-bar"><span class="ic">🍺</span>Bar</button>
-    <button class="chip cat" id="chip-cat-cafe"><span class="ic">☕</span>Café</button>
-    <button class="chip cat" id="chip-cat-icecream"><span class="ic">🍦</span>Ice cream</button>
-    <button class="chip cat" id="chip-cat-rooftop"><span class="ic">🏙️</span>Rooftop</button>
+    <button class="chip cat" id="chip-cat-restaurant"><span class="ic">🍽️</span><span data-i18n="chip_restaurant">Restaurant</span></button>
+    <button class="chip cat" id="chip-cat-bar"><span class="ic">🍺</span><span data-i18n="chip_bar">Bar</span></button>
+    <button class="chip cat" id="chip-cat-cafe"><span class="ic">☕</span><span data-i18n="chip_cafe">Café</span></button>
+    <button class="chip cat" id="chip-cat-icecream"><span class="ic">🍦</span><span data-i18n="chip_icecream">Ice cream</span></button>
+    <button class="chip cat" id="chip-cat-rooftop"><span class="ic">🏙️</span><span data-i18n="chip_rooftop">Rooftop</span></button>
     <!-- legacy span preserved for code that still writes to it; visually hidden on desktop -->
     <span class="sun-info-inline sr-only" id="sun-info-inline">loading…</span>
   </div>
@@ -1463,15 +1483,15 @@
     <div id="list"></div>
 
     <div class="legend">
-      <div><span class="dot locked-in"></span> Sun for 60+ min</div>
-      <div><span class="dot catch-now"></span> Sun for &lt;60 min</div>
-      <div><span class="dot off"></span> No sun</div>
+      <div><span class="dot locked-in"></span> <span data-i18n="legend_60plus">Sun for 60+ min</span></div>
+      <div><span class="dot catch-now"></span> <span data-i18n="legend_under60">Sun for &lt;60 min</span></div>
+      <div><span class="dot off"></span> <span data-i18n="legend_nosun">No sun</span></div>
     </div>
 
     <div id="loader" class="loader">
       <div class="sun-spin"></div>
-      <div class="title" id="loader-title">Warming up Berlin…</div>
-      <div class="detail" id="loader-detail">querying OpenStreetMap</div>
+      <div class="title" id="loader-title" data-i18n="loader_loading">Warming up Berlin…</div>
+      <div class="detail" id="loader-detail" data-i18n="loader_querying">querying OpenStreetMap</div>
       <div class="bar"><div id="loader-bar" style="width:10%"></div></div>
     </div>
   </main>
@@ -1485,24 +1505,25 @@
 
   <!-- Chips row (top, horizontal scroll) -->
   <div class="m-chips" id="m-chips">
-    <button class="m-chip-search" id="m-chip-search" aria-label="Search">
+    <button class="m-chip-search" id="m-chip-search" data-i18n-aria-label="m_chip_search_aria" aria-label="Search">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
     </button>
-    <button class="m-chip sunny" id="m-chip-sunny"><span>☀</span>Sunny <span class="cnt" id="m-cnt-sunny">—</span></button>
-    <button class="m-chip" id="m-chip-open"><span>🕐</span>Open now</button>
-    <button class="m-chip hidden" id="m-chip-fav"><span>★</span>Favorites <span class="cnt" id="m-cnt-fav">0</span></button>
-    <button class="m-chip" id="m-chip-nearme"><span>📍</span>Near me</button>
-    <button class="m-chip hidden" id="m-chip-walk5"><span>🚶</span>≤10 min</button>
-    <button class="m-chip hidden" id="m-chip-walk20"><span>🚶‍♀️</span>≤20 min</button>
-    <button class="m-chip cat" id="m-chip-cat-restaurant"><span>🍽</span>Restaurant</button>
-    <button class="m-chip cat" id="m-chip-cat-bar"><span>🍺</span>Bar</button>
-    <button class="m-chip cat" id="m-chip-cat-cafe"><span>☕</span>Café</button>
-    <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span>Ice cream</button>
-    <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span>Rooftop</button>
+    <button class="m-chip sunny" id="m-chip-sunny"><span>☀</span><span data-i18n="chip_sunny">Sunny</span> <span class="cnt" id="m-cnt-sunny">—</span></button>
+    <button class="m-chip" id="m-chip-open"><span>🕐</span><span data-i18n="chip_open">Open now</span></button>
+    <button class="m-chip hidden" id="m-chip-fav"><span>★</span><span data-i18n="chip_fav">Favorites</span> <span class="cnt" id="m-cnt-fav">0</span></button>
+    <button class="m-chip" id="m-chip-nearme"><span>📍</span><span data-i18n="chip_nearme">Near me</span></button>
+    <button class="m-chip hidden" id="m-chip-walk5"><span>🚶</span><span data-i18n="chip_walk5">≤10 min</span></button>
+    <button class="m-chip hidden" id="m-chip-walk20"><span>🚶‍♀️</span><span data-i18n="chip_walk20">≤20 min</span></button>
+    <button class="m-chip cat" id="m-chip-cat-restaurant"><span>🍽</span><span data-i18n="chip_restaurant">Restaurant</span></button>
+    <button class="m-chip cat" id="m-chip-cat-bar"><span>🍺</span><span data-i18n="chip_bar">Bar</span></button>
+    <button class="m-chip cat" id="m-chip-cat-cafe"><span>☕</span><span data-i18n="chip_cafe">Café</span></button>
+    <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span><span data-i18n="chip_icecream">Ice cream</span></button>
+    <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span><span data-i18n="chip_rooftop">Rooftop</span></button>
+    <button class="m-chip m-lang-toggle" id="m-lang-toggle" aria-label="Auf Deutsch wechseln">DE</button>
   </div>
 
   <!-- FAB (right, above sheet) -->
-  <button class="m-fab" id="m-fab" aria-label="Near me">
+  <button class="m-fab" id="m-fab" data-i18n-aria-label="m_fab_aria" aria-label="Near me">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="3"/>
       <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
@@ -1511,14 +1532,14 @@
 
   <!-- Bottom sheet with sun ribbon + dynamic content -->
   <div class="m-sheet" id="m-sheet">
-    <div class="m-sheet-handle-wrap" id="m-sheet-handle" role="button" aria-label="Drag sheet">
+    <div class="m-sheet-handle-wrap" id="m-sheet-handle" role="button" data-i18n-aria-label="m_sheet_handle_aria" aria-label="Drag sheet">
       <div class="m-sheet-handle"></div>
     </div>
     <div class="m-sheet-body" id="m-sheet-body">
       <div class="m-ribbon-wrap">
         <div class="m-ribbon-head">
           <span class="m-ribbon-time" id="m-ribbon-time">Today · <em>—:—</em></span>
-          <button class="m-ribbon-now-btn hidden" id="m-ribbon-now-btn" aria-label="Jump to now">Now</button>
+          <button class="m-ribbon-now-btn hidden" id="m-ribbon-now-btn" data-i18n="m_ribbon_now" data-i18n-aria-label="m_ribbon_jump_aria" aria-label="Jump to now">Now</button>
         </div>
         <div class="m-ribbon" id="m-ribbon">
           <div class="m-ribbon-clouds" id="m-ribbon-clouds"></div>
@@ -1536,11 +1557,11 @@
 <!-- Full-screen search overlay (mobile) -->
 <div class="m-search-overlay" id="m-search-overlay" aria-hidden="true">
   <div class="m-search-topbar">
-    <button class="m-search-back" id="m-search-back" aria-label="Close search">←</button>
+    <button class="m-search-back" id="m-search-back" data-i18n-aria-label="m_search_back_aria" aria-label="Close search">←</button>
     <div class="m-search-input-wrap" id="m-search-input-wrap">
       <span class="ic"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
-      <input class="m-search-input" id="m-search-input" type="text" placeholder="Bar, café, or restaurant…" autocomplete="off" spellcheck="false">
-      <button class="m-search-clear" id="m-search-clear" aria-label="Clear">×</button>
+      <input class="m-search-input" id="m-search-input" type="text" data-i18n-placeholder="m_search_placeholder" placeholder="Bar, café, or restaurant…" autocomplete="off" spellcheck="false">
+      <button class="m-search-clear" id="m-search-clear" data-i18n-aria-label="m_search_clear_aria" aria-label="Clear">×</button>
     </div>
   </div>
   <div class="m-search-results" id="m-search-results"></div>
@@ -1555,6 +1576,416 @@
 <script src="https://cdn.jsdelivr.net/npm/opening_hours@3.8.0/build/opening_hours.min.js"></script>
 
 <script>
+/* ============================================================
+   i18n — language detection + EN/DE dictionary
+   ------------------------------------------------------------
+   Rules:
+   - URL wins: /de/ path → 'de', / → default resolution path
+   - Explicit override via ?lang=de or ?lang=en
+   - Remembered preference in localStorage
+   - Browser language fallback (navigator.language)
+   - English as final fallback
+
+   All user-visible text goes through t('key') or data-i18n
+   attributes. Never hardcode a string in the DOM or in a
+   JS-emitted template literal.
+   ============================================================ */
+const STRINGS = {
+  en: {
+    topbar_brand_label: "Sonne Berlin — home",
+    topbar_search_placeholder: "Search for a bar, café or restaurant…",
+    topbar_search_clear: "Clear",
+    topbar_tab_map: "🗺 Map",
+    topbar_tab_list: "☰ List",
+    topbar_filters_label: "Filters",
+    topbar_time_label: "terraces in sun",
+    topbar_now_button: "Now",
+    topbar_band_aria: "Time of day — drag to preview sun at another time",
+    topbar_peak_label: "peak",
+    topbar_sunset_label: "sets",
+    topbar_axis_legend_fewer: "fewer",
+    topbar_axis_legend_more: "more terraces in sun",
+    lang_toggle_to_de: "Auf Deutsch wechseln",
+    lang_toggle_to_en: "Switch to English",
+
+    chip_nearme: "Near me",
+    chip_walk5: "≤ 10 min",
+    chip_walk20: "≤ 20 min",
+    chip_sunny: "Sunny",
+    chip_open: "Open now",
+    chip_fav: "Favorites",
+    chip_restaurant: "Restaurant",
+    chip_bar: "Bar",
+    chip_cafe: "Café",
+    chip_icecream: "Ice cream",
+    chip_rooftop: "Rooftop",
+    chip_nearme_on: "Location on",
+
+    legend_60plus: "Sun for 60+ min",
+    legend_under60: "Sun for <60 min",
+    legend_nosun: "No sun",
+
+    weather_sunny: "sunny",
+    weather_cloudy: "cloudy",
+    weather_partly_cloudy: "partly cloudy",
+
+    ribbon_time_today: "Today · ",
+
+    state_sunny: "in the sun",
+    state_cloudy: "cloudy",
+    state_sunny_spot_cloudy: "sunny spot — but cloudy",
+    state_shaded: "in the shade",
+    state_nosun: "no direct sun today",
+    state_night: "sun below horizon",
+
+    m_ribbon_jump_aria: "Jump to now",
+    m_ribbon_now: "Now",
+    m_sheet_handle_aria: "Drag sheet",
+    m_fab_aria: "Near me",
+    m_chip_search_aria: "Search",
+
+    m_peek_aria: "Show details",
+    m_peek_more_info: "More info",
+
+    m_details_sun_until: "☀️ Sun until ${time}",
+    m_details_in_sun: "☀️ In the sun",
+    m_details_sun_at: "🏢 Sun returns at ${time}",
+    m_details_in_shade: "🏢 In the shade",
+    m_details_cloudy: "🌥 Sunny spot, cloudy right now",
+    m_details_nosun: "🙁 No direct sun today",
+    m_details_night: "🌙 Sun below horizon",
+    m_details_sun_until_peek: "Sun until ${time}",
+    m_details_sun_at_peek: "Sun returns at ${time}",
+    m_details_cloudy_peek: "Sunny spot, cloudy",
+    m_details_nosun_peek: "No direct sun today",
+    m_details_night_peek: "Sun below horizon",
+    m_details_gmaps: "Open in Google Maps",
+
+    hours_open: "Open",
+    hours_open_until: "Open until ${time}",
+    hours_closes_soon: "Closes at ${time}",
+    hours_closed_opens: "Opens at ${time}",
+    hours_closed_tomorrow: "Opens tomorrow at ${time}",
+    hours_closed_weekday: "Opens ${weekday} at ${time}",
+    hours_closed_icon: "✕ closed",
+    hours_closed_opens_inline: "✕ closed · opens ${time}",
+    hours_open_icon: "● open",
+    hours_open_until_inline: "● open · until ${time}",
+
+    confidence_confirmed: "Confirmed terrace",
+    confidence_likely: "Likely terrace",
+
+    list_section_favorites: "★ Favorites",
+    list_section_sunny: "☀️ In the sun right now",
+    list_section_cloudy_desktop: "🌥 Sunny spots — but cloudy right now",
+    list_section_cloudy_mobile: "🌥 Sunny spot · cloudy now",
+    list_section_shade: "In the shade",
+    list_section_nosun: "No direct sun today",
+    list_section_night: "🌙 Sun below horizon",
+    list_all_terraces: "All terraces",
+    list_empty_mobile: "Nothing matches.",
+    list_empty_mobile_help: "Try clearing filters or the search.",
+    list_empty_desktop: "No venues match your filters",
+    list_empty_desktop_search: "No venues match your filters / \"${query}\"",
+
+    m_search_back_aria: "Close search",
+    m_search_placeholder: "Bar, café, or restaurant…",
+    m_search_clear_aria: "Clear",
+    m_search_result_single: "1 result",
+    m_search_result_plural: "${count} results",
+    m_search_closest: "Closest to you",
+    m_search_suggestions: "Suggestions right now",
+    m_search_empty: "No venues match \"${query}\"",
+    m_search_empty_help: "Try a different spelling or a street name.",
+
+    geoloc_success: "Got your location — walking times added.",
+    geoloc_failure: "Couldn't get your location. Allow location in your browser and try again.",
+    geoloc_locating: "Locating…",
+
+    loader_loading: "Warming up Berlin…",
+    loader_querying: "querying OpenStreetMap",
+    loader_finding: "Finding terraces…",
+    loader_venues_count: "${count} terraces on map",
+    loader_data_status: "Loading shadow data & weather…",
+    loader_buildings_count: "${count} buildings",
+    loader_buildings_partial: "partial: ${ok}/${total}",
+    loader_computing: "Computing sun windows for each terrace…",
+    loader_progress: "${done} / ${total} venues — ${percent}%",
+    loader_error: "Could not load terraces",
+    loader_error_retry: " — tap to retry.",
+
+    tag_in_sun: "in sun",
+    tag_cloudy: "cloudy",
+    tag_in_shade: "in shade",
+    tag_night: "night",
+    tag_no_sun: "no sun",
+    search_day_now: "now",
+    search_day_today: "today",
+    cloud_percent: "cloud ${percent}%"
+  },
+  de: {
+    topbar_brand_label: "Sonne Berlin — Startseite",
+    topbar_search_placeholder: "Suche nach Bar, Café oder Restaurant…",
+    topbar_search_clear: "Leeren",
+    topbar_tab_map: "🗺 Karte",
+    topbar_tab_list: "☰ Liste",
+    topbar_filters_label: "Filter",
+    topbar_time_label: "Terrassen in der Sonne",
+    topbar_now_button: "Jetzt",
+    topbar_band_aria: "Tageszeit — ziehen, um die Sonne zu anderer Zeit zu sehen",
+    topbar_peak_label: "Spitze",
+    topbar_sunset_label: "Untergang",
+    topbar_axis_legend_fewer: "weniger",
+    topbar_axis_legend_more: "mehr Terrassen in der Sonne",
+    lang_toggle_to_de: "Auf Deutsch wechseln",
+    lang_toggle_to_en: "Switch to English",
+
+    chip_nearme: "In der Nähe",
+    chip_walk5: "≤ 10 Min",
+    chip_walk20: "≤ 20 Min",
+    chip_sunny: "Sonnig",
+    chip_open: "Jetzt geöffnet",
+    chip_fav: "Favoriten",
+    chip_restaurant: "Restaurant",
+    chip_bar: "Bar",
+    chip_cafe: "Café",
+    chip_icecream: "Eis",
+    chip_rooftop: "Rooftop",
+    chip_nearme_on: "Standort aktiv",
+
+    legend_60plus: "Sonne für 60+ Min",
+    legend_under60: "Sonne für <60 Min",
+    legend_nosun: "Keine Sonne",
+
+    weather_sunny: "sonnig",
+    weather_cloudy: "bewölkt",
+    weather_partly_cloudy: "leicht bewölkt",
+
+    ribbon_time_today: "Heute · ",
+
+    state_sunny: "in der Sonne",
+    state_cloudy: "bewölkt",
+    state_sunny_spot_cloudy: "Sonnenplatz — aber bewölkt",
+    state_shaded: "im Schatten",
+    state_nosun: "heute keine direkte Sonne",
+    state_night: "Sonne unter dem Horizont",
+
+    m_ribbon_jump_aria: "Zu Jetzt springen",
+    m_ribbon_now: "Jetzt",
+    m_sheet_handle_aria: "Liste ziehen",
+    m_fab_aria: "In der Nähe",
+    m_chip_search_aria: "Suchen",
+
+    m_peek_aria: "Details anzeigen",
+    m_peek_more_info: "Mehr Infos",
+
+    m_details_sun_until: "☀️ Sonne bis ${time}",
+    m_details_in_sun: "☀️ In der Sonne",
+    m_details_sun_at: "🏢 Sonne ab ${time}",
+    m_details_in_shade: "🏢 Im Schatten",
+    m_details_cloudy: "🌥 Sonnenplatz, gerade bewölkt",
+    m_details_nosun: "🙁 Heute keine direkte Sonne",
+    m_details_night: "🌙 Sonne unter dem Horizont",
+    m_details_sun_until_peek: "Sonne bis ${time}",
+    m_details_sun_at_peek: "Sonne ab ${time}",
+    m_details_cloudy_peek: "Sonnenplatz, bewölkt",
+    m_details_nosun_peek: "Heute keine direkte Sonne",
+    m_details_night_peek: "Sonne unter dem Horizont",
+    m_details_gmaps: "In Google Maps öffnen",
+
+    hours_open: "Geöffnet",
+    hours_open_until: "Geöffnet bis ${time}",
+    hours_closes_soon: "Schließt um ${time}",
+    hours_closed_opens: "Öffnet um ${time}",
+    hours_closed_tomorrow: "Morgen ab ${time}",
+    hours_closed_weekday: "${weekday} ab ${time}",
+    hours_closed_icon: "✕ geschlossen",
+    hours_closed_opens_inline: "✕ geschlossen · öffnet ${time}",
+    hours_open_icon: "● geöffnet",
+    hours_open_until_inline: "● geöffnet · bis ${time}",
+
+    confidence_confirmed: "Terrasse bestätigt",
+    confidence_likely: "Terrasse wahrscheinlich",
+
+    list_section_favorites: "★ Favoriten",
+    list_section_sunny: "☀️ Jetzt in der Sonne",
+    list_section_cloudy_desktop: "🌥 Sonnenplätze — aber gerade bewölkt",
+    list_section_cloudy_mobile: "🌥 Sonnenplatz · gerade bewölkt",
+    list_section_shade: "Im Schatten",
+    list_section_nosun: "Heute keine direkte Sonne",
+    list_section_night: "🌙 Sonne unter dem Horizont",
+    list_all_terraces: "Alle Terrassen",
+    list_empty_mobile: "Nichts passt.",
+    list_empty_mobile_help: "Versuch, Filter oder Suche zu leeren.",
+    list_empty_desktop: "Keine Orte passen zu deinen Filtern",
+    list_empty_desktop_search: "Keine Orte passen zu deinen Filtern / „${query}“",
+
+    m_search_back_aria: "Suche schließen",
+    m_search_placeholder: "Bar, Café oder Restaurant…",
+    m_search_clear_aria: "Leeren",
+    m_search_result_single: "1 Ergebnis",
+    m_search_result_plural: "${count} Ergebnisse",
+    m_search_closest: "Am nächsten bei dir",
+    m_search_suggestions: "Vorschläge jetzt",
+    m_search_empty: "Keine Orte gefunden zu „${query}“",
+    m_search_empty_help: "Versuch eine andere Schreibweise oder einen Straßennamen.",
+
+    geoloc_success: "Standort gefunden — Gehzeiten hinzugefügt.",
+    geoloc_failure: "Standort konnte nicht ermittelt werden. Erlaube Standort im Browser und versuch es nochmal.",
+    geoloc_locating: "Suche…",
+
+    loader_loading: "Sonne über Berlin…",
+    loader_querying: "frage OpenStreetMap ab",
+    loader_finding: "Suche Terrassen…",
+    loader_venues_count: "${count} Terrassen auf der Karte",
+    loader_data_status: "Lade Schatten- & Wetterdaten…",
+    loader_buildings_count: "${count} Gebäude",
+    loader_buildings_partial: "teilweise: ${ok}/${total}",
+    loader_computing: "Berechne Sonnenzeiten für jede Terrasse…",
+    loader_progress: "${done} / ${total} Orte — ${percent}%",
+    loader_error: "Terrassen konnten nicht geladen werden",
+    loader_error_retry: " — zum Wiederholen tippen.",
+
+    tag_in_sun: "Sonne",
+    tag_cloudy: "bewölkt",
+    tag_in_shade: "Schatten",
+    tag_night: "Nacht",
+    tag_no_sun: "keine Sonne",
+    search_day_now: "jetzt",
+    search_day_today: "heute",
+    cloud_percent: "Wolken ${percent}%"
+  }
+};
+
+const LANG_FALLBACK = 'en';
+let CURRENT_LANG = (function(){
+  try {
+    // 1. URL path wins: /de/ (exactly) means DE. /de/<listicle>/ is handled
+    //    by its own page, not by this app, so only bare /de/ matters.
+    const p = location.pathname.replace(/\/+$/, '/');  // normalize trailing slash
+    if (p === '/de/' || p === '/de') return 'de';
+
+    // 2. Explicit query override: ?lang=de / ?lang=en (persisted)
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q === 'de' || q === 'en') {
+      try { localStorage.setItem('sunmaxxing.lang', q); } catch(_){}
+      return q;
+    }
+
+    // 3. Saved preference
+    try {
+      const pref = localStorage.getItem('sunmaxxing.lang');
+      if (pref === 'de' || pref === 'en') return pref;
+    } catch(_){}
+
+    // 4. Browser language
+    const nav = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    if (nav.startsWith('de')) {
+      // First-visit DE browser on / → redirect to /de/ for the canonical URL,
+      // but only for the root; don't redirect inner pages.
+      if (location.pathname === '/' || location.pathname === '') {
+        location.replace('/de/');
+        return 'de';  // unreached, but keep for linter
+      }
+      return 'de';
+    }
+  } catch(_){}
+  return LANG_FALLBACK;
+})();
+
+function t(key, params) {
+  const dict = STRINGS[CURRENT_LANG] || STRINGS[LANG_FALLBACK];
+  let s = dict[key];
+  if (s === undefined) s = STRINGS[LANG_FALLBACK][key];
+  if (s === undefined) {
+    if (typeof console !== 'undefined') console.warn('[i18n] missing key:', key);
+    return '';
+  }
+  if (params) {
+    for (const p in params) {
+      s = s.split('${' + p + '}').join(params[p]);
+    }
+  }
+  return s;
+}
+
+function applyI18nStaticDom() {
+  document.documentElement.lang = CURRENT_LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (key) el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (key) el.innerHTML = t(key);
+  });
+  ['placeholder','title','aria-label','alt'].forEach(attr => {
+    document.querySelectorAll('[data-i18n-' + attr + ']').forEach(el => {
+      const key = el.getAttribute('data-i18n-' + attr);
+      if (key) el.setAttribute(attr, t(key));
+    });
+  });
+  const toggle = document.getElementById('lang-toggle');
+  if (toggle) {
+    toggle.textContent = CURRENT_LANG === 'de' ? 'EN' : 'DE';
+    toggle.setAttribute('aria-label',
+      CURRENT_LANG === 'de' ? t('lang_toggle_to_en') : t('lang_toggle_to_de'));
+    toggle.setAttribute('title',
+      CURRENT_LANG === 'de' ? t('lang_toggle_to_en') : t('lang_toggle_to_de'));
+  }
+  const mToggle = document.getElementById('m-lang-toggle');
+  if (mToggle) {
+    mToggle.textContent = CURRENT_LANG === 'de' ? 'EN' : 'DE';
+  }
+}
+
+function setLang(lang) {
+  if (lang !== 'en' && lang !== 'de') return;
+  try { localStorage.setItem('sunmaxxing.lang', lang); } catch(_){}
+  const path = location.pathname;
+  // Switch to DE: go to /de/ (only when on /); otherwise reload in-place
+  if (lang === 'de' && (path === '/' || path === '')) {
+    location.href = '/de/';
+    return;
+  }
+  if (lang === 'en' && (path === '/de/' || path === '/de')) {
+    location.href = '/';
+    return;
+  }
+  CURRENT_LANG = lang;
+  applyI18nStaticDom();
+  // Re-render live state (markers, list, details) if the app is initialized
+  try { if (typeof scheduleRefresh === 'function') scheduleRefresh(); } catch(_){}
+  try { if (typeof renderList === 'function') renderList(); } catch(_){}
+  try { if (typeof updateStats === 'function') updateStats(); } catch(_){}
+  try { if (typeof renderMobileUI === 'function') renderMobileUI(); } catch(_){}
+}
+
+function bindLangToggles(){
+  const toggle = (el) => {
+    if (!el) return;
+    if (el.dataset.i18nBound === '1') return;
+    el.dataset.i18nBound = '1';
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      setLang(CURRENT_LANG === 'de' ? 'en' : 'de');
+    });
+  };
+  toggle(document.getElementById('lang-toggle'));
+  toggle(document.getElementById('m-lang-toggle'));
+}
+
+// Apply static i18n as early as possible
+function initI18nDom(){
+  applyI18nStaticDom();
+  bindLangToggles();
+}
+if (document.readyState !== 'loading') {
+  initI18nDom();
+} else {
+  document.addEventListener('DOMContentLoaded', initI18nDom);
+}
+
 /* ============================================================
    CONFIG
    ============================================================ */
@@ -2482,7 +2913,7 @@ function renderMap(){
 function terraceConfidenceBadgeHTML(v, className){
   const c = v.terraceConfidence || 'likely';
   const ic    = c === 'confirmed' ? '✓' : '?';
-  const label = c === 'confirmed' ? 'Confirmed terrace' : 'Likely terrace';
+  const label = c === 'confirmed' ? t('confidence_confirmed') : t('confidence_likely');
   return `<div class="${className} ${c}"><span class="ic">${ic}</span>${label}</div>`;
 }
 
@@ -2547,7 +2978,7 @@ function popupHTML(v, st){
             <path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" fill="#3a2900"/>
             <circle cx="12" cy="10" r="3" fill="#FFC340"/>
           </svg>
-          Open in Google Maps
+          ${escapeHtml(t('m_details_gmaps'))}
         </a>
       </div>
     </div>`;
@@ -2635,18 +3066,20 @@ function formatHoursStatus(v, nowMs){
   const state = isOpenAt(v, nowMs);
   if (state == null) return null;              // omit when unknown
   const nextMs = nextOpenChange(v, nowMs);
+  // Make the time a <b> in the translated string by swapping after t() call.
+  const bold = (s) => s; // timeStr already wrapped below
   if (nextMs == null){
-    return state === true ? { html:'Open', cls:'open' } : null;
+    return state === true ? { html: t('hours_open'), cls:'open' } : null;
   }
   const nextDate = new Date(nextMs);
-  const timeStr  = fmtHourNice(nextDate);
+  const timeStr  = `<b>${fmtHourNice(nextDate)}</b>`;
 
   if (state === true){
     const minsLeft = (nextMs - nowMs) / 60000;
     if (minsLeft < 60){
-      return { html:`Closes at <b>${timeStr}</b>`, cls:'closing-soon' };
+      return { html: t('hours_closes_soon', { time: timeStr }), cls:'closing-soon' };
     }
-    return { html:`Open until <b>${timeStr}</b>`, cls:'open' };
+    return { html: t('hours_open_until', { time: timeStr }), cls:'open' };
   }
 
   // Closed — how far out is the next opening?
@@ -2654,15 +3087,16 @@ function formatHoursStatus(v, nowMs){
   const tomorrowKey = berlinDayKey(new Date(nowMs + 86400000));
   const nextKey     = berlinDayKey(nextDate);
   if (nextKey === todayKey){
-    return { html:`Opens at <b>${timeStr}</b>`, cls:'closed' };
+    return { html: t('hours_closed_opens', { time: timeStr }), cls:'closed' };
   }
   if (nextKey === tomorrowKey){
-    return { html:`Opens tomorrow at <b>${timeStr}</b>`, cls:'closed' };
+    return { html: t('hours_closed_tomorrow', { time: timeStr }), cls:'closed' };
   }
-  const weekday = new Intl.DateTimeFormat('en-US', {
+  const locale = CURRENT_LANG === 'de' ? 'de-DE' : 'en-US';
+  const weekday = new Intl.DateTimeFormat(locale, {
     weekday:'long', timeZone:'Europe/Berlin',
   }).format(nextDate);
-  return { html:`Opens ${weekday} at <b>${timeStr}</b>`, cls:'closed' };
+  return { html: t('hours_closed_weekday', { weekday, time: timeStr }), cls:'closed' };
 }
 
 /* ============================================================
@@ -2692,16 +3126,19 @@ function renderList(){
 
   let html='';
   if (all.length === 0){
-    html = `<div class="empty">No venues match your filters${state.search?` / "<b>${escapeHtml(state.search)}</b>"`:''}. Try clearing them.</div>`;
+    const msg = state.search
+      ? t('list_empty_desktop_search', { query: `<b>${escapeHtml(state.search)}</b>` })
+      : t('list_empty_desktop');
+    html = `<div class="empty">${msg}</div>`;
     listEl.innerHTML = html;
     return;
   }
-  if (favorites.length) html += section('★ Favorites', favorites.length, favorites);
-  if (sunny.length)  html += section('☀️ In the sun right now', sunny.length, sunny);
-  if (cloudy.length) html += section('🌥 Sunny spots — but cloudy right now', cloudy.length, cloudy);
-  if (shaded.length) html += section('In the shade', shaded.length, shaded);
-  if (nosun.length)  html += section('No direct sun today', nosun.length, nosun);
-  if (night.length)  html += section('🌙 Sun below horizon', night.length, night);
+  if (favorites.length) html += section(t('list_section_favorites'), favorites.length, favorites);
+  if (sunny.length)  html += section(t('list_section_sunny'), sunny.length, sunny);
+  if (cloudy.length) html += section(t('list_section_cloudy_desktop'), cloudy.length, cloudy);
+  if (shaded.length) html += section(t('list_section_shade'), shaded.length, shaded);
+  if (nosun.length)  html += section(t('list_section_nosun'), nosun.length, nosun);
+  if (night.length)  html += section(t('list_section_night'), night.length, night);
   listEl.innerHTML = html;
 }
 function section(title, count, items){
@@ -3034,9 +3471,9 @@ document.getElementById('chip-nearme').addEventListener('click', async () => {
     if (state.view === 'map') map.flyTo(loc, 15, {duration:.6});
     updateNearMeUI();
     refresh();
-    showToast('Got your location — walking times added.');
+    showToast(t('geoloc_success'));
   } catch(e){
-    showToast('Couldn\'t get your location. Allow location in your browser and try again.');
+    showToast(t('geoloc_failure'));
     updateNearMeUI();
   }
 });
@@ -3214,10 +3651,18 @@ function hmApplyBandGradient(){
   const rSunset = document.getElementById('r-sunset');
   if (peak.min != null && rPeak){
     const pd = startOfToday(); pd.setMinutes(peak.min);
-    rPeak.textContent = `peak ${fmtTime(pd)}`;
+    rPeak.textContent = `${t('topbar_peak_label')} ${fmtTime(pd)}`;
   }
   if (state.sunset && rSunset){
-    rSunset.textContent = `sets ${fmtTime(state.sunset)}`;
+    rSunset.textContent = `${t('topbar_sunset_label')} ${fmtTime(state.sunset)}`;
+  }
+
+  // Axis peak label ("peak HH:MM") — we rebuild the <span>'s first text node
+  const axPeakSpan = document.getElementById('ax-peak');
+  if (axPeakSpan && axPeakTime && peak.min != null){
+    // Keep the <b> child, replace only the leading text
+    const tn = axPeakSpan.firstChild;
+    if (tn && tn.nodeType === 3) tn.textContent = t('topbar_peak_label') + ' ';
   }
 }
 
@@ -3233,7 +3678,7 @@ function hmUpdateHandle(){
   if (hmHandleLabel){
     const d = startOfToday(); d.setMinutes(min);
     const isNow = !state.selectedTimeMs;
-    hmHandleLabel.textContent = (isNow ? 'now · ' : '') + fmtTime(d);
+    hmHandleLabel.textContent = (isNow ? t('search_day_now') + ' · ' : '') + fmtTime(d);
   }
 }
 
@@ -3401,10 +3846,10 @@ function updateStats(){
 // Returns { emoji, html }. html is HTML-safe (from enum → string map) so we
 // can use innerHTML for the mild <b> emphasis on the temperature.
 function formatWeatherInline(cc, temp){
-  if (cc == null) return { emoji:'🌤', html:'weather unknown' };
-  let emoji = '☀️', word = 'sunny';
-  if (cc >= 70)      { emoji = '☁️'; word = 'cloudy'; }
-  else if (cc >= 30) { emoji = '⛅';  word = 'partly cloudy'; }
+  if (cc == null) return { emoji:'🌤', html:(CURRENT_LANG==='de'?'Wetter unbekannt':'weather unknown') };
+  let emoji = '☀️', word = t('weather_sunny');
+  if (cc >= 70)      { emoji = '☁️'; word = t('weather_cloudy'); }
+  else if (cc >= 30) { emoji = '⛅';  word = t('weather_partly_cloudy'); }
   const tempPart = temp != null ? `<b>${Math.round(temp)}°</b> · ` : '';
   return { emoji, html: `${tempPart}${word}` };
 }
@@ -3527,9 +3972,12 @@ function updateRibbonNow(){
   dot.style.left     = pct + '%';
   if (label){
     const isLive = !state.selectedTimeMs;
-    const prefix = isLive ? 'Now' : 'Today';
+    const prefix = isLive
+      ? (CURRENT_LANG==='de' ? 'Jetzt' : 'Now')
+      : (CURRENT_LANG==='de' ? 'Heute' : 'Today');
     const w = formatWeatherInline(cloudCoverAt(tMs), tempAt(tMs));
-    const weatherHtml = w.html === 'weather unknown'
+    const unknownStr = (CURRENT_LANG==='de' ? 'Wetter unbekannt' : 'weather unknown');
+    const weatherHtml = w.html === unknownStr
       ? ''
       : `<span class="weather-inline"><span class="ic">${w.emoji}</span>${w.html}</span>`;
     label.innerHTML = `${prefix} · <em>${fmtTime(d)}</em>${weatherHtml}`;
@@ -3558,7 +4006,9 @@ function syncMobileChipActives(){
   if (near){
     const on = !!state.userLoc;
     near.classList.toggle('active', on);
-    near.innerHTML = on ? `<span>📍</span>Location on` : `<span>📍</span>Near me`;
+    near.innerHTML = on
+      ? `<span>📍</span><span data-i18n="chip_nearme_on">${t('chip_nearme_on')}</span>`
+      : `<span>📍</span><span data-i18n="chip_nearme">${t('chip_nearme')}</span>`;
   }
   document.getElementById('m-chip-walk5').classList.toggle('hidden', !state.userLoc);
   document.getElementById('m-chip-walk20').classList.toggle('hidden', !state.userLoc);
@@ -3611,9 +4061,9 @@ function bindMobileNearMe(){
       updateNearMeUI();
       syncMobileChipActives();
       refresh();
-      showToast('Got your location — walking times added.');
+      showToast(t('geoloc_success'));
     } catch(e){
-      showToast('Couldn\'t get your location. Allow location in your browser and try again.');
+      showToast(t('geoloc_failure'));
     } finally {
       el.classList.remove('locating');
     }
@@ -3646,7 +4096,15 @@ function highlightMatch(text, q){
   return `${escapeHtml(text.slice(0,i))}<b>${escapeHtml(text.slice(i, i+q.length))}</b>${escapeHtml(text.slice(i+q.length))}`;
 }
 function stateBadgeText(st){
-  return ({sunny:'sunny', cloudy:'cloudy', shaded:'shade', nosun:'no sun', night:'night', closed:'closed'})[st] || '';
+  const map = {
+    sunny:  t('tag_in_sun'),
+    cloudy: t('tag_cloudy'),
+    shaded: t('tag_in_shade'),
+    nosun:  t('tag_no_sun'),
+    night:  t('tag_night'),
+    closed: (CURRENT_LANG==='de' ? 'geschlossen' : 'closed'),
+  };
+  return map[st] || '';
 }
 function stateGlyph(st){
   return ({sunny:'☀️', cloudy:'🌥', shaded:'🌑', nosun:'🚫', night:'🌙', closed:'✕'})[st] || '·';
@@ -3683,13 +4141,14 @@ function renderMobileSearch(){
   source = source.slice(0, 40);
 
   if (source.length === 0){
-    results.innerHTML = `<div class="m-search-empty">No venues match "<b>${escapeHtml(q)}</b>".<br><small>Try a different spelling or a street name.</small></div>`;
+    const emptyMsg = t('m_search_empty', { query: `<b>${escapeHtml(q)}</b>` });
+    results.innerHTML = `<div class="m-search-empty">${emptyMsg}<br><small>${escapeHtml(t('m_search_empty_help'))}</small></div>`;
     return;
   }
 
   const sectionLabel = q
-    ? `${source.length} result${source.length===1?'':'s'}`
-    : (state.userLoc ? 'Closest to you' : 'Suggestions right now');
+    ? (source.length === 1 ? t('m_search_result_single') : t('m_search_result_plural', { count: source.length }))
+    : (state.userLoc ? t('m_search_closest') : t('m_search_suggestions'));
 
   const items = source.map((v, i) => {
     const st = venueStateAt(v, tMs);
@@ -3869,17 +4328,17 @@ function renderMobileSheet(){
     let badge = stateBadgeText(st) || 'loading…';
     if (st === 'sunny'){
       const win = (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e);
-      if (win) badge = `Sun until ${fmtTimeMs(win[1])}`;
-      else     badge = 'In the sun';
+      if (win) badge = t('m_details_sun_until_peek', { time: fmtTimeMs(win[1]) });
+      else     badge = t('state_sunny');
     } else if (st === 'shaded'){
       const next = (v.windows||[]).find(([s]) => s > tMs);
-      badge = next ? `Sun at ${fmtTimeMs(next[0])}` : 'In the shade';
+      badge = next ? t('m_details_sun_at_peek', { time: fmtTimeMs(next[0]) }) : t('state_shaded');
     } else if (st === 'cloudy'){
-      badge = 'Sunny spot, cloudy';
+      badge = t('m_details_cloudy_peek');
     } else if (st === 'nosun'){
-      badge = 'No direct sun today';
+      badge = t('m_details_nosun_peek');
     } else if (st === 'night'){
-      badge = 'Sun below horizon';
+      badge = t('m_details_night_peek');
     }
     root.innerHTML = `
       <div class="m-peek" data-id="${escapeHtml(v.id)}">
@@ -3889,7 +4348,7 @@ function renderMobileSheet(){
           <p class="m-peek-meta">${escapeHtml(prettyType(v))}${v.street?' · <b>'+escapeHtml(v.street)+'</b>':''}${walk}</p>
           <span class="m-peek-status ${st}">${escapeHtml(badge)}</span>
         </div>
-        <button class="m-peek-cta" aria-label="Show details">More info <span class="chev">›</span></button>
+        <button class="m-peek-cta" aria-label="${escapeHtml(t('m_peek_aria'))}">${escapeHtml(t('m_peek_more_info'))} <span class="chev">›</span></button>
       </div>`;
     root.querySelector('.m-peek').addEventListener('click', () => {
       mobile.sheetMode = 'details';
@@ -3907,16 +4366,16 @@ function renderMobileSheet(){
     let badge = stateBadgeText(st);
     if (st === 'sunny'){
       const win = (v.windows||[]).find(([s,e]) => tMs >= s && tMs <= e);
-      badge = win ? `☀️ Sun until ${fmtTimeMs(win[1])}` : '☀️ In the sun';
+      badge = win ? t('m_details_sun_until', { time: fmtTimeMs(win[1]) }) : t('m_details_in_sun');
     } else if (st === 'shaded'){
       const next = (v.windows||[]).find(([s]) => s > tMs);
-      badge = next ? `🏢 Sun returns at ${fmtTimeMs(next[0])}` : '🏢 In the shade';
+      badge = next ? t('m_details_sun_at', { time: fmtTimeMs(next[0]) }) : t('m_details_in_shade');
     } else if (st === 'cloudy'){
-      badge = '🌥 Sunny spot, cloudy right now';
+      badge = t('m_details_cloudy');
     } else if (st === 'nosun'){
-      badge = '🙁 No direct sun today';
+      badge = t('m_details_nosun');
     } else if (st === 'night'){
-      badge = '🌙 Sun below horizon';
+      badge = t('m_details_night');
     }
     const hero = v.photoUrl
       ? `<img alt="" referrerpolicy="no-referrer" src="${escapeHtml(v.photoUrl)}" onload="this.classList.add('loaded')" onerror="this.remove(); this.parentElement.classList.add('fallback')">
@@ -3946,7 +4405,7 @@ function renderMobileSheet(){
             <path d="M12 2C7.58 2 4 5.58 4 10c0 5.5 8 12 8 12s8-6.5 8-12c0-4.42-3.58-8-8-8z" fill="#3a2900"/>
             <circle cx="12" cy="10" r="3" fill="#FFC340"/>
           </svg>
-          Open in Google Maps
+          ${escapeHtml(t('m_details_gmaps'))}
         </a>
       </div>`;
 
@@ -4068,7 +4527,7 @@ function renderMobileList(root){
   [favorites, sunny, cloudy, shaded, nosun, night].forEach(arr => arr.sort(sortFn));
 
   if (all.length === 0){
-    root.innerHTML = `<div class="m-list-empty"><b>Nothing matches.</b><br>Try clearing filters or the search.</div>`;
+    root.innerHTML = `<div class="m-list-empty"><b>${escapeHtml(t('list_empty_mobile'))}</b><br>${escapeHtml(t('list_empty_mobile_help'))}</div>`;
     return;
   }
 
@@ -4100,15 +4559,15 @@ function renderMobileList(root){
 
   root.innerHTML = `
     <div class="m-list-head">
-      <h4>All terraces</h4>
+      <h4>${escapeHtml(t('list_all_terraces'))}</h4>
       <span class="cnt">${all.length}</span>
     </div>
-    ${section('★ Favorites', favorites)}
-    ${section('☀️ In the sun now', sunny)}
-    ${section('🌥 Sunny spot · cloudy now', cloudy)}
-    ${section('In the shade', shaded)}
-    ${section('No direct sun today', nosun)}
-    ${section('🌙 Sun below horizon', night)}
+    ${section(t('list_section_favorites'), favorites)}
+    ${section(t('list_section_sunny'), sunny)}
+    ${section(t('list_section_cloudy_mobile'), cloudy)}
+    ${section(t('list_section_shade'), shaded)}
+    ${section(t('list_section_nosun'), nosun)}
+    ${section(t('list_section_night'), night)}
     <div style="height:40px"></div>`;
 
   root.querySelectorAll('.m-list-row').forEach(el => {
@@ -4217,7 +4676,7 @@ async function main(){
   // fetch. Fire all three now, await venues (we need it to paint), and let
   // windows/weather settle while we parse + render. On a warm edge we go from
   // ~1.5s of sequential fetches to ~400ms of overlapped ones.
-  setLoader({title:'Finding terraces…', pct:10});
+  setLoader({title:t('loader_finding'), pct:10});
   const windowsP = loadWindowsToday();           // 220KB
   const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
     refresh();  // 'sunny' → 'cloudy' update when it lands
@@ -4308,8 +4767,8 @@ async function main(){
   // Keep the loader up but non-blocking: show it as a soft toast explaining
   // what's still being computed in the background.
   setLoader({
-    title:`${state.venues.length} terraces on map`,
-    detail:'Loading shadow data & weather…',
+    title: t('loader_venues_count', { count: state.venues.length }),
+    detail: t('loader_data_status'),
     pct:25
   });
 
@@ -4365,7 +4824,8 @@ async function main(){
     );
     const buildingsP = loadBuildingsData((done, total) => {
       const pct = 25 + Math.round((done/total) * 25);
-      setLoader({detail:`Shadow data · tile ${done}/${total}…`, pct});
+      const prefix = CURRENT_LANG === 'de' ? 'Schattendaten · Kachel' : 'Shadow data · tile';
+      setLoader({detail: `${prefix} ${done}/${total}…`, pct});
     }).catch(e => {
       console.warn('[sonne] buildings load failed, proceeding without shadows:', e);
       return { elements: [], okTiles: 0, total: 1, partial: true };
@@ -4375,17 +4835,17 @@ async function main(){
     state.buildings = parseBuildings(bldJson);
     state.buildingsLocal = preprocessBuildings(state.buildings);
     const coverage = (bldJson.okTiles !== undefined && bldJson.okTiles < bldJson.total)
-      ? ` (partial: ${bldJson.okTiles}/${bldJson.total})`
+      ? ` (${t('loader_buildings_partial', { ok: bldJson.okTiles, total: bldJson.total })})`
       : '';
     setLoader({
-      title:`${state.buildings.length} buildings${coverage}`,
-      detail:'Computing sun windows for each terrace…',
+      title: t('loader_buildings_count', { count: state.buildings.length }) + coverage,
+      detail: t('loader_computing'),
       pct:55
     });
 
     await computeAllWindows((done, total) => {
       const pct = 55 + Math.round((done/total) * 44);
-      setLoader({detail:`${done} / ${total} venues — ${Math.round(done/total*100)}%`, pct});
+      setLoader({detail: t('loader_progress', { done, total, percent: Math.round(done/total*100) }), pct});
       if (done % 240 === 0 || done === total) refresh();
     });
 
@@ -4410,8 +4870,8 @@ async function main(){
 function showFatalLoadError(err){
   console.error(err);
   setLoader({
-    title:'Could not load terraces',
-    detail:(err?.message || String(err)) + ' — tap to retry.',
+    title: t('loader_error'),
+    detail: (err?.message || String(err)) + t('loader_error_retry'),
     error:true, pct:100
   });
   const loaderEl = document.getElementById('loader');
