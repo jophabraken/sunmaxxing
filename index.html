@@ -154,6 +154,9 @@
     font-size:23px;
   }
   .brand p{margin:3px 0 0;color:var(--muted);font-size:13px;font-weight:500}
+  .hero-guide-link{display:inline-block;margin-left:6px;color:var(--sun);text-decoration:none;font-weight:600}
+  .hero-guide-link:hover{text-decoration:underline}
+  @media (max-width:640px){.hero-guide-link{display:block;margin:4px 0 0}}
 
   /* ---------- TOOLBAR ---------- */
   .toolbar{
@@ -1139,7 +1142,9 @@
       <div class="logo">☀️</div>
       <div>
         <h1>Sonne <em>Berlin</em></h1>
-        <p>Find the sunny terrace — right now, all across the city.</p>
+        <p>Find the sunny terrace — right now, all across the city.
+          <a href="/best-rooftops-berlin/" class="hero-guide-link">Guide: the 10 sunniest rooftop bars in Berlin →</a>
+        </p>
       </div>
     </div>
   </header>
@@ -3842,5 +3847,32 @@ if ('serviceWorker' in navigator &&
   });
 }
 </script>
+
+<!-- ─── SEO footer — crawlable internal links ──────────────────────────
+     The main UI fills the viewport (map + list) so this sits below fold
+     on most screens, but it's plain semantic HTML that Googlebot reads
+     first-pass. Internal linking is how Search Console discovers and
+     assigns PageRank to secondary pages like the rooftops guide.
+     ────────────────────────────────────────────────────────────────────── -->
+<footer class="seo-footer" aria-label="Site navigation">
+  <nav>
+    <strong>Guides &amp; lists</strong>
+    <ul>
+      <li><a href="/best-rooftops-berlin/">The 10 sunniest rooftop bars in Berlin</a></li>
+    </ul>
+  </nav>
+  <p class="seo-footer-blurb">
+    <strong>Sonne Berlin</strong> is a free live map of Berlin's sunniest terraces, rooftop bars, and beer gardens — weather-aware, shadow-tracked, updated every minute. Find a sunny spot without leaving a chat.
+  </p>
+</footer>
+<style>
+  .seo-footer{max-width:900px;margin:20px auto 40px;padding:24px;color:var(--muted);font-size:13px;border-top:1px solid var(--border);line-height:1.6}
+  .seo-footer nav ul{margin:6px 0 18px;padding-left:18px}
+  .seo-footer nav a{color:var(--text);text-decoration:none;font-weight:600}
+  .seo-footer nav a:hover{color:var(--sun);text-decoration:underline}
+  .seo-footer-blurb{margin:0;max-width:620px}
+  @media (max-width:640px){.seo-footer{padding:20px 16px}}
+</style>
+
 </body>
 </html>
