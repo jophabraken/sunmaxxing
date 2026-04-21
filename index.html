@@ -121,7 +121,10 @@
 
   .app{
     display:grid;
-    grid-template-rows:auto auto auto auto 1fr;
+    /* Rows: .topbar (auto) · .filters (auto) · <main> (1fr).
+       The two sr-only stat spans are absolutely positioned and
+       are removed from track sizing, so they don't claim rows. */
+    grid-template-rows:auto auto 1fr;
     height:100vh;
     height:100dvh;
   }
