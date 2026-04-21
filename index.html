@@ -125,13 +125,22 @@
   .time-pill{
     display:flex;align-items:center;gap:10px;background:var(--card);
     border:1px solid var(--border);border-radius:999px;padding:0 6px 0 14px;
-    height:40px;box-shadow:var(--shadow-sm);min-width:260px;
+    height:40px;box-shadow:var(--shadow-sm);min-width:300px;
   }
   .time-pill .time-display{
     font-variant-numeric:tabular-nums;font-weight:700;font-size:13px;min-width:54px;
     display:flex;flex-direction:column;line-height:1.15;
   }
   .time-pill .time-display small{font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.04em}
+  /* Inline weather (replaces the old filter-bar chip-weather) */
+  .time-pill .weather-inline{
+    display:flex;align-items:center;gap:6px;
+    color:var(--muted);font-size:12px;font-weight:500;letter-spacing:.01em;
+    padding-left:8px;border-left:1px solid var(--border);
+    white-space:nowrap;
+  }
+  .time-pill .weather-inline b{color:var(--text);font-weight:700}
+  .time-pill .weather-inline .ic{font-size:14px;line-height:1}
   .time-pill input[type=range]{flex:1;accent-color:var(--sun)}
   .time-pill .now-btn{
     border:none;background:var(--sun);color:#3a2900;font-weight:700;
@@ -167,11 +176,11 @@
     font-size:11px;font-variant-numeric:tabular-nums;
   }
   .chip:not(.active) .count{background:var(--bg-2);color:var(--muted)}
-  .chip.weather{
-    margin-left:auto;cursor:default;background:var(--card);
-    color:var(--text);border-color:var(--border);
+  /* Sun info ("sunrise 06:02") sits at the right end of the filter bar. */
+  .sun-info-inline{
+    margin-left:auto;align-self:center;white-space:nowrap;
+    color:var(--muted);font-size:12.5px;font-weight:500;
   }
-  .chip.weather .sun-info-inline{color:var(--muted);font-weight:500;margin-left:6px}
   .chip .ic{font-size:13px}
   .chip.hidden{display:none}
   .chip-sep{
@@ -186,8 +195,6 @@
     background:var(--bg);flex-wrap:wrap;
   }
   .stats-inline b{color:var(--text);font-weight:700}
-  .hidden-link{color:var(--coral);font-weight:600;cursor:pointer;text-decoration:underline}
-  .hidden-link:hover{opacity:.8}
 
   /* ---------- MAIN ---------- */
   main{position:relative;overflow:hidden}
@@ -279,7 +286,6 @@
   .icon-btn:hover{background:var(--bg-2);color:var(--text)}
   .icon-btn.fav-btn.on{color:var(--coral)}
   .icon-btn.fav-btn.on svg{fill:var(--coral)}
-  .icon-btn.hide-btn:hover{background:#FFE5E0;color:#8A2B1E}
 
   .sun-window-label{
     font-size:12.5px;color:var(--text);font-weight:500;
@@ -442,6 +448,20 @@
   .popup-v2 .hero-badge.shaded, .popup-v2 .hero-badge.nosun, .popup-v2 .hero-badge.night, .popup-v2 .hero-badge.closed{color:#94A3B8}
   .popup-v2 .hero-badge .ic{font-size:14px}
 
+  /* Terrace confidence badge — top-right of the hero, opposite the state badge.
+     Confirmed = green tick, Likely = neutral question mark. */
+  .popup-v2 .hero-conf-badge{
+    position:absolute;right:12px;top:12px;z-index:2;
+    display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
+    padding:5px 10px;border-radius:999px;
+    font-weight:700;font-size:11.5px;letter-spacing:.01em;
+    box-shadow:0 1px 4px rgba(0,0,0,.15);
+  }
+  .popup-v2 .hero-conf-badge.confirmed{color:#0a7a4a;border:1px solid rgba(10,122,74,.25)}
+  .popup-v2 .hero-conf-badge.likely{color:#8a6a1a;border:1px solid rgba(138,106,26,.22)}
+  .popup-v2 .hero-conf-badge .ic{font-size:12px;line-height:1}
+
   .popup-v2 .body{padding:14px 16px 16px}
   .popup-v2 .name{font-size:19px;font-weight:800;letter-spacing:-0.015em;margin:0;line-height:1.15}
   .popup-v2 .meta{font-size:12.5px;color:var(--muted);margin:3px 0 12px;font-weight:500}
@@ -471,6 +491,8 @@
   }
   .popup-v2 .hours-text b{color:var(--text);font-weight:600}
   .popup-v2 .hours-text.closed b{color:#8A2B1E}
+  .popup-v2 .hours-text.closing-soon b{color:#B8690B}
+  .popup-v2 .hours-text.closing-soon{color:#B8690B}
   .popup-v2 .hours-text.open b{color:#0A7A0A}
 
   .popup-v2 .cta{
@@ -484,12 +506,6 @@
   }
   .popup-v2 .cta:hover{background:#FFC340;transform:translateY(-1px);box-shadow:0 8px 20px var(--sun-glow)}
   .popup-v2 .cta svg{width:16px;height:16px}
-  .popup-v2 .hide-link{
-    display:block;width:100%;border:none;background:transparent;
-    font:inherit;font-size:11.5px;color:var(--muted);padding:9px 0 0;cursor:pointer;
-    text-align:center;
-  }
-  .popup-v2 .hide-link:hover{color:var(--coral)}
 
   @media (max-width:860px){
     .toolbar{grid-template-columns:1fr;gap:8px;padding:10px 14px}
@@ -574,24 +590,15 @@
   .m-chip-search:active{transform:scale(.88);background:var(--bg-2)}
   .m-chip-search svg{width:15px;height:15px}
 
-  /* --- Weather pill (below chips row, right) --- */
-  .m-weather{
-    position:absolute;
-    top:calc(max(12px, env(safe-area-inset-top, 0)) + 44px);
-    right:10px;z-index:28;
-    display:inline-flex;align-items:center;gap:6px;
-    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    border:1px solid var(--border);
-    padding:5px 10px;border-radius:999px;height:28px;
-    box-shadow:var(--shadow-sm);
-    font-size:11.5px;font-weight:700;color:var(--text);
-    font-variant-numeric:tabular-nums;
-    opacity:0;transform:translateY(-4px);
-    transition:opacity .4s ease, transform .4s ease;
+  /* Weather is now inline inside .m-ribbon-time — see that rule below. */
+  .m-ribbon-time .weather-inline{
+    margin-left:8px;padding-left:8px;
+    border-left:1px solid var(--border);
+    color:var(--muted);font-weight:500;font-size:12px;
+    display:inline-flex;align-items:center;gap:5px;
   }
-  .m-weather.visible{opacity:1;transform:translateY(0)}
-  .m-weather .ic{font-size:14px;line-height:1}
-  .m-weather .muted{color:var(--muted);font-weight:500}
+  .m-ribbon-time .weather-inline b{color:var(--text);font-weight:700}
+  .m-ribbon-time .weather-inline .ic{font-size:13px;line-height:1}
 
   /* --- FAB (near-me) --- */
   .m-fab{
@@ -833,6 +840,18 @@
   }
   .m-details-badge.cloudy{color:#cbd5e1}
   .m-details-badge.shaded,.m-details-badge.nosun,.m-details-badge.night{color:#94A3B8}
+  /* Terrace confidence badge — mobile mirror of .hero-conf-badge. */
+  .m-details-conf-badge{
+    position:absolute;right:12px;top:12px;z-index:2;
+    display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
+    padding:5px 10px;border-radius:999px;
+    font-weight:700;font-size:11.5px;letter-spacing:.01em;
+    box-shadow:0 1px 4px rgba(0,0,0,.15);
+  }
+  .m-details-conf-badge.confirmed{color:#0a7a4a;border:1px solid rgba(10,122,74,.25)}
+  .m-details-conf-badge.likely{color:#8a6a1a;border:1px solid rgba(138,106,26,.22)}
+  .m-details-conf-badge .ic{font-size:12px;line-height:1}
   .m-details-body{padding:14px 16px 22px;animation:peekIn .42s cubic-bezier(.22,1,.36,1)}
   .m-details-title{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0 0 3px;line-height:1.15}
   .m-details-meta{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:500}
@@ -862,6 +881,8 @@
   }
   .m-details-hours b{color:var(--text);font-weight:600}
   .m-details-hours.closed b{color:#8A2B1E}
+  .m-details-hours.closing-soon b{color:#B8690B}
+  .m-details-hours.closing-soon{color:#B8690B}
   .m-details-hours.open b{color:#0A7A0A}
   .m-cta-btn{
     display:flex;width:100%;align-items:center;justify-content:center;gap:8px;
@@ -876,12 +897,6 @@
   .m-cta-btn:active{transform:scale(.98)}
   .m-cta-btn:hover{background:#FFC340;box-shadow:0 8px 22px var(--sun-glow)}
   .m-cta-btn svg{width:16px;height:16px}
-  .m-hide-link{
-    display:block;width:100%;border:none;background:transparent;
-    font:inherit;font-size:11.5px;color:var(--muted);padding:6px 0;cursor:pointer;
-    text-align:center;transition:color .15s;
-  }
-  .m-hide-link:active{color:var(--coral)}
 
   /* Sheet — list */
   .m-list-head{
@@ -1075,6 +1090,9 @@
         <span id="time-label">--:--</span>
         <small id="time-day">today</small>
       </div>
+      <span class="weather-inline" id="weather-inline" title="Live weather over Berlin">
+        <span class="ic" id="weather-ic">🌤</span><span id="weather-label">—</span>
+      </span>
       <input id="time" type="range" min="0" max="1440" step="5" value="0">
     </div>
   </div>
@@ -1092,16 +1110,12 @@
     <button class="chip cat" id="chip-cat-cafe"><span class="ic">☕</span>Café</button>
     <button class="chip cat" id="chip-cat-icecream"><span class="ic">🍦</span>Ice cream</button>
     <button class="chip cat" id="chip-cat-rooftop"><span class="ic">🏙️</span>Rooftop</button>
-    <div class="chip weather" id="chip-weather" title="Live cloud cover over Berlin">
-      <span class="ic" id="weather-ic">🌤</span><span id="weather-label">—</span>
-      <span class="sun-info-inline" id="sun-info-inline">loading…</span>
-    </div>
+    <span class="sun-info-inline" id="sun-info-inline">loading…</span>
   </div>
 
   <div class="stats-inline">
     <span><b id="stat-sunny">—</b> sunny</span>
     <span><b id="stat-shaded">—</b> shaded / no sun</span>
-    <span id="hidden-wrap" style="display:none">· <span class="hidden-link" id="hidden-link"><b id="stat-hidden">0</b> hidden — show all</span></span>
     <span id="location-hint" style="margin-left:auto;color:var(--muted)">Tap <b>📍 Near me</b> to sort by distance</span>
   </div>
 
@@ -1147,12 +1161,6 @@
     <button class="m-chip cat" id="m-chip-cat-cafe"><span>☕</span>Café</button>
     <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span>Ice cream</button>
     <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span>Rooftop</button>
-  </div>
-
-  <!-- Weather pill (top right, below chips) -->
-  <div class="m-weather" id="m-weather" role="status" aria-live="polite">
-    <span class="ic" id="m-weather-ic">🌤</span>
-    <span id="m-weather-label">—</span>
   </div>
 
   <!-- FAB (right, above sheet) -->
@@ -1260,7 +1268,6 @@ const state = {
   weather:null,               // {current:%, hourly:[%], hourlyTimeMs:[ms]}
   userLoc:null,               // [lat, lng]
   favorites:new Set(),
-  hidden:new Set(),
   filters:{
     nearMe:false,
     walk5:false,
@@ -1282,7 +1289,6 @@ const state = {
    ============================================================ */
 const LS = {
   FAV:'sonne_favorites_v1',
-  HIDE:'sonne_hidden_v1',
 };
 function loadSet(key){
   try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); } catch { return new Set(); }
@@ -1628,6 +1634,25 @@ function buildingQuery(){
 /* ============================================================
    PARSE
    ============================================================ */
+// Two-tier terrace confidence rule (see rooftops.json + session-4 notes).
+// `amenity=biergarten` = literally outdoor beer garden → confirmed.
+// `outdoor_seating=yes` + recent OSM `check_date` → a mapper physically
+//   verified this within the last 2 years → confirmed.
+// Curated rooftops get promoted elsewhere (in loadRooftopsToday).
+// Everything else in our dataset already has `outdoor_seating=yes` (that's
+// how it got past our Overpass query) — so "likely" is honest, not negative.
+const TERRACE_CHECK_DATE_MAX_MS = 730 * 86400 * 1000;  // ~2 years
+function computeTerraceConfidence(t){
+  if (t.amenity === 'biergarten') return 'confirmed';
+  if (t.outdoor_seating === 'yes' && t.check_date){
+    const d = new Date(t.check_date);
+    if (!isNaN(d) && (Date.now() - d.getTime()) < TERRACE_CHECK_DATE_MAX_MS){
+      return 'confirmed';
+    }
+  }
+  return 'likely';
+}
+
 function parseVenues(json){
   const out=[];
   for (const el of json.elements||[]){
@@ -1651,6 +1676,7 @@ function parseVenues(json){
       wikidataId: t.wikidata || null,
       photoUrl: undefined,   // undefined = unresolved, null = resolved to nothing, string = URL
       windows: [],
+      terraceConfidence: computeTerraceConfidence(t),  // 'confirmed' | 'likely'
     });
   }
   // Dedupe node+way for same spot
@@ -1937,9 +1963,6 @@ function visibleVenues(){
   const tMs = currentTimeMs();
   let out = state.venues;
 
-  // Hidden
-  if (state.hidden.size) out = out.filter(v => !state.hidden.has(v.id));
-
   // Search
   if (q){
     out = out.filter(v =>
@@ -2073,6 +2096,17 @@ function renderMap(){
     }
   }
 }
+// Small helper used in both desktop popup + mobile details sheet.
+// Returns ready-to-insert HTML for the terrace confidence badge, with the
+// caller-provided class (`hero-conf-badge` on desktop, `m-details-conf-badge`
+// on mobile) so CSS positioning can differ per surface.
+function terraceConfidenceBadgeHTML(v, className){
+  const c = v.terraceConfidence || 'likely';
+  const ic    = c === 'confirmed' ? '✓' : '?';
+  const label = c === 'confirmed' ? 'Confirmed terrace' : 'Likely terrace';
+  return `<div class="${className} ${c}"><span class="ic">${ic}</span>${label}</div>`;
+}
+
 function popupHTML(v, st){
   const walk = v.walkMin != null ? ` · <b>🚶 ${v.walkMin} min</b>` : '';
   const gmaps = gmapsUrl(v);
@@ -2110,34 +2144,24 @@ function popupHTML(v, st){
   // ------ Chart
   const chart = sunChartSVG(v, nowMs);
 
-  // ------ Opening-hours line
-  const openNow = isOpenAt(v, nowMs);
-  let hoursLine, hoursCls = '';
-  const nextChangeStr = openingNextChangeStr(v, nowMs);
-  if (openNow === true){
-    hoursLine = `Open now${nextChangeStr ? ` · <b>closes ${nextChangeStr}</b>` : ''}`;
-    hoursCls = 'open';
-  } else if (openNow === false){
-    hoursLine = `Closed${nextChangeStr ? ` · <b>opens ${nextChangeStr}</b>` : ''}`;
-    hoursCls = 'closed';
-  } else {
-    hoursLine = v.openingHoursStr
-      ? `Hours: <b>${escapeHtml(v.openingHoursStr).slice(0,48)}</b>`
-      : `Opening hours unknown`;
-  }
+  // ------ Opening-hours line (6-state: omit when unknown)
+  const hoursStatus = formatHoursStatus(v, nowMs);
+  const hoursLine   = hoursStatus ? hoursStatus.html : '';
+  const hoursCls    = hoursStatus ? hoursStatus.cls  : '';
 
   return `
     <div class="popup-v2" data-venue-id="${escapeHtml(v.id)}">
       <div class="${heroClass}">
         ${heroInner}
         <div class="hero-badge ${st}"><span class="ic">${badgeIcon}</span>${escapeHtml(badgeText)}</div>
+        ${terraceConfidenceBadgeHTML(v, 'hero-conf-badge')}
       </div>
       <div class="body">
         <h3 class="name">${escapeHtml(v.name)}</h3>
         <p class="meta">${escapeHtml(prettyType(v))}${v.street?' · '+escapeHtml(v.street):''}${walk}</p>
         <div class="chart-card">
           ${chart}
-          <p class="hours-text ${hoursCls}">${hoursLine}</p>
+          ${hoursStatus ? `<p class="hours-text ${hoursCls}">${hoursLine}</p>` : ''}
         </div>
         <a class="cta" target="_blank" rel="noopener" href="${gmaps}">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2146,7 +2170,6 @@ function popupHTML(v, st){
           </svg>
           Open in Google Maps
         </a>
-        <button class="hide-link" onclick="hideVenue('${escapeHtml(v.id)}')">× no real terrace — hide</button>
       </div>
     </div>`;
 }
@@ -2218,14 +2241,49 @@ function sunChartSVG(v, nowMs){
     </div>`;
 }
 
-// Look up the next opening_hours change time as HH:MM
-function openingNextChangeStr(v, nowMs){
-  if (!v.hours) return null;
-  try {
-    const nextChange = v.hours.getNextChange(new Date(nowMs));
-    if (!nextChange) return null;
-    return fmtTime(nextChange);
-  } catch { return null; }
+// Format a time for opening-hours display, using "midnight" for 00:00/24:00.
+function fmtHourNice(d){
+  const h = d.getHours(), m = d.getMinutes();
+  if (h === 0 && m === 0) return 'midnight';
+  return `${h}:${String(m).padStart(2,'0')}`;
+}
+// Returns YYYY-MM-DD in Berlin for a given Date.
+function berlinDayKey(d){ return berlinDateStr(d); }
+// Returns {html, cls} or null if hours should be omitted.
+// 6 states: Open until X / Closes at X (<60min) / Opens at X (today) /
+//           Opens tomorrow at X / Opens [Weekday] at X / omit (unknown).
+function formatHoursStatus(v, nowMs){
+  const state = isOpenAt(v, nowMs);
+  if (state == null) return null;              // omit when unknown
+  const nextMs = nextOpenChange(v, nowMs);
+  if (nextMs == null){
+    return state === true ? { html:'Open', cls:'open' } : null;
+  }
+  const nextDate = new Date(nextMs);
+  const timeStr  = fmtHourNice(nextDate);
+
+  if (state === true){
+    const minsLeft = (nextMs - nowMs) / 60000;
+    if (minsLeft < 60){
+      return { html:`Closes at <b>${timeStr}</b>`, cls:'closing-soon' };
+    }
+    return { html:`Open until <b>${timeStr}</b>`, cls:'open' };
+  }
+
+  // Closed — how far out is the next opening?
+  const todayKey    = berlinDayKey(new Date(nowMs));
+  const tomorrowKey = berlinDayKey(new Date(nowMs + 86400000));
+  const nextKey     = berlinDayKey(nextDate);
+  if (nextKey === todayKey){
+    return { html:`Opens at <b>${timeStr}</b>`, cls:'closed' };
+  }
+  if (nextKey === tomorrowKey){
+    return { html:`Opens tomorrow at <b>${timeStr}</b>`, cls:'closed' };
+  }
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    weekday:'long', timeZone:'Europe/Berlin',
+  }).format(nextDate);
+  return { html:`Opens ${weekday} at <b>${timeStr}</b>`, cls:'closed' };
 }
 
 /* ============================================================
@@ -2303,7 +2361,6 @@ function venueCard(v, st){
         <button class="icon-btn fav-btn ${isFav?'on':''}" onclick="toggleFav('${escapeHtml(v.id)}')" title="Save as favorite" aria-label="Favorite">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="${isFav?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5"/></svg>
         </button>
-        <button class="icon-btn hide-btn" onclick="hideVenue('${escapeHtml(v.id)}')" title="Hide — this place has no real terrace" aria-label="Hide">×</button>
       </div>
 
       <div class="venue-head">
@@ -2488,18 +2545,6 @@ window.toggleFav = (id) => {
   updateFavChip();
   refresh();
 };
-window.hideVenue = (id) => {
-  state.hidden.add(id);
-  saveSet(LS.HIDE, state.hidden);
-  updateHiddenBar();
-  showToast('Hidden. It won\'t appear again on this device.', 'Undo', () => {
-    state.hidden.delete(id);
-    saveSet(LS.HIDE, state.hidden);
-    updateHiddenBar();
-    refresh();
-  });
-  refresh();
-};
 window.focusVenue = (id, ev) => {
   ev && ev.stopPropagation && ev.stopPropagation();
   const v = state.venues.find(x => x.id === id);
@@ -2665,20 +2710,8 @@ searchClear.addEventListener('click', () => {
 });
 
 /* ============================================================
-   UI: HIDDEN LINK / FAV CHIP
+   UI: FAV CHIP
    ============================================================ */
-function updateHiddenBar(){
-  const n = state.hidden.size;
-  document.getElementById('stat-hidden').textContent = n;
-  document.getElementById('hidden-wrap').style.display = n > 0 ? '' : 'none';
-}
-document.getElementById('hidden-link').addEventListener('click', () => {
-  state.hidden.clear();
-  saveSet(LS.HIDE, state.hidden);
-  updateHiddenBar();
-  refresh();
-  showToast('Hidden list cleared.');
-});
 function updateFavChip(){
   const chip = document.getElementById('chip-fav');
   const n = state.favorites.size;
@@ -2760,22 +2793,27 @@ function updateStats(){
   }
   document.getElementById('sun-info-inline').textContent = '· ' + info;
 
-  // Weather chip
+  // Weather — now inline in the time pill (desktop) and the ribbon head (mobile).
+  // Format: `14° · cloudy` — qualitative over precise %; users care about the
+  // shape of the sky, not 30 vs 50%.
   const cc = cloudCoverAt(tMs);
   const temp = tempAt(tMs);
+  const w = formatWeatherInline(cc, temp);
   const ic = document.getElementById('weather-ic');
   const lb = document.getElementById('weather-label');
-  if (cc == null){
-    ic.textContent = '🌤'; lb.textContent = 'weather unknown';
-  } else {
-    let emoji = '☀️';
-    if (cc >= 85) emoji = '☁️';
-    else if (cc >= 55) emoji = '🌥';
-    else if (cc >= 25) emoji = '⛅';
-    ic.textContent = emoji;
-    const tempStr = temp != null ? ` · ${Math.round(temp)}°C` : '';
-    lb.textContent = `${Math.round(cc)}% cloud${tempStr}`;
-  }
+  if (ic) ic.textContent = w.emoji;
+  if (lb) lb.innerHTML     = w.html;
+}
+// Shared formatter so desktop + mobile produce identical strings.
+// Returns { emoji, html }. html is HTML-safe (from enum → string map) so we
+// can use innerHTML for the mild <b> emphasis on the temperature.
+function formatWeatherInline(cc, temp){
+  if (cc == null) return { emoji:'🌤', html:'weather unknown' };
+  let emoji = '☀️', word = 'sunny';
+  if (cc >= 70)      { emoji = '☁️'; word = 'cloudy'; }
+  else if (cc >= 30) { emoji = '⛅';  word = 'partly cloudy'; }
+  const tempPart = temp != null ? `<b>${Math.round(temp)}°</b> · ` : '';
+  return { emoji, html: `${tempPart}${word}` };
 }
 
 /* ============================================================
@@ -2894,9 +2932,12 @@ function updateRibbonNow(){
   dot.style.left     = pct + '%';
   if (label){
     const isLive = !state.selectedTimeMs;
-    label.innerHTML = isLive
-      ? `Now · <em>${fmtTime(d)}</em>`
-      : `Today · <em>${fmtTime(d)}</em>`;
+    const prefix = isLive ? 'Now' : 'Today';
+    const w = formatWeatherInline(cloudCoverAt(tMs), tempAt(tMs));
+    const weatherHtml = w.html === 'weather unknown'
+      ? ''
+      : `<span class="weather-inline"><span class="ic">${w.emoji}</span>${w.html}</span>`;
+    label.innerHTML = `${prefix} · <em>${fmtTime(d)}</em>${weatherHtml}`;
   }
   if (nowBtn) nowBtn.classList.toggle('hidden', !state.selectedTimeMs);
 }
@@ -3022,7 +3063,7 @@ function renderMobileSearch(){
   const results = document.getElementById('m-search-results');
   const tMs = currentTimeMs();
 
-  let source = state.venues.filter(v => !state.hidden.has(v.id));
+  let source = state.venues;
   if (q){
     const ql = q.toLowerCase();
     source = source.filter(v =>
@@ -3288,32 +3329,22 @@ function renderMobileSheet(){
       : `<span class="hero-glyph">${venueEmoji(v)}</span>`;
     const heroCls = v.photoUrl ? '' : 'fallback';
 
-    const openNow = isOpenAt(v, tMs);
-    let hoursLine, hoursCls = '';
-    const nextChangeStr = openingNextChangeStr(v, tMs);
-    if (openNow === true){
-      hoursLine = `Open now${nextChangeStr ? ` · <b>closes ${nextChangeStr}</b>` : ''}`;
-      hoursCls = 'open';
-    } else if (openNow === false){
-      hoursLine = `Closed${nextChangeStr ? ` · <b>opens ${nextChangeStr}</b>` : ''}`;
-      hoursCls = 'closed';
-    } else {
-      hoursLine = v.openingHoursStr
-        ? `Hours: <b>${escapeHtml(v.openingHoursStr).slice(0,48)}</b>`
-        : `Opening hours unknown`;
-    }
+    const hoursStatus = formatHoursStatus(v, tMs);
+    const hoursLine   = hoursStatus ? hoursStatus.html : '';
+    const hoursCls    = hoursStatus ? hoursStatus.cls  : '';
     const walk = v.walkMin != null ? ` · 🚶 ${v.walkMin} min` : '';
     root.innerHTML = `
       <div class="m-details-hero ${heroCls}">
         ${hero}
         <div class="m-details-badge ${st}">${escapeHtml(badge)}</div>
+        ${terraceConfidenceBadgeHTML(v, 'm-details-conf-badge')}
       </div>
       <div class="m-details-body">
         <h3 class="m-details-title">${escapeHtml(v.name)}</h3>
         <p class="m-details-meta">${escapeHtml(prettyType(v))}${v.street?' · <b>'+escapeHtml(v.street)+'</b>':''}${walk}</p>
         <div class="m-details-chart">
           ${sunChartSVG(v, tMs)}
-          <p class="m-details-hours ${hoursCls}">${hoursLine}</p>
+          ${hoursStatus ? `<p class="m-details-hours ${hoursCls}">${hoursLine}</p>` : ''}
         </div>
         <a class="m-cta-btn" target="_blank" rel="noopener" href="${gmapsUrl(v)}">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -3322,20 +3353,7 @@ function renderMobileSheet(){
           </svg>
           Open in Google Maps
         </a>
-        <button class="m-hide-link" data-hide-id="${escapeHtml(v.id)}">× no real terrace — hide</button>
       </div>`;
-
-    const hideBtn = root.querySelector('.m-hide-link[data-hide-id]');
-    if (hideBtn){
-      hideBtn.addEventListener('click', () => {
-        const id = hideBtn.getAttribute('data-hide-id');
-        hideVenue(id);
-        mobile.selectedId = null;
-        mobile.sheetMode = 'browse';
-        setSheetSnap('peek');
-        renderMobileSheet();
-      });
-    }
 
     // Resolve wikidata photo async if not yet
     if (v.photoUrl === undefined && v.wikidataId){
@@ -3444,27 +3462,10 @@ function updateMobileChipCounts(){
   if (favCnt) favCnt.textContent = state.favorites.size;
 }
 
-function updateMobileWeatherPill(){
-  const pill = document.getElementById('m-weather');
-  if (!pill) return;
-  const ic = document.getElementById('m-weather-ic');
-  const lb = document.getElementById('m-weather-label');
-  const cc = cloudCoverAt(currentTimeMs());
-  const temp = tempAt(currentTimeMs());
-  if (cc == null){
-    pill.classList.remove('visible');
-    return;
-  }
-  let emoji = '☀️';
-  if (cc >= 85) emoji = '☁️';
-  else if (cc >= 55) emoji = '🌥';
-  else if (cc >= 25) emoji = '⛅';
-  ic.textContent = emoji;
-  lb.innerHTML = temp != null
-    ? `${Math.round(temp)}°C <span class="muted">· ${Math.round(cc)}% cloud</span>`
-    : `${Math.round(cc)}% cloud`;
-  pill.classList.add('visible');
-}
+// Weather is now rendered inline inside updateRibbonNow() via
+// formatWeatherInline(). This function is retained as a no-op shim so any
+// lingering callers don't error; safe to delete in a later pass.
+function updateMobileWeatherPill(){ /* noop — inline in ribbon now */ }
 
 /* ---- bring it all online after data is loaded ---- */
 function initMobileUI(){
@@ -3537,8 +3538,6 @@ function setLoader({title, detail, pct, error}={}){
 async function main(){
   setLocalOrigin(CENTER[0], CENTER[1]);
   state.favorites = loadSet(LS.FAV);
-  state.hidden    = loadSet(LS.HIDE);
-  updateHiddenBar();
 
   // ─── Phase 0: Manifest — cheap freshness check, non-blocking ───────────────
   // Fires a loud console.warn on stale bake (bakeDate != today). Used as
@@ -3568,11 +3567,19 @@ async function main(){
     const idSet = new Set(rt.ids);
     let n = 0;
     for (const v of state.venues){
-      if (idSet.has(v.id)){ v.isRooftop = true; n++; }
+      if (idSet.has(v.id)){
+        v.isRooftop = true;
+        // Curated rooftops are human-verified — always confirmed, overrides
+        // whatever the OSM-tag-based rule returned.
+        v.terraceConfidence = 'confirmed';
+        n++;
+      }
     }
     console.info('[sonne] rooftops applied:', n, 'venues flagged');
-    // If Rooftop chip is already active (e.g. tapped mid-load), refresh.
+    // Rooftop promotion changes badge labels — refresh if anything's already
+    // showing (Rooftop chip active or details sheet open).
     if (state.filters.catRooftop) refresh();
+    else refresh();
   });
 
   computeTodaySunTimes();          // needed for venueStateAt → 'night' logic
