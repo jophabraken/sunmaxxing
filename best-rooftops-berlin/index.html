@@ -93,6 +93,57 @@
 }
 </script>
 
+<!-- FAQ schema — targets featured-snippet / "People also ask" boxes for the
+     cluster of long-tail queries around rooftops and golden hour. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "When is golden hour on Berlin rooftops?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "In Berlin, golden hour runs roughly from the last hour before sunset, which shifts from around 16:00 in December to around 21:30 in late June. Most rooftops face west or southwest, so they keep direct sun until just before the official sunset — but tall neighbors can cut that short by 30–60 minutes. Check the live map for the exact minute each terrace slips into shade today."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which Berlin rooftops are free to enter?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Klunkerkranich charges a small entry fee in the evening (typically €3–5 after 7pm), but earlier in the day it's free. Deck 5 and Strandbar Mitte are free to enter and you pay only for drinks. Hotel rooftops like Monkey Bar, Amano, and Hotel de Rome are free to enter but expect higher drinks prices and reservation pressure on sunny evenings."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which Berlin rooftop has the best view?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For pure skyline value, Monkey Bar and Klunkerkranich both take in the whole city, with Monkey Bar tilted west toward Tiergarten and Klunkerkranich facing north across Neukölln and Kreuzberg. House of Weekend sits closest to the TV Tower, and Hotel de Rome has the most intimate historic view — straight across Bebelplatz and the Staatsoper. Pick by mood; all four are on the map."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "When do Berlin's rooftop bars open for the season?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Seasonal rooftops like Klunkerkranich and Deck 5 typically open in late April and close in mid-to-late September, weather dependent. Strandbar Mitte tends to open in early May. Hotel rooftops with indoor seating — Monkey Bar, Amano, Hotel de Rome — are open year-round, but terrace access depends on weather. Always check the venue directly on a shoulder-season weekend."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need a reservation for Berlin rooftop bars?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For a sunny Friday evening, yes — especially at Monkey Bar and Hotel de Rome. Klunkerkranich, Deck 5, and Strandbar Mitte are walk-in only by design; come earlier (ideally before 5pm) to get a good spot. Hallmann & Klee and Amano take reservations and it's worth making one if a specific terrace table matters to you."
+      }
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
@@ -153,6 +204,26 @@
   .callout p{margin:0 0 14px;font-size:15.5px;color:var(--text)}
   .callout-cta{display:inline-block;padding:12px 20px;background:var(--text);color:#fff;border-radius:999px;text-decoration:none;font-weight:600;font-size:14px}
   .callout-cta:hover{background:var(--sun)}
+
+  /* FAQ */
+  .faq{max-width:720px;margin:40px auto 0;padding:0 24px}
+  .faq h3{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:600;font-size:28px;margin:0 0 18px;color:var(--text)}
+  details.faq-item{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:10px;box-shadow:0 1px 2px rgba(16,17,34,.03)}
+  details.faq-item summary{font-weight:600;font-size:16px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  details.faq-item summary::-webkit-details-marker{display:none}
+  details.faq-item summary::after{content:"+";font-size:22px;color:var(--sun);font-weight:400;line-height:1;transition:transform .15s}
+  details.faq-item[open] summary::after{content:"–"}
+  details.faq-item p{margin:12px 0 0;font-size:15.5px;line-height:1.65;color:var(--text)}
+
+  /* Related guides */
+  .related{max-width:720px;margin:40px auto 0;padding:0 24px}
+  .related h3{font-family:'Fraunces',Georgia,serif;font-style:italic;font-weight:600;font-size:24px;margin:0 0 16px;color:var(--text)}
+  .related-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .related a{display:block;padding:18px 20px;background:var(--card);border:1px solid var(--border);border-radius:14px;text-decoration:none;color:var(--text);transition:border-color .15s,transform .15s}
+  .related a:hover{border-color:var(--sun);transform:translateY(-1px)}
+  .related a strong{display:block;font-size:16px;margin-bottom:4px}
+  .related a span{font-size:13px;color:var(--muted)}
+  @media (max-width:520px){.related-grid{grid-template-columns:1fr}}
 
   /* Footer */
   footer{max-width:720px;margin:60px auto 40px;padding:24px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
@@ -310,6 +381,49 @@
     <a class="callout-cta" href="/">Open the live map →</a>
   </div>
 </aside>
+
+<section class="faq">
+  <h3>Frequently asked</h3>
+
+  <details class="faq-item">
+    <summary>When is golden hour on Berlin rooftops?</summary>
+    <p>In Berlin, golden hour runs roughly from the last hour before sunset, which shifts from around 16:00 in December to around 21:30 in late June. Most rooftops face west or southwest, so they keep direct sun until just before the official sunset — but tall neighbors can cut that short by 30–60 minutes. Check the <a class="inline-link" href="/">live map</a> for the exact minute each terrace slips into shade today.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Which Berlin rooftops are free to enter?</summary>
+    <p>Klunkerkranich charges a small entry fee in the evening (typically €3–5 after 7pm), but earlier in the day it's free. Deck 5 and Strandbar Mitte are free to enter and you pay only for drinks. Hotel rooftops like Monkey Bar, Amano, and Hotel de Rome are free to enter but expect higher drinks prices and reservation pressure on sunny evenings.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Which Berlin rooftop has the best view?</summary>
+    <p>For pure skyline value, Monkey Bar and Klunkerkranich both take in the whole city, with Monkey Bar tilted west toward Tiergarten and Klunkerkranich facing north across Neukölln and Kreuzberg. House of Weekend sits closest to the TV Tower, and Hotel de Rome has the most intimate historic view — straight across Bebelplatz and the Staatsoper. Pick by mood; all four are on the <a class="inline-link" href="/">map</a>.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>When do Berlin's rooftop bars open for the season?</summary>
+    <p>Seasonal rooftops like Klunkerkranich and Deck 5 typically open in late April and close in mid-to-late September, weather dependent. Strandbar Mitte tends to open in early May. Hotel rooftops with indoor seating — Monkey Bar, Amano, Hotel de Rome — are open year-round, but terrace access depends on weather. Always check the venue directly on a shoulder-season weekend.</p>
+  </details>
+
+  <details class="faq-item">
+    <summary>Do I need a reservation for Berlin rooftop bars?</summary>
+    <p>For a sunny Friday evening, yes — especially at Monkey Bar and Hotel de Rome. Klunkerkranich, Deck 5, and Strandbar Mitte are walk-in only by design; come earlier (ideally before 5pm) to get a good spot. Hallmann &amp; Klee and Amano take reservations and it's worth making one if a specific terrace table matters to you.</p>
+  </details>
+</section>
+
+<section class="related">
+  <h3>Related guides</h3>
+  <div class="related-grid">
+    <a href="/best-beer-gardens-berlin/">
+      <strong>Best beer gardens in Berlin →</strong>
+      <span>Ground-level sun, long tables, chestnut trees.</span>
+    </a>
+    <a href="/best-sunset-spots-berlin/">
+      <strong>Best sunset spots in Berlin →</strong>
+      <span>Where the city turns gold, free and paid.</span>
+    </a>
+  </div>
+</section>
 
 <footer>
   <p>Built by <a href="/">Sonne Berlin</a> · <a href="/">Open the live map</a></p>
