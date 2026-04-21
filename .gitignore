@@ -11,3 +11,10 @@ sonne-berlin.html
 
 # Drag-drop artifact for Cloudflare Pages
 sunmaxxing-deploy.zip
+
+# Secrets — service-account keys, API tokens. NEVER commit.
+.secrets/
+*.key.json
+gsc-key.json
+__pycache__/
+*.pyc

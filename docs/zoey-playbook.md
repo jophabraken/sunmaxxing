@@ -204,7 +204,17 @@ Jop's voice and the Sonne Berlin voice overlap. Key moves:
 - **Git remote:** authenticated (token in remote URL). `git push origin main` just works.
 - **Cloudflare Pages:** auto-deploys from `origin/main`. Takes ~60-90s.
 - **Notion:** use the notion MCP tools. Daily briefs page ID: `349c92df-215b-8197-8309-e2dd1a1134ee`. Parent ideas page: `349c92df-215b-8139-9eb4-d5e3d1339e72`.
-- **GSC / GA:** see `/docs/zoey-scorecard.csv` header for which columns you actually have access to. If blank, flag in "Needs Jop".
+- **GSC (Google Search Console):** authenticated via service-account JSON at one of:
+    - `./.secrets/gsc-key.json` (repo-local, gitignored)
+    - `/sessions/nice-inspiring-cerf/mnt/outputs/.secrets/gsc-key.json` (persistent workspace — primary location)
+  Service account: `zoey-gsc-reader@sunmaxxing-seo.iam.gserviceaccount.com`, property: `sc-domain:sunmaxxing.com`.
+  Run the fetcher first thing every morning:
+    ```bash
+    cd /sessions/nice-inspiring-cerf/work && python3 tools/zoey_gsc.py --days 7 --json > /tmp/zoey-gsc.json
+    ```
+  Read the JSON and use it to fill `gsc_impressions_berlin` (use the `germany.impressions` field — it's country-level DEU; city-level Berlin isn't available via the API, so country-DE is our proxy), `gsc_clicks_berlin` (`germany.clicks`), `gsc_avg_position` (`germany.avg_position`), `gsc_ctr` (`germany.ctr`) columns in `/docs/zoey-scorecard.csv`. The `top_queries` and `top_pages` arrays drive today's editorial decisions.
+  If the fetcher fails with a 403 or "property not accessible" error, the service-account email isn't added to GSC yet → note in "Needs Jop" and use Cloudflare Web Analytics only.
+- **Cloudflare Web Analytics:** secondary session-level signal. No API wired up yet — if Jop asks for a CWA integration, draft a plan but don't build it autonomously.
 - **Web search:** available via WebSearch / WebFetch tool. Use it for keyword research, competitor checking, and verifying venue facts.
 
 ---
