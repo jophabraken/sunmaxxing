@@ -448,10 +448,11 @@
   .popup-v2 .hero-badge.shaded, .popup-v2 .hero-badge.nosun, .popup-v2 .hero-badge.night, .popup-v2 .hero-badge.closed{color:#94A3B8}
   .popup-v2 .hero-badge .ic{font-size:14px}
 
-  /* Terrace confidence badge — top-right of the hero, opposite the state badge.
+  /* Terrace confidence badge — top-left of the hero (state badge is bottom-left,
+     so they stack on the same side without crowding).
      Confirmed = green tick, Likely = neutral question mark. */
   .popup-v2 .hero-conf-badge{
-    position:absolute;right:12px;top:12px;z-index:2;
+    position:absolute;left:12px;top:12px;z-index:2;
     display:inline-flex;align-items:center;gap:5px;
     background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
     padding:5px 10px;border-radius:999px;
@@ -840,9 +841,9 @@
   }
   .m-details-badge.cloudy{color:#cbd5e1}
   .m-details-badge.shaded,.m-details-badge.nosun,.m-details-badge.night{color:#94A3B8}
-  /* Terrace confidence badge — mobile mirror of .hero-conf-badge. */
+  /* Terrace confidence badge — mobile mirror of .hero-conf-badge (top-left). */
   .m-details-conf-badge{
-    position:absolute;right:12px;top:12px;z-index:2;
+    position:absolute;left:12px;top:12px;z-index:2;
     display:inline-flex;align-items:center;gap:5px;
     background:rgba(255,255,255,.94);backdrop-filter:blur(10px);
     padding:5px 10px;border-radius:999px;
@@ -1573,8 +1574,13 @@ function berlinDateStr(d = new Date()){
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 async function loadWindowsToday(){
+  // 6s hard timeout: on a cold edge with a slow client, we'd rather fall back
+  // to the client-side shadow computation (or just render without exact
+  // windows) than sit on a hanging request and show the loader for 15s+.
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 6000);
   try {
-    const r = await fetch('data/windows-today.json', {cache: 'default'});
+    const r = await fetch('data/windows-today.json', {cache: 'default', signal: ctrl.signal});
     if (!r.ok) return null;
     const j = await r.json();
     if (!j || !j.windows || !j.bakeDate) return null;
@@ -1589,8 +1595,14 @@ async function loadWindowsToday(){
     console.info('[sonne] windows-today:', j.venueCount, 'venues (baked ' + j.bakedAt + ')');
     return j;
   } catch(e){
-    console.warn('[sonne] windows-today load failed:', e);
+    if (e.name === 'AbortError'){
+      console.warn('[sonne] windows-today: fetch timed out at 6s — falling back');
+    } else {
+      console.warn('[sonne] windows-today load failed:', e);
+    }
     return null;
+  } finally {
+    clearTimeout(to);
   }
 }
 
@@ -3544,12 +3556,23 @@ async function main(){
   // diagnostic context if we end up in the slow path later.
   const manifestP = loadDataManifest().then(m => { warnIfManifestStale(m); return m; });
 
-  // ─── Phase 1: Venues — fast path, render the map immediately ───────────────
-  // Target: user sees the map with all venue markers within ~1s on a warm CDN.
+  // ─── Phase 1: Kick off ALL three parallel fetches at once ──────────────────
+  // Previously we serialized venues → windows → weather, which meant each
+  // 200–500ms of RTT stacked up while the loader stalled on the previous
+  // fetch. Fire all three now, await venues (we need it to paint), and let
+  // windows/weather settle while we parse + render. On a warm edge we go from
+  // ~1.5s of sequential fetches to ~400ms of overlapped ones.
   setLoader({title:'Finding terraces…', pct:10});
+  const windowsP = loadWindowsToday();           // 220KB
+  const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
+    refresh();  // 'sunny' → 'cloudy' update when it lands
+  }).catch(e => {
+    console.warn('[sonne] weather load failed:', e);
+  });
+
   let venuesJson;
   try {
-    venuesJson = await loadVenuesData();
+    venuesJson = await loadVenuesData();         // 1.4MB, blocks first paint
   } catch(err){
     return showFatalLoadError(err);
   }
@@ -3562,24 +3585,54 @@ async function main(){
 
   // Apply curated rooftop flags (tiny file, loaded in parallel with windows).
   // Doesn't block first paint; needed before the Rooftop chip is tapped.
+  //
+  // Defensive: if venues.json on the edge is older than rooftops-today.json
+  // (cache drift, partial deploy), some rooftop IDs won't be in state.venues.
+  // rooftops-today.json now carries a self-sufficient `venues` array we can
+  // synthesize from — so the Rooftop chip is never silently empty.
   loadRooftopsToday().then(rt => {
     if (!rt || !rt.ids) return;
-    const idSet = new Set(rt.ids);
-    let n = 0;
+    const idSet  = new Set(rt.ids);
+    const present = new Set(state.venues.map(v => v.id));
+    let flagged = 0, synthesized = 0;
     for (const v of state.venues){
       if (idSet.has(v.id)){
         v.isRooftop = true;
-        // Curated rooftops are human-verified — always confirmed, overrides
-        // whatever the OSM-tag-based rule returned.
-        v.terraceConfidence = 'confirmed';
-        n++;
+        v.terraceConfidence = 'confirmed';  // human-verified, overrides tag rule
+        flagged++;
       }
     }
-    console.info('[sonne] rooftops applied:', n, 'venues flagged');
-    // Rooftop promotion changes badge labels — refresh if anything's already
-    // showing (Rooftop chip active or details sheet open).
-    if (state.filters.catRooftop) refresh();
-    else refresh();
+    for (const bundled of (rt.venues || [])){
+      const id = `${bundled.type}/${bundled.id}`;
+      if (!idSet.has(id) || present.has(id)) continue;
+      const lat = bundled.lat, lng = bundled.lon;
+      const t   = bundled.tags || {};
+      if (lat == null || lng == null || !t.name) continue;
+      // Same shape as parseVenues() output — keeps every downstream consumer
+      // (markers, sheet, windows, badges, photos) working without branches.
+      state.venues.push({
+        id, name: t.name, lat, lng,
+        type: t.amenity || 'place',
+        cuisine: t.cuisine,
+        street: t['addr:street'] ? `${t['addr:street']} ${t['addr:housenumber']||''}`.trim() : null,
+        openingHoursStr: t.opening_hours || null,
+        website: t.website || t['contact:website'] || null,
+        imageRaw: t.image || null,
+        commonsFile: t['wikimedia_commons'] || null,
+        wikidataId: t.wikidata || null,
+        photoUrl: undefined,
+        windows: [],
+        windowsComputed: false,
+        totalSunMin: 0,
+        isRooftop: true,
+        terraceConfidence: 'confirmed',
+      });
+      synthesized++;
+    }
+    console.info('[sonne] rooftops applied:', flagged, 'venues flagged,',
+                 synthesized, 'synthesized from bundle');
+    if (synthesized) parseAllOpeningHours();  // pick up new venues' hours
+    refresh();                                // re-render Rooftop chip state
   });
 
   computeTodaySunTimes();          // needed for venueStateAt → 'night' logic
@@ -3601,16 +3654,10 @@ async function main(){
     pct:25
   });
 
-  // ─── Phase 1.5: Weather starts loading immediately, regardless of path ─────
-  const weatherP = fetchWeather().then(() => {
-    // Re-render as weather updates 'sunny' → 'cloudy' on cloudy venues.
-    refresh();
-  }).catch(e => {
-    console.warn('[sonne] weather load failed:', e);
-  });
-
   // ─── Fast path: apply pre-baked sun windows, skip ~17 MB of buildings ──────
-  const baked = await loadWindowsToday();
+  // windowsP is the fetch we kicked off at Phase 1 in parallel with venues,
+  // so on a cold cache the bytes usually arrived while we parsed venues.json.
+  const baked = await windowsP;
   if (baked){
     // Pin sunrise/sunset from the bake so client timestamps line up exactly.
     state.sunrise = new Date(baked.sunrise);
@@ -3633,10 +3680,11 @@ async function main(){
     }
     console.info('[sonne] windows-today: applied to', matched, '/', state.venues.length, 'venues');
     setRibbonRangeFromSun();       // pick up baked sunrise/sunset
-    setLoader({pct:85, detail:'Finishing up…'});
-    await weatherP;
     setLoader({pct:100});
     refresh();
+    // Weather is still in-flight most of the time — don't block the loader
+    // dismissal on it. When it lands, fetchWeather's .then() above already
+    // calls refresh() to update 'sunny' → 'cloudy' on affected venues.
     setTimeout(() => setLoader({title:null}), 250);
   } else {
     // ─── Fallback: no baked windows → compute client-side (old path) ─────────
@@ -3680,9 +3728,10 @@ async function main(){
       if (done % 240 === 0 || done === total) refresh();
     });
 
-    await weatherP;
     setLoader({pct:100});
     refresh();
+    // Slow path is already far past the perceived "loading" point — let weather
+    // update in the background via its own .then() refresh. No need to block.
     setTimeout(() => setLoader({title:null}), 250);
   }
 

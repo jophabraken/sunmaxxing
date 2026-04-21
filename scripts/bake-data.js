@@ -491,8 +491,12 @@ function bakeRooftops(venuesJson, supplementJson){
   const NEAR_M_WITH_NAME = 120;
 
   const matchedIds = new Set();
+  const matchedElements = new Map();  // id → OSM element, for the client fallback block
   const matches = [];
   const unmatched = [];
+  // Keep a quick lookup from id → original OSM element in the merged pool, so
+  // once we pick a candidate we can grab its raw tags for rooftops-today.json.
+  const mergedById = new Map(merged.map(el => [`${el.type}/${el.id}`, el]));
   for (const r of curated){
     const candidates = venues
       .map(v => ({ v, d: haversineMeters(r.lat, r.lng, v.lat, v.lng) }))
@@ -512,6 +516,8 @@ function bakeRooftops(venuesJson, supplementJson){
     if (pick){
       if (!matchedIds.has(pick.v.id)){
         matchedIds.add(pick.v.id);
+        const raw = mergedById.get(pick.v.id);
+        if (raw) matchedElements.set(pick.v.id, raw);
         const tag = suppOnly.has(pick.v.id) ? ' [supp]' : '';
         matches.push(`${r.name} → ${pick.v.name} (${Math.round(pick.d)}m)${tag}`);
       } else {
@@ -530,6 +536,22 @@ function bakeRooftops(venuesJson, supplementJson){
     if (matchedIds.has(id)) supplementAdded.push(el);
   }
 
+  // Bundle the raw OSM elements for each matched rooftop INTO rooftops-today.json
+  // itself. This is defence-in-depth: if the deployed venues.json ever drifts
+  // out of sync with rooftops-today.json (cache staleness, partial deploy,
+  // CDN edge mismatch), the client can synthesize the missing venue entries
+  // from this payload instead of silently showing zero rooftops.
+  const matchedVenues = [...matchedIds].map(id => {
+    const el = matchedElements.get(id);
+    if (!el) return null;
+    return {
+      type: el.type, id: el.id,
+      lat: el.lat ?? el.center?.lat ?? null,
+      lon: el.lon ?? el.center?.lon ?? null,
+      tags: el.tags || {},
+    };
+  }).filter(Boolean);
+
   console.log(`  matched: ${matches.length}/${curated.length} curated rooftops`);
   for (const m of matches) console.log(`    ✓ ${m}`);
   if (unmatched.length){
@@ -546,6 +568,7 @@ function bakeRooftops(venuesJson, supplementJson){
     curatedCount: curated.length,
     matchedCount: matchedIds.size,
     ids:          [...matchedIds],
+    venues:       matchedVenues,   // self-sufficient fallback; see client loadRooftopsToday
     supplementAdded,
   };
 }
