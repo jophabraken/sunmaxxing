@@ -942,10 +942,11 @@
   .m-near-exit svg{width:14px;height:14px}
   /* --- Active state: Near me is on. Pill collapses to a circle, walk chips + exit appear. --- */
   .m-search-row.near-active .m-search-pill{
-    flex:0 0 32px;width:32px;padding:0;border-radius:50%;justify-content:center;
+    flex:0 0 32px;width:32px;padding:0;border-radius:50%;
+    justify-content:center;gap:0;
   }
   .m-search-row.near-active .m-search-pill .m-search-text{
-    opacity:0;width:0;
+    display:none;
   }
   .m-search-row.near-active .m-near-me-btn{display:none}
   .m-search-row.near-active .m-walk-chip{display:inline-flex}
@@ -953,7 +954,7 @@
 
   /* --- Bottom Sheet --- */
   .m-sheet{
-    position:absolute;left:0;right:0;bottom:0;z-index:25;
+    position:absolute;left:0;right:0;bottom:0;z-index:28;
     background:var(--card);border-radius:22px 22px 0 0;
     box-shadow:0 -14px 44px rgba(16,17,34,.14), 0 -3px 12px rgba(16,17,34,.06);
     display:flex;flex-direction:column;
@@ -1602,8 +1603,8 @@
       <span class="m-search-text" data-i18n="m_search_pill_label">Search for a place…</span>
     </button>
     <button class="m-near-me-btn" id="m-chip-nearme" aria-label="Near me"><span class="pin">📍</span><span data-i18n="chip_nearme">Near me</span></button>
-    <button class="m-walk-chip" id="m-chip-walk5" data-i18n-aria-label="chip_walk5"><span data-i18n="chip_walk5">≤ 10 min</span></button>
-    <button class="m-walk-chip" id="m-chip-walk20" data-i18n-aria-label="chip_walk20"><span data-i18n="chip_walk20">≤ 20 min</span></button>
+    <button class="m-walk-chip" id="m-chip-walk5" data-i18n-aria-label="chip_walk5"><span class="ic">🚶</span><span data-i18n="chip_walk5">≤ 10 min</span></button>
+    <button class="m-walk-chip" id="m-chip-walk20" data-i18n-aria-label="chip_walk20"><span class="ic">🚶‍♀️</span><span data-i18n="chip_walk20">≤ 20 min</span></button>
     <button class="m-near-exit" id="m-near-exit" data-i18n-aria-label="m_near_exit_aria" aria-label="Exit near me filter">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
@@ -3986,7 +3987,9 @@ function mobileSnapHeights(){
     // which doubles as the drag-up affordance. Slimmer peek keeps more map visible.
     peek: 255,
     mid:  Math.round(vh * 0.55),
-    full: Math.round(vh * 0.92),
+    // Full leaves ~90px at the top so the top chip row has breathing room
+    // and doesn't feel like the sheet is crowding it.
+    full: Math.max(Math.round(vh * 0.6), vh - 90),
   };
 }
 function setSheetSnap(snap, animate=true){
@@ -4002,15 +4005,12 @@ function setSheetSnap(snap, animate=true){
 function positionSearchRowForSheet(){
   const row = document.getElementById('m-search-row');
   if (!row) return;
-  const sheet = document.getElementById('m-sheet');
-  let h;
-  if (sheet) {
-    const r = sheet.getBoundingClientRect();
-    h = r.height;
-  } else {
-    h = mobileSnapHeights()[mobile.snap];
-  }
-  row.style.bottom = (h + 10) + 'px';
+  // Anchor the search row above the peek-height sheet permanently.
+  // When the user drags the sheet above peek, the sheet (z-index 28) covers
+  // the search row (z-index 27) — so the search row stays "in place, in the
+  // background" rather than sliding up into awkward positions.
+  const peekH = mobileSnapHeights().peek;
+  row.style.bottom = (peekH + 10) + 'px';
 }
 
 /* ---- ribbon scrubber ---- */
@@ -4330,7 +4330,7 @@ function bindSheetDrag(){
     const y = (e.touches ? e.touches[0].clientY : e.clientY);
     const dy = startY - y;
     const vh = window.innerHeight;
-    const newH = Math.max(120, Math.min(vh * 0.95, startH + dy));
+    const newH = Math.max(120, Math.min(mobileSnapHeights().full, startH + dy));
     sheet.style.setProperty('--sheet-h', newH + 'px');
     positionSearchRowForSheet();
   };
