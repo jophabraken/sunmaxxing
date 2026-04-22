@@ -329,6 +329,7 @@
   }
   .btn-filters .count.has-active{background:var(--sun);color:#3a2900}
   .btn-filters.on .count{background:rgba(255,255,255,.22);color:#fff}
+  /* Lang toggle = circular flag avatar (flag fills the whole circle) */
   .lang-toggle{
     display:inline-flex;align-items:center;justify-content:center;
     width:38px;height:38px;padding:0;border-radius:50%;
@@ -339,13 +340,17 @@
   }
   .lang-toggle:hover{border-color:var(--border-strong);transform:scale(1.03)}
   .lang-toggle:active{transform:scale(.94)}
-  .lang-toggle svg{width:22px;height:15px;display:block;border-radius:2px;box-shadow:0 0 0 0.5px rgba(16,17,34,.15)}
+  .lang-toggle svg{
+    width:100%;height:100%;display:block;
+  }
   .m-lang-toggle{
-    width:34px;padding:0;justify-content:center;overflow:hidden;flex:0 0 auto;
+    width:34px;height:34px;padding:0;border-radius:50%;
+    justify-content:center;align-items:center;overflow:hidden;
+    flex:0 0 auto;background:#fff;
+    border:1px solid var(--border);
   }
   .m-lang-toggle svg{
-    width:20px;height:14px;display:block;border-radius:2px;
-    box-shadow:0 0 0 0.5px rgba(16,17,34,.15);
+    width:100%;height:100%;display:block;
   }
   .filters.collapsed{display:none}
 
@@ -619,6 +624,14 @@
     background:var(--card);padding:20px 26px;border-radius:20px;
     box-shadow:var(--shadow-lg);z-index:1000;text-align:center;
     font-size:14px;max-width:380px;border:1px solid var(--border);
+  }
+  /* On mobile the bottom sheet (~255px peek) + search row (~42px above sheet)
+     take up the bottom ~300px of the viewport. Shift the loader up by ~150px so
+     it centers in the visible map area, not the full viewport. */
+  @media (max-width: 900px){
+    .loader{
+      top: calc(50% - 150px);
+    }
   }
   .loader .sun-spin{
     width:36px;height:36px;margin:0 auto 10px;
@@ -2015,20 +2028,24 @@ function applyI18nStaticDom() {
 }
 
 function flagSvg(lang) {
+  // preserveAspectRatio="xMidYMid slice" → flag fills the circular chip (cover),
+  // not letterboxed. viewBox is 60×40 (3:2 ratio), container is square (1:1), so
+  // the left/right edges of the flag get cropped by the circle — like Apple/Google
+  // flag avatars.
   if (lang === 'de') {
-    return '<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false">'
+    return '<svg viewBox="0 0 60 40" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
       + '<rect width="60" height="13.33" y="0" fill="#000"/>'
       + '<rect width="60" height="13.34" y="13.33" fill="#DD0000"/>'
       + '<rect width="60" height="13.33" y="26.67" fill="#FFCE00"/>'
       + '</svg>';
   }
-  // Union Jack (simplified — legible at ~20px)
-  return '<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false">'
+  // Union Jack — simplified but properly proportioned for cover rendering
+  return '<svg viewBox="0 0 60 40" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">'
     + '<rect width="60" height="40" fill="#012169"/>'
-    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" stroke-width="6"/>'
-    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#C8102E" stroke-width="3"/>'
-    + '<path d="M30,0 V40 M0,20 H60" stroke="#fff" stroke-width="10"/>'
-    + '<path d="M30,0 V40 M0,20 H60" stroke="#C8102E" stroke-width="6"/>'
+    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" stroke-width="8"/>'
+    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#C8102E" stroke-width="4"/>'
+    + '<path d="M30,0 V40 M0,20 H60" stroke="#fff" stroke-width="14"/>'
+    + '<path d="M30,0 V40 M0,20 H60" stroke="#C8102E" stroke-width="8"/>'
     + '</svg>';
 }
 
@@ -3965,9 +3982,9 @@ const mobile = {
 function mobileSnapHeights(){
   const vh = window.innerHeight;
   return {
-    // Peek tall enough to show ribbon + count header + first row FULL + second row
-    // peeking (~40% visible) — the cut-off row is the drag-up affordance.
-    peek: 300,
+    // Peek = ribbon + count header + 1 full row + ~half of row 2 peeking out,
+    // which doubles as the drag-up affordance. Slimmer peek keeps more map visible.
+    peek: 255,
     mid:  Math.round(vh * 0.55),
     full: Math.round(vh * 0.92),
   };
