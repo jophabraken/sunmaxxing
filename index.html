@@ -343,16 +343,27 @@
   .lang-toggle svg{
     width:100%;height:100%;display:block;
   }
+  /* Mobile lang toggle: white outer disc (40px) with a circular flag coin (28px) inside.
+     Clipping is done on the wrapper span (not the SVG itself) — SVG border-radius
+     is unreliable across browsers, so we let a plain div clip it. */
   .m-lang-toggle{
     width:40px;height:40px;padding:0;border-radius:50%;
     display:inline-flex;justify-content:center;align-items:center;
     flex:0 0 auto;background:#fff;
     border:1px solid var(--border);
-  }
-  .m-lang-toggle svg{
-    width:28px;height:28px;display:block;border-radius:50%;
     overflow:hidden;
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  .m-lang-flag{
+    position:relative;display:block;
+    width:28px;height:28px;
+    border-radius:50%;
+    overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
+    background:#fff;
+  }
+  .m-lang-flag svg{
+    display:block;
+    width:100%;height:100%;
   }
   .filters.collapsed{display:none}
 
@@ -994,10 +1005,14 @@
   .m-search-row.near-active .m-near-exit{display:inline-flex}
 
   /* --- Bottom Sheet --- */
+  /* Shadow intentionally tight (small blur, low offset) so it hugs the sheet's
+     top edge. A soft/wide shadow would bleed upward onto the floating search
+     row and Near-me pill (which sit ~10px above the sheet's peek). Keeping
+     it shallow means the pills stay visually crisp without changing z-index. */
   .m-sheet{
     position:absolute;left:0;right:0;bottom:0;z-index:28;
     background:var(--card);border-radius:22px 22px 0 0;
-    box-shadow:0 -14px 44px rgba(16,17,34,.14), 0 -3px 12px rgba(16,17,34,.06);
+    box-shadow:0 -4px 14px rgba(16,17,34,.08), 0 -1px 3px rgba(16,17,34,.04);
     display:flex;flex-direction:column;
     height:var(--sheet-h, 220px);
     transition:height .44s cubic-bezier(.22,1,.36,1);
@@ -2129,7 +2144,9 @@ function applyI18nStaticDom() {
   }
   const mToggle = document.getElementById('m-lang-toggle');
   if (mToggle) {
-    mToggle.innerHTML = flagHtml;
+    // Wrap the SVG in a span so the circular clip happens on a plain div,
+    // not on the SVG element itself (avoids sub-pixel oval glitches).
+    mToggle.innerHTML = '<span class="m-lang-flag">' + flagHtml + '</span>';
     mToggle.setAttribute('aria-label', toggleLabel);
     mToggle.setAttribute('title', toggleLabel);
   }
