@@ -331,15 +331,22 @@
   .btn-filters.on .count{background:rgba(255,255,255,.22);color:#fff}
   .lang-toggle{
     display:inline-flex;align-items:center;justify-content:center;
-    height:38px;min-width:44px;padding:0 12px;border-radius:999px;
+    width:38px;height:38px;padding:0;border-radius:50%;
     background:var(--card);border:1px solid var(--border);
-    font:inherit;font-size:12px;font-weight:700;color:var(--text);
-    letter-spacing:.05em;
     cursor:pointer;box-shadow:var(--shadow-sm);flex:0 0 auto;
-    transition:all .15s;
+    overflow:hidden;
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .15s, border-color .15s;
   }
-  .lang-toggle:hover{border-color:var(--border-strong);color:var(--sun-strong)}
-  .m-lang-toggle{font-weight:700;letter-spacing:.05em;min-width:40px;justify-content:center}
+  .lang-toggle:hover{border-color:var(--border-strong);transform:scale(1.03)}
+  .lang-toggle:active{transform:scale(.94)}
+  .lang-toggle svg{width:22px;height:15px;display:block;border-radius:2px;box-shadow:0 0 0 0.5px rgba(16,17,34,.15)}
+  .m-lang-toggle{
+    width:34px;padding:0;justify-content:center;overflow:hidden;flex:0 0 auto;
+  }
+  .m-lang-toggle svg{
+    width:20px;height:14px;display:block;border-radius:2px;
+    box-shadow:0 0 0 0.5px rgba(16,17,34,.15);
+  }
   .filters.collapsed{display:none}
 
   .topbar-readout{
@@ -830,17 +837,6 @@
   .m-chip.active .cnt{background:rgba(255,255,255,.25)}
   .m-chip.hidden{display:none}
 
-  .m-chip-search{
-    flex-shrink:0;width:34px;height:34px;border-radius:50%;padding:0;
-    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    border:1px solid var(--border);box-shadow:var(--shadow-sm);
-    display:grid;place-items:center;color:var(--text);
-    font:inherit;cursor:pointer;
-    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .2s ease;
-  }
-  .m-chip-search:active{transform:scale(.88);background:var(--bg-2)}
-  .m-chip-search svg{width:15px;height:15px}
-
   /* Weather is now inline inside .m-ribbon-time — see that rule below. */
   .m-ribbon-time .weather-inline{
     margin-left:8px;padding-left:8px;
@@ -851,21 +847,96 @@
   .m-ribbon-time .weather-inline b{color:var(--text);font-weight:700}
   .m-ribbon-time .weather-inline .ic{font-size:13px;line-height:1}
 
-  /* --- FAB (near-me) --- */
-  .m-fab{
-    position:absolute;right:14px;z-index:27;
-    width:48px;height:48px;border-radius:50%;border:none;padding:0;
-    background:var(--card);color:var(--text);
-    box-shadow:var(--shadow-md), 0 8px 20px rgba(16,17,34,.08);
-    display:grid;place-items:center;cursor:pointer;
-    transition:bottom .44s cubic-bezier(.22,1,.36,1),
-               transform .14s cubic-bezier(.34,1.56,.64,1),
-               background .25s ease, color .25s ease, box-shadow .25s ease;
+  /* --- Search row (floats just above the bottom sheet) --- */
+  .m-search-row{
+    position:absolute;left:12px;right:12px;z-index:27;
+    display:flex;gap:8px;align-items:center;
+    pointer-events:none;
+    transition:bottom .44s cubic-bezier(.22,1,.36,1);
   }
-  .m-fab:active{transform:scale(.9)}
-  .m-fab.on{background:var(--coral);color:#fff;box-shadow:0 8px 22px rgba(255,107,87,.38)}
-  .m-fab svg{width:22px;height:22px}
-  .m-fab.locating svg{animation:spin 1.1s linear infinite}
+  .m-search-row > *{pointer-events:auto}
+  .m-search-pill{
+    flex:1 1 auto;min-width:0;
+    display:flex;align-items:center;gap:8px;
+    height:32px;padding:0 14px;border-radius:16px;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 4px 14px rgba(16,17,34,.12);
+    font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);
+    cursor:pointer;overflow:hidden;
+    transition:flex-basis .28s cubic-bezier(.34,1.56,.64,1),
+               width .28s cubic-bezier(.34,1.56,.64,1),
+               padding .28s cubic-bezier(.34,1.56,.64,1),
+               border-radius .28s cubic-bezier(.34,1.56,.64,1),
+               transform .14s cubic-bezier(.34,1.56,.64,1);
+  }
+  .m-search-pill:active{transform:scale(.97)}
+  .m-search-pill svg{width:14px;height:14px;color:var(--text);flex:0 0 auto}
+  .m-search-pill .m-search-text{
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:opacity .18s ease;
+  }
+  .m-near-me-btn{
+    flex:0 0 auto;
+    display:inline-flex;align-items:center;gap:5px;
+    height:32px;padding:0 12px;border-radius:16px;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 4px 14px rgba(16,17,34,.12);
+    font:inherit;font-size:12.5px;font-weight:700;color:var(--text);
+    cursor:pointer;
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1),
+               background .2s ease, color .2s ease, opacity .2s ease;
+  }
+  .m-near-me-btn:active{transform:scale(.95)}
+  .m-near-me-btn.locating{opacity:.7}
+  .m-near-me-btn .pin{color:var(--coral);font-size:13px;line-height:1}
+  .m-walk-chip{
+    flex:0 0 auto;
+    display:none;
+    align-items:center;gap:5px;
+    height:32px;padding:0 12px;border-radius:16px;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 4px 14px rgba(16,17,34,.12);
+    font:inherit;font-size:12.5px;font-weight:700;color:var(--text);
+    cursor:pointer;white-space:nowrap;
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1),
+               background .2s ease, color .2s ease, border-color .2s ease;
+  }
+  .m-walk-chip:active{transform:scale(.95)}
+  .m-walk-chip.active{
+    background:var(--shade);color:#fff;border-color:var(--shade);
+    box-shadow:0 4px 12px rgba(45,49,66,.22);
+  }
+  .m-near-exit{
+    flex:0 0 32px;
+    display:none;
+    width:32px;height:32px;border-radius:50%;padding:0;
+    background:rgba(255,255,255,.94);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.85);
+    box-shadow:0 4px 14px rgba(16,17,34,.12);
+    align-items:center;justify-content:center;
+    cursor:pointer;color:var(--muted);
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), color .2s ease;
+  }
+  .m-near-exit:hover{color:var(--text)}
+  .m-near-exit:active{transform:scale(.9)}
+  .m-near-exit svg{width:14px;height:14px}
+  /* --- Active state: Near me is on. Pill collapses to a circle, walk chips + exit appear. --- */
+  .m-search-row.near-active .m-search-pill{
+    flex:0 0 32px;width:32px;padding:0;border-radius:50%;justify-content:center;
+  }
+  .m-search-row.near-active .m-search-pill .m-search-text{
+    opacity:0;width:0;
+  }
+  .m-search-row.near-active .m-near-me-btn{display:none}
+  .m-search-row.near-active .m-walk-chip{display:inline-flex}
+  .m-search-row.near-active .m-near-exit{display:inline-flex}
 
   /* --- Bottom Sheet --- */
   .m-sheet{
@@ -1052,11 +1123,6 @@
     font-size:13.5px;font-weight:600;color:var(--text);
     letter-spacing:-0.01em;line-height:1.2;
   }
-  .m-browse-sub{
-    font-size:11.5px;color:var(--muted);font-weight:500;margin:0;
-    padding:0 14px 8px;
-  }
-  .m-browse-sub .catch{color:var(--sun-ink,#B4710E);font-weight:700}
   .m-browse-hint{
     font-size:11.5px;color:var(--muted);font-weight:500;
     display:inline-flex;align-items:center;gap:4px;flex-shrink:0;
@@ -1402,7 +1468,7 @@
       <button class="btn-filters" id="btn-filters-toggle" aria-expanded="true">
         <span data-i18n="topbar_filters_label">Filters</span> <span class="count" id="btn-filters-count">0</span>
       </button>
-      <button class="lang-toggle" id="lang-toggle" aria-label="Auf Deutsch wechseln" title="Auf Deutsch wechseln">DE</button>
+      <button class="lang-toggle" id="lang-toggle" aria-label="Auf Deutsch wechseln" title="Auf Deutsch wechseln"></button>
     </div>
 
     <!-- Row 2: readout (live time + sunny count) + meta (weather, peak, sunset) -->
@@ -1505,30 +1571,30 @@
 
   <!-- Chips row (top, horizontal scroll) -->
   <div class="m-chips" id="m-chips">
-    <button class="m-chip-search" id="m-chip-search" data-i18n-aria-label="m_chip_search_aria" aria-label="Search">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    </button>
+    <button class="m-chip m-lang-toggle" id="m-lang-toggle" aria-label="Auf Deutsch wechseln"></button>
     <button class="m-chip sunny" id="m-chip-sunny"><span>☀</span><span data-i18n="chip_sunny">Sunny</span> <span class="cnt" id="m-cnt-sunny">—</span></button>
     <button class="m-chip" id="m-chip-open"><span>🕐</span><span data-i18n="chip_open">Open now</span></button>
     <button class="m-chip hidden" id="m-chip-fav"><span>★</span><span data-i18n="chip_fav">Favorites</span> <span class="cnt" id="m-cnt-fav">0</span></button>
-    <button class="m-chip" id="m-chip-nearme"><span>📍</span><span data-i18n="chip_nearme">Near me</span></button>
-    <button class="m-chip hidden" id="m-chip-walk5"><span>🚶</span><span data-i18n="chip_walk5">≤10 min</span></button>
-    <button class="m-chip hidden" id="m-chip-walk20"><span>🚶‍♀️</span><span data-i18n="chip_walk20">≤20 min</span></button>
     <button class="m-chip cat" id="m-chip-cat-restaurant"><span>🍽</span><span data-i18n="chip_restaurant">Restaurant</span></button>
     <button class="m-chip cat" id="m-chip-cat-bar"><span>🍺</span><span data-i18n="chip_bar">Bar</span></button>
     <button class="m-chip cat" id="m-chip-cat-cafe"><span>☕</span><span data-i18n="chip_cafe">Café</span></button>
     <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span><span data-i18n="chip_icecream">Ice cream</span></button>
     <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span><span data-i18n="chip_rooftop">Rooftop</span></button>
-    <button class="m-chip m-lang-toggle" id="m-lang-toggle" aria-label="Auf Deutsch wechseln">DE</button>
   </div>
 
-  <!-- FAB (right, above sheet) -->
-  <button class="m-fab" id="m-fab" data-i18n-aria-label="m_fab_aria" aria-label="Near me">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="3"/>
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
-    </svg>
-  </button>
+  <!-- Search row (floats just above the bottom sheet) -->
+  <div class="m-search-row" id="m-search-row">
+    <button class="m-search-pill" id="m-search-pill" data-i18n-aria-label="m_search_pill_aria" aria-label="Search for a place">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span class="m-search-text" data-i18n="m_search_pill_label">Search for a place…</span>
+    </button>
+    <button class="m-near-me-btn" id="m-chip-nearme" aria-label="Near me"><span class="pin">📍</span><span data-i18n="chip_nearme">Near me</span></button>
+    <button class="m-walk-chip" id="m-chip-walk5" data-i18n-aria-label="chip_walk5"><span data-i18n="chip_walk5">≤ 10 min</span></button>
+    <button class="m-walk-chip" id="m-chip-walk20" data-i18n-aria-label="chip_walk20"><span data-i18n="chip_walk20">≤ 20 min</span></button>
+    <button class="m-near-exit" id="m-near-exit" data-i18n-aria-label="m_near_exit_aria" aria-label="Exit near me filter">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
 
   <!-- Bottom sheet with sun ribbon + dynamic content -->
   <div class="m-sheet" id="m-sheet">
@@ -1643,6 +1709,9 @@ const STRINGS = {
     m_sheet_handle_aria: "Drag sheet",
     m_fab_aria: "Near me",
     m_chip_search_aria: "Search",
+    m_search_pill_label: "Search for a place…",
+    m_search_pill_aria: "Search for a place",
+    m_near_exit_aria: "Exit near me filter",
 
     m_peek_aria: "Show details",
     m_peek_more_info: "More info",
@@ -1775,6 +1844,9 @@ const STRINGS = {
     m_sheet_handle_aria: "Liste ziehen",
     m_fab_aria: "In der Nähe",
     m_chip_search_aria: "Suchen",
+    m_search_pill_label: "Ort suchen…",
+    m_search_pill_aria: "Ort suchen",
+    m_near_exit_aria: "Standortfilter beenden",
 
     m_peek_aria: "Details anzeigen",
     m_peek_more_info: "Mehr Infos",
@@ -1925,18 +1997,39 @@ function applyI18nStaticDom() {
       if (key) el.setAttribute(attr, t(key));
     });
   });
+  const targetLang = CURRENT_LANG === 'de' ? 'en' : 'de';
+  const flagHtml = flagSvg(targetLang);
+  const toggleLabel = CURRENT_LANG === 'de' ? t('lang_toggle_to_en') : t('lang_toggle_to_de');
   const toggle = document.getElementById('lang-toggle');
   if (toggle) {
-    toggle.textContent = CURRENT_LANG === 'de' ? 'EN' : 'DE';
-    toggle.setAttribute('aria-label',
-      CURRENT_LANG === 'de' ? t('lang_toggle_to_en') : t('lang_toggle_to_de'));
-    toggle.setAttribute('title',
-      CURRENT_LANG === 'de' ? t('lang_toggle_to_en') : t('lang_toggle_to_de'));
+    toggle.innerHTML = flagHtml;
+    toggle.setAttribute('aria-label', toggleLabel);
+    toggle.setAttribute('title', toggleLabel);
   }
   const mToggle = document.getElementById('m-lang-toggle');
   if (mToggle) {
-    mToggle.textContent = CURRENT_LANG === 'de' ? 'EN' : 'DE';
+    mToggle.innerHTML = flagHtml;
+    mToggle.setAttribute('aria-label', toggleLabel);
+    mToggle.setAttribute('title', toggleLabel);
   }
+}
+
+function flagSvg(lang) {
+  if (lang === 'de') {
+    return '<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false">'
+      + '<rect width="60" height="13.33" y="0" fill="#000"/>'
+      + '<rect width="60" height="13.34" y="13.33" fill="#DD0000"/>'
+      + '<rect width="60" height="13.33" y="26.67" fill="#FFCE00"/>'
+      + '</svg>';
+  }
+  // Union Jack (simplified — legible at ~20px)
+  return '<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false">'
+    + '<rect width="60" height="40" fill="#012169"/>'
+    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#fff" stroke-width="6"/>'
+    + '<path d="M0,0 L60,40 M60,0 L0,40" stroke="#C8102E" stroke-width="3"/>'
+    + '<path d="M30,0 V40 M0,20 H60" stroke="#fff" stroke-width="10"/>'
+    + '<path d="M30,0 V40 M0,20 H60" stroke="#C8102E" stroke-width="6"/>'
+    + '</svg>';
 }
 
 function setLang(lang) {
@@ -3886,14 +3979,21 @@ function setSheetSnap(snap, animate=true){
   if (!sheet) return;
   if (!animate) sheet.classList.add('dragging');
   sheet.style.setProperty('--sheet-h', h + 'px');
-  positionFabForSheet();
+  positionSearchRowForSheet();
   if (!animate) requestAnimationFrame(() => sheet.classList.remove('dragging'));
 }
-function positionFabForSheet(){
-  const fab = document.getElementById('m-fab');
-  if (!fab) return;
-  const h = mobileSnapHeights()[mobile.snap];
-  fab.style.bottom = (h + 14) + 'px';
+function positionSearchRowForSheet(){
+  const row = document.getElementById('m-search-row');
+  if (!row) return;
+  const sheet = document.getElementById('m-sheet');
+  let h;
+  if (sheet) {
+    const r = sheet.getBoundingClientRect();
+    h = r.height;
+  } else {
+    h = mobileSnapHeights()[mobile.snap];
+  }
+  row.style.bottom = (h + 10) + 'px';
 }
 
 /* ---- ribbon scrubber ---- */
@@ -4007,12 +4107,13 @@ function syncMobileChipActives(){
     const on = !!state.userLoc;
     near.classList.toggle('active', on);
     near.innerHTML = on
-      ? `<span>📍</span><span data-i18n="chip_nearme_on">${t('chip_nearme_on')}</span>`
-      : `<span>📍</span><span data-i18n="chip_nearme">${t('chip_nearme')}</span>`;
+      ? `<span class="pin">📍</span><span data-i18n="chip_nearme_on">${t('chip_nearme_on')}</span>`
+      : `<span class="pin">📍</span><span data-i18n="chip_nearme">${t('chip_nearme')}</span>`;
   }
-  document.getElementById('m-chip-walk5').classList.toggle('hidden', !state.userLoc);
-  document.getElementById('m-chip-walk20').classList.toggle('hidden', !state.userLoc);
-  document.getElementById('m-chip-fav').classList.toggle('hidden', state.favorites.size === 0);
+  const searchRow = document.getElementById('m-search-row');
+  if (searchRow) searchRow.classList.toggle('near-active', !!state.userLoc);
+  const favEl = document.getElementById('m-chip-fav');
+  if (favEl) favEl.classList.toggle('hidden', state.favorites.size === 0);
 }
 function bindMobileChip(id, key){
   const el = document.getElementById(id); if (!el) return;
@@ -4068,10 +4169,14 @@ function bindMobileNearMe(){
       el.classList.remove('locating');
     }
   };
-  const fab = document.getElementById('m-fab');
-  if (fab) fab.addEventListener('click', () => { fab.classList.toggle('on', !state.userLoc ? true : false); handler(fab); });
   const chipNear = document.getElementById('m-chip-nearme');
   if (chipNear) chipNear.addEventListener('click', () => handler(chipNear));
+  // ✕ exit button — only visible when near-active; always triggers the "turn off" branch
+  const exitBtn = document.getElementById('m-near-exit');
+  if (exitBtn) exitBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handler(exitBtn);
+  });
 }
 
 /* ---- search overlay ---- */
@@ -4176,7 +4281,8 @@ function renderMobileSearch(){
   });
 }
 function bindMobileSearch(){
-  document.getElementById('m-chip-search').addEventListener('click', openMobileSearch);
+  const pill = document.getElementById('m-search-pill');
+  if (pill) pill.addEventListener('click', openMobileSearch);
   document.getElementById('m-search-back').addEventListener('click', closeMobileSearch);
   document.getElementById('m-search-input').addEventListener('input', renderMobileSearch);
   document.getElementById('m-search-clear').addEventListener('click', () => {
@@ -4209,7 +4315,7 @@ function bindSheetDrag(){
     const vh = window.innerHeight;
     const newH = Math.max(120, Math.min(vh * 0.95, startH + dy));
     sheet.style.setProperty('--sheet-h', newH + 'px');
-    positionFabForSheet();
+    positionSearchRowForSheet();
   };
   const onEnd = () => {
     if (!dragging) return;
@@ -4442,8 +4548,8 @@ function renderMobileSheet(){
   const lockedInCount = candidates.filter(x => x.ds === 'locked-in').length;
   const catchNowCount = candidates.filter(x => x.ds === 'catch-now').length;
 
-  // Show 3 rows so there's always something peeking below the sheet's peek height
-  const top = candidates.slice(0, 3);
+  // Show 2 rows at peek — trimmed from 3 to make the peek shorter
+  const top = candidates.slice(0, 2);
 
   const rowHTML = (x) => {
     const {v, ds} = x;
@@ -4481,10 +4587,6 @@ function renderMobileSheet(){
     return;
   }
 
-  const subParts = [];
-  if (lockedInCount) subParts.push(`${lockedInCount} with 60+ min of sun`);
-  if (catchNowCount) subParts.push(`<span class="catch">${catchNowCount} with &lt;60 min</span>`);
-
   root.innerHTML = `
     <div class="m-browse">
       <div class="m-browse-head">
@@ -4494,7 +4596,6 @@ function renderMobileSheet(){
         </div>
         <span class="m-browse-hint">Swipe up <span class="arr">↑</span></span>
       </div>
-      ${subParts.length ? `<p class="m-browse-sub">${subParts.join(' · ')}</p>` : ''}
       <div class="m-browse-rows">
         ${top.map(rowHTML).join('')}
       </div>
