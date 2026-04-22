@@ -344,9 +344,10 @@
     width:100%;height:100%;display:block;
   }
   /* Mobile lang toggle: white outer disc (40px) with a circular flag coin (28px) inside.
-     Clipping is done on the wrapper span (not the SVG itself) — SVG border-radius
-     is unreliable across browsers, so we let a plain div clip it. */
-  .m-lang-toggle{
+     Uses .m-chip.m-lang-toggle (double-class) to beat .m-chip's default padding:8px 13px,
+     which was collapsing the content area and making the flag flex-shrink to 12×28 (oval).
+     Clipping happens on the wrapper span, not the SVG itself — that's bulletproof. */
+  .m-chip.m-lang-toggle{
     width:40px;height:40px;padding:0;border-radius:50%;
     display:inline-flex;justify-content:center;align-items:center;
     flex:0 0 auto;background:#fff;
@@ -356,6 +357,7 @@
   .m-lang-flag{
     position:relative;display:block;
     width:28px;height:28px;
+    flex:0 0 28px;                 /* don't let the flex parent shrink me */
     border-radius:50%;
     overflow:hidden;
     box-shadow:inset 0 0 0 1px rgba(0,0,0,.10);
