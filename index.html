@@ -83,7 +83,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -160,7 +160,7 @@
   }
   .brand h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;line-height:1}
   .brand h1 em{
-    font-family:'Fraunces', serif;font-style:italic;font-weight:600;color:var(--coral);
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:600;color:var(--coral);
     font-size:23px;
   }
   .brand p{margin:3px 0 0;color:var(--muted);font-size:13px;font-weight:500}
@@ -306,7 +306,7 @@
     white-space:nowrap;
   }
   .brand-compact .brand-text em{
-    font-family:'Fraunces', serif;font-style:italic;font-weight:600;
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:600;
     color:var(--coral);font-size:16px;
   }
   .topbar .search-wrap{
@@ -477,7 +477,7 @@
   /* ---------- LIST ---------- */
   .list-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px}
   .list-head h2{
-    font-family:'Fraunces',serif;font-weight:600;font-style:italic;
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-weight:600;font-style:italic;
     margin:0;font-size:22px;letter-spacing:-0.01em;color:var(--text);
   }
   .list-head .count{color:var(--muted);font-size:14px;font-weight:500}
@@ -1061,7 +1061,7 @@
   }
   .m-ribbon-time em{
     color:var(--coral);font-style:normal;
-    font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-weight:600;font-size:14.5px;
     margin-left:4px;
   }
   .m-ribbon-now-btn{
@@ -1209,7 +1209,7 @@
   }
   .m-browse-count .n{
     font-size:22px;font-weight:800;color:var(--sun);
-    font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:600;
     font-variant-numeric:tabular-nums;line-height:1;
   }
   .m-browse-count .lbl{
@@ -1406,7 +1406,7 @@
   }
   .m-list-head h4{
     margin:0;font-size:16px;
-    font-family:'Fraunces',serif;font-style:italic;font-weight:600;
+    font-family:Georgia,Cambria,'Times New Roman',serif;font-style:italic;font-weight:600;
     letter-spacing:-0.01em;color:var(--text);
   }
   .m-list-head .cnt{font-size:11.5px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
@@ -1759,7 +1759,12 @@
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
 <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/opening_hours@3.8.0/build/opening_hours.min.js"></script>
+<!-- opening_hours is ~236KB — load async so it never blocks first paint.
+     parseAllOpeningHours() already no-ops when the library isn't there yet;
+     once it arrives, we parse + refresh so the "closed/open" badges appear. -->
+<script async
+        src="https://cdn.jsdelivr.net/npm/opening_hours@3.8.0/build/opening_hours.min.js"
+        onload="if(typeof parseAllOpeningHours==='function'){parseAllOpeningHours();if(typeof refresh==='function')refresh();}"></script>
 
 <script>
 /* ============================================================
@@ -3067,31 +3072,26 @@ function visibleVenues(){
    - catch-now: same size dot in a paler yellow (<60 min of sun left)
    - off:       muted small grey dot — readable but visually recessive
    - pending:   neutral light-grey dot while sun math loads */
-function makeIcon(st){
+/* Canvas-rendered circleMarker styles — one shared <canvas> instead of 2,791
+   DOM nodes. Pan/zoom stays smooth on mobile because the browser no longer
+   has to composite thousands of <div>s on every frame. We lose the soft
+   "glow" halo (it was DOM-only) but keep the 3-state color coding. */
+function circleStyleFor(st){
   if (st === 'locked-in'){
-    const bg = '#FFB627', ring = 'rgba(255,182,39,.35)';
-    const html = `
-      <div style="position:relative;width:16px;height:16px;">
-        <div style="position:absolute;inset:-6px;border-radius:50%;background:radial-gradient(circle, ${ring} 0%, transparent 65%);animation:pulse 2.4s ease-in-out infinite"></div>
-        <div style="position:relative;width:16px;height:16px;border-radius:50%;background:${bg};box-shadow:0 0 0 3px ${ring},0 1px 2px rgba(0,0,0,.3);border:1.5px solid #fff;"></div>
-      </div>`;
-    return L.divIcon({className:'', html, iconSize:[16,16], iconAnchor:[8,8]});
+    return {radius:7, fillColor:'#FFB627', color:'#fff',
+            weight:1.5, fillOpacity:1,   opacity:1};
   }
   if (st === 'catch-now'){
-    // Same size as locked-in but a paler yellow — signals "less sun left"
-    const bg = '#FFE08A', ring = 'rgba(255,224,138,.35)';
-    const html = `<div style="width:14px;height:14px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring},0 1px 2px rgba(0,0,0,.25);border:1.5px solid #fff;"></div>`;
-    return L.divIcon({className:'', html, iconSize:[14,14], iconAnchor:[7,7]});
+    return {radius:7, fillColor:'#FFE08A', color:'#fff',
+            weight:1.5, fillOpacity:1,   opacity:1};
   }
   if (st === 'pending'){
-    const bg = '#E5E7EB', ring = 'rgba(45,49,66,.12)';
-    const html = `<div style="width:12px;height:12px;border-radius:50%;background:${bg};box-shadow:0 0 0 2px ${ring},0 1px 2px rgba(0,0,0,.2);border:1px solid #fff;"></div>`;
-    return L.divIcon({className:'', html, iconSize:[12,12], iconAnchor:[6,6]});
+    return {radius:6, fillColor:'#E5E7EB', color:'#fff',
+            weight:1,   fillOpacity:1,   opacity:1};
   }
-  // 'off' — unified muted grey for shade/cloud/night/no-sun-ever
-  const bg = '#8892A6', ring = 'rgba(45,49,66,.18)';
-  const html = `<div style="width:10px;height:10px;border-radius:50%;background:${bg};opacity:.75;box-shadow:0 0 0 2px ${ring},0 1px 1px rgba(0,0,0,.2);border:1px solid #fff;"></div>`;
-  return L.divIcon({className:'', html, iconSize:[10,10], iconAnchor:[5,5]});
+  // 'off' — muted grey
+  return   {radius:5, fillColor:'#8892A6', color:'#fff',
+            weight:1,   fillOpacity:0.75, opacity:0.9};
 }
 function renderMap(){
   const tMs = currentTimeMs();
@@ -3105,11 +3105,18 @@ function renderMap(){
     }
   }
 
+  // Track which markers need z-reordering — apply once after the loop so
+  // draw order is deterministic: off/pending → locked-in → catch-now (top).
+  const needsBump = [];
   for (const v of list){
     const st = venueDisplayState(v, tMs);   // 3-state display model
     let m = state.markers.get(v.id);
+    let stateChanged = false;
     if (!m){
-      m = L.marker([v.lat, v.lng], {icon:makeIcon(st), title:v.name});
+      // circleMarker → rendered on the shared canvas (map has preferCanvas:true).
+      // This is the single biggest perf win: 2,791 DOM nodes collapse to 1 canvas.
+      m = L.circleMarker([v.lat, v.lng], circleStyleFor(st));
+      m.bindTooltip(v.name);                // circleMarker has no `title` option
       m._lastState = st;
       m.bindPopup(() => popupHTML(v, venueStateAt(v, currentTimeMs())), {
         maxWidth: 340, minWidth: 340, autoPanPadding: [20, 20], closeButton: true, className: 'sonne-popup'
@@ -3146,17 +3153,19 @@ function renderMap(){
       });
       venueLayer.addLayer(m);
       state.markers.set(v.id, m);
+      stateChanged = true;
     } else if (m._lastState !== st){
-      m.setIcon(makeIcon(st));
+      m.setStyle(circleStyleFor(st));
       m._lastState = st;
+      stateChanged = true;
     }
-    // z-index: keep actionable pins on top. catch-now first (most urgent), then locked-in, then rest.
-    const newZ = st === 'catch-now' ? 1100 : (st === 'locked-in' ? 1000 : 0);
-    if (m._lastZ !== newZ){
-      m.setZIndexOffset(newZ);
-      m._lastZ = newZ;
+    if (stateChanged && (st === 'locked-in' || st === 'catch-now')){
+      needsBump.push({m, st});
     }
   }
+  // Apply z-order once: locked-in first, then catch-now (so catch-now ends up on top).
+  for (const b of needsBump) if (b.st === 'locked-in') b.m.bringToFront();
+  for (const b of needsBump) if (b.st === 'catch-now') b.m.bringToFront();
 }
 // Small helper used in both desktop popup + mobile details sheet.
 // Returns ready-to-insert HTML for the terrace confidence badge, with the
