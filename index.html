@@ -344,13 +344,15 @@
     width:100%;height:100%;display:block;
   }
   .m-lang-toggle{
-    width:34px;height:34px;padding:0;border-radius:50%;
-    justify-content:center;align-items:center;overflow:hidden;
+    width:40px;height:40px;padding:0;border-radius:50%;
+    display:inline-flex;justify-content:center;align-items:center;
     flex:0 0 auto;background:#fff;
     border:1px solid var(--border);
   }
   .m-lang-toggle svg{
-    width:100%;height:100%;display:block;
+    width:28px;height:28px;display:block;border-radius:50%;
+    overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);
   }
   .filters.collapsed{display:none}
 
@@ -819,18 +821,29 @@
   }
 
   /* --- Chips row (floating) --- */
-  .m-chips{
+  .m-chips-wrap{
     position:absolute;top:max(12px, env(safe-area-inset-top, 0));
     left:0;right:0;z-index:30;
+    pointer-events:none;
+  }
+  .m-chips-wrap::after{
+    content:'';position:absolute;top:0;right:0;bottom:0;width:36px;
+    background:linear-gradient(90deg, rgba(251,247,239,0) 0%, rgba(251,247,239,.55) 50%, rgba(251,247,239,.85) 100%);
+    pointer-events:none;opacity:1;
+    transition:opacity .2s ease;
+  }
+  .m-chips-wrap.at-end::after{opacity:0}
+  .m-chips{
     display:flex;gap:6px;padding:8px 10px;align-items:center;
     overflow-x:auto;overflow-y:hidden;white-space:nowrap;
     -ms-overflow-style:none;scrollbar-width:none;
     -webkit-overflow-scrolling:touch;
+    pointer-events:auto;
   }
   .m-chips::-webkit-scrollbar{display:none}
   .m-chip{
     flex-shrink:0;display:inline-flex;align-items:center;gap:5px;
-    padding:7px 12px;height:34px;border-radius:999px;
+    padding:8px 13px;height:40px;border-radius:999px;
     background:rgba(255,255,255,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border:1px solid var(--border);
     font:inherit;font-size:12.5px;font-weight:600;color:var(--text);
@@ -871,7 +884,7 @@
   .m-search-pill{
     flex:1 1 auto;min-width:0;
     display:flex;align-items:center;gap:8px;
-    height:32px;padding:0 14px;border-radius:16px;
+    height:40px;padding:0 16px;border-radius:20px;
     background:rgba(255,255,255,.94);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.85);
@@ -885,7 +898,7 @@
                transform .14s cubic-bezier(.34,1.56,.64,1);
   }
   .m-search-pill:active{transform:scale(.97)}
-  .m-search-pill svg{width:14px;height:14px;color:var(--text);flex:0 0 auto}
+  .m-search-pill svg{width:16px;height:16px;color:var(--text);flex:0 0 auto}
   .m-search-pill .m-search-text{
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     transition:opacity .18s ease;
@@ -893,7 +906,7 @@
   .m-near-me-btn{
     flex:0 0 auto;
     display:inline-flex;align-items:center;gap:5px;
-    height:32px;padding:0 12px;border-radius:16px;
+    height:40px;padding:0 14px;border-radius:20px;
     background:rgba(255,255,255,.94);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.85);
@@ -904,13 +917,22 @@
                background .2s ease, color .2s ease, opacity .2s ease;
   }
   .m-near-me-btn:active{transform:scale(.95)}
-  .m-near-me-btn.locating{opacity:.7}
+  .m-near-me-btn.locating{opacity:.85;pointer-events:none}
+  .m-near-me-btn.locating .pin{
+    color:transparent;position:relative;display:inline-block;width:13px;height:13px;
+  }
+  .m-near-me-btn.locating .pin::before{
+    content:'';position:absolute;inset:0;
+    border:2px solid var(--coral);border-top-color:transparent;border-radius:50%;
+    animation:nearmespin .7s linear infinite;
+  }
+  @keyframes nearmespin{to{transform:rotate(360deg)}}
   .m-near-me-btn .pin{color:var(--coral);font-size:13px;line-height:1}
   .m-walk-chip{
     flex:0 0 auto;
     display:none;
     align-items:center;gap:5px;
-    height:32px;padding:0 12px;border-radius:16px;
+    height:40px;padding:0 14px;border-radius:20px;
     background:rgba(255,255,255,.94);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.85);
@@ -926,9 +948,9 @@
     box-shadow:0 4px 12px rgba(45,49,66,.22);
   }
   .m-near-exit{
-    flex:0 0 32px;
+    flex:0 0 40px;
     display:none;
-    width:32px;height:32px;border-radius:50%;padding:0;
+    width:40px;height:40px;border-radius:50%;padding:0;
     background:rgba(255,255,255,.94);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.85);
@@ -939,14 +961,33 @@
   }
   .m-near-exit:hover{color:var(--text)}
   .m-near-exit:active{transform:scale(.9)}
-  .m-near-exit svg{width:14px;height:14px}
+  .m-near-exit svg{width:16px;height:16px}
   /* --- Active state: Near me is on. Pill collapses to a circle, walk chips + exit appear. --- */
+  .m-search-row.near-active .m-search-pill,
+  .m-search-row.near-active .m-walk-chip,
+  .m-search-row.near-active .m-near-exit{
+    background:rgba(255,242,204,.97);
+    border-color:rgba(255,179,60,.45);
+    box-shadow:0 4px 14px rgba(255,140,20,.18);
+  }
+  .m-search-row.near-active .m-walk-chip.active{
+    background:var(--sun);color:#3a2900;border-color:var(--sun);
+    box-shadow:0 4px 12px var(--sun-glow);
+  }
   .m-search-row.near-active .m-search-pill{
-    flex:0 0 32px;width:32px;padding:0;border-radius:50%;
+    flex:0 0 40px;width:40px;padding:0;border-radius:50%;
     justify-content:center;gap:0;
   }
   .m-search-row.near-active .m-search-pill .m-search-text{
     display:none;
+  }
+  .m-search-row.near-active .m-near-label{display:inline-flex}
+  .m-near-label{
+    display:none;
+    flex:0 0 auto;align-items:center;
+    color:#6b4a12;font-size:12px;font-weight:700;
+    padding-left:2px;padding-right:2px;white-space:nowrap;
+    letter-spacing:-.005em;
   }
   .m-search-row.near-active .m-near-me-btn{display:none}
   .m-search-row.near-active .m-walk-chip{display:inline-flex}
@@ -1064,6 +1105,27 @@
     display:flex;justify-content:space-between;margin-top:5px;
     font-size:10px;color:var(--muted);font-weight:600;
     padding:0 2px;font-variant-numeric:tabular-nums;
+  }
+  /* One-time scrubber hint — bubble above the ribbon. */
+  .m-ribbon-hint{
+    position:absolute;left:50%;bottom:calc(100% + 6px);
+    transform:translateX(-50%);
+    background:var(--shade);color:#fff;
+    font-size:11.5px;font-weight:700;letter-spacing:-.005em;
+    padding:6px 12px;border-radius:999px;
+    box-shadow:0 4px 14px rgba(16,17,34,.22);
+    white-space:nowrap;z-index:6;pointer-events:none;
+    animation:hintbounce 1.8s ease-in-out infinite;
+    opacity:.96;
+  }
+  .m-ribbon-hint::after{
+    content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+    border:5px solid transparent;border-top-color:var(--shade);
+  }
+  .m-sheet.ribbon-hint-dismissed .m-ribbon-hint{display:none}
+  @keyframes hintbounce{
+    0%,100%{transform:translateX(-50%) translateY(0)}
+    50%{transform:translateX(-50%) translateY(-3px)}
   }
 
   /* Sheet — peek card */
@@ -1199,6 +1261,16 @@
     color:var(--muted);font-size:13px;font-weight:500;
   }
   .m-browse-empty b{color:var(--text);font-weight:700;display:block;margin-bottom:3px;font-size:14px}
+  .m-empty-clear-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    margin-top:10px;padding:9px 16px;
+    background:var(--sun);color:#3a2900;
+    border:0;border-radius:999px;
+    font:inherit;font-size:13px;font-weight:700;letter-spacing:-0.005em;
+    cursor:pointer;box-shadow:0 2px 8px var(--sun-glow);
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+  }
+  .m-empty-clear-btn:active{transform:scale(.96)}
 
   /* Sheet — venue details */
   .m-details-hero{
@@ -1250,6 +1322,19 @@
   .m-details-conf-badge.confirmed{color:#0a7a4a;border:1px solid rgba(10,122,74,.25)}
   .m-details-conf-badge.likely{color:#8a6a1a;border:1px solid rgba(138,106,26,.22)}
   .m-details-conf-badge .ic{font-size:12px;line-height:1}
+  /* Back affordance on details hero */
+  .m-details-back{
+    position:absolute;right:12px;top:12px;z-index:3;
+    width:34px;height:34px;border-radius:50%;border:0;padding:0;
+    background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    display:inline-flex;align-items:center;justify-content:center;
+    color:#1a1a1a;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.18);
+    transition:transform .14s cubic-bezier(.34,1.56,.64,1), background .15s ease;
+  }
+  .m-details-back:hover{background:#fff}
+  .m-details-back:active{transform:scale(.92)}
+  .m-details-back svg{width:16px;height:16px}
   .m-details-body{padding:14px 16px 22px;animation:peekIn .42s cubic-bezier(.22,1,.36,1)}
   .m-details-title{font-size:22px;font-weight:800;letter-spacing:-0.02em;margin:0 0 3px;line-height:1.15}
   .m-details-meta{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:500}
@@ -1584,6 +1669,7 @@
 <div class="mobile-ui" id="mobile-ui" aria-hidden="false">
 
   <!-- Chips row (top, horizontal scroll) -->
+  <div class="m-chips-wrap" id="m-chips-wrap">
   <div class="m-chips" id="m-chips">
     <button class="m-chip m-lang-toggle" id="m-lang-toggle" aria-label="Auf Deutsch wechseln"></button>
     <button class="m-chip sunny" id="m-chip-sunny"><span>☀</span><span data-i18n="chip_sunny">Sunny</span> <span class="cnt" id="m-cnt-sunny">—</span></button>
@@ -1595,6 +1681,7 @@
     <button class="m-chip cat" id="m-chip-cat-icecream"><span>🍦</span><span data-i18n="chip_icecream">Ice cream</span></button>
     <button class="m-chip cat" id="m-chip-cat-rooftop"><span>🏙</span><span data-i18n="chip_rooftop">Rooftop</span></button>
   </div>
+  </div>
 
   <!-- Search row (floats just above the bottom sheet) -->
   <div class="m-search-row" id="m-search-row">
@@ -1603,6 +1690,7 @@
       <span class="m-search-text" data-i18n="m_search_pill_label">Search for a place…</span>
     </button>
     <button class="m-near-me-btn" id="m-chip-nearme" aria-label="Near me"><span class="pin">📍</span><span data-i18n="chip_nearme">Near me</span></button>
+    <span class="m-near-label" id="m-near-label" data-i18n="m_near_you_label">Near you</span>
     <button class="m-walk-chip" id="m-chip-walk5" data-i18n-aria-label="chip_walk5"><span class="ic">🚶</span><span data-i18n="chip_walk5">≤ 10 min</span></button>
     <button class="m-walk-chip" id="m-chip-walk20" data-i18n-aria-label="chip_walk20"><span class="ic">🚶‍♀️</span><span data-i18n="chip_walk20">≤ 20 min</span></button>
     <button class="m-near-exit" id="m-near-exit" data-i18n-aria-label="m_near_exit_aria" aria-label="Exit near me filter">
@@ -1625,6 +1713,7 @@
           <div class="m-ribbon-clouds" id="m-ribbon-clouds"></div>
           <div class="m-ribbon-nowline" id="m-ribbon-nowline"></div>
           <div class="m-ribbon-nowdot" id="m-ribbon-nowdot"></div>
+          <div class="m-ribbon-hint" id="m-ribbon-hint" data-i18n="m_scrubber_hint">Drag to preview sun later today →</div>
         </div>
         <div class="m-ribbon-scale" id="m-ribbon-scale"></div>
       </div>
@@ -1726,6 +1815,15 @@ const STRINGS = {
     m_search_pill_label: "Search for a place…",
     m_search_pill_aria: "Search for a place",
     m_near_exit_aria: "Exit near me filter",
+    m_near_you_label: "Near you",
+    m_geo_locating: "Finding you…",
+    m_geo_denied: "Location permission denied. Check your browser settings.",
+    m_geo_unavailable: "Couldn't get your location. Try again in a moment.",
+    m_empty_clear: "Clear filters",
+    m_empty_no_results_title: "No terraces match your filters.",
+    m_empty_no_results_body: "Try clearing filters or scrub the time bar to find a sunny window.",
+    m_details_back: "Back",
+    m_scrubber_hint: "Drag to preview sun later today →",
 
     m_peek_aria: "Show details",
     m_peek_more_info: "More info",
@@ -1861,6 +1959,15 @@ const STRINGS = {
     m_search_pill_label: "Ort suchen…",
     m_search_pill_aria: "Ort suchen",
     m_near_exit_aria: "Standortfilter beenden",
+    m_near_you_label: "In der Nähe",
+    m_geo_locating: "Suche Standort…",
+    m_geo_denied: "Standortzugriff verweigert. Prüfe deine Browser-Einstellungen.",
+    m_geo_unavailable: "Standort konnte nicht ermittelt werden. Versuche es gleich erneut.",
+    m_empty_clear: "Filter zurücksetzen",
+    m_empty_no_results_title: "Keine Terrassen entsprechen deinen Filtern.",
+    m_empty_no_results_body: "Setze Filter zurück oder verschiebe die Zeitleiste, um ein Sonnenfenster zu finden.",
+    m_details_back: "Zurück",
+    m_scrubber_hint: "Ziehen, um Sonne später heute zu sehen →",
 
     m_peek_aria: "Details anzeigen",
     m_peek_more_info: "Mehr Infos",
@@ -2163,6 +2270,21 @@ const state = {
     catRooftop:false,
   },
 };
+
+/* ---- filter utilities ---- */
+function anyFiltersActive(){
+  const f = state.filters;
+  return !!(f.nearMe || f.walk5 || f.walk20 || f.sunnyOnly || f.openNow || f.favOnly
+    || f.catRestaurant || f.catBar || f.catCafe || f.catIceCream || f.catRooftop);
+}
+function clearAllFilters(){
+  const f = state.filters;
+  Object.keys(f).forEach(k => { f[k] = false; });
+  if (typeof refresh === 'function') refresh();
+  if (typeof syncMobileChipActives === 'function') syncMobileChipActives();
+  // also sync desktop filter UI if present
+  if (typeof syncDesktopFilterChips === 'function') syncDesktopFilterChips();
+}
 
 /* ============================================================
    STORAGE
@@ -3573,6 +3695,7 @@ document.getElementById('chip-nearme').addEventListener('click', async () => {
     return;
   }
   btn.textContent = 'Locating…';
+  showToast(t('m_geo_locating'));
   try {
     const loc = await askLocation();
     state.userLoc = loc;
@@ -3584,7 +3707,11 @@ document.getElementById('chip-nearme').addEventListener('click', async () => {
     refresh();
     showToast(t('geoloc_success'));
   } catch(e){
-    showToast(t('geoloc_failure'));
+    if (e && e.code === 1){
+      showToast(t('m_geo_denied'));
+    } else {
+      showToast(t('m_geo_unavailable'));
+    }
     updateNearMeUI();
   }
 });
@@ -4170,6 +4297,7 @@ function bindMobileNearMe(){
       return;
     }
     el.classList.add('locating');
+    showToast(t('m_geo_locating'));
     try {
       const loc = await askLocation();
       state.userLoc = loc;
@@ -4181,7 +4309,12 @@ function bindMobileNearMe(){
       refresh();
       showToast(t('geoloc_success'));
     } catch(e){
-      showToast(t('geoloc_failure'));
+      // 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+      if (e && e.code === 1){
+        showToast(t('m_geo_denied'));
+      } else {
+        showToast(t('m_geo_unavailable'));
+      }
     } finally {
       el.classList.remove('locating');
     }
@@ -4310,6 +4443,23 @@ function bindMobileSearch(){
   });
 }
 
+/* ---- chip row scroll fade — hide right-edge gradient when scrolled to end ---- */
+function bindMobileChipScroll(){
+  const scroller = document.getElementById('m-chips');
+  const wrap = document.getElementById('m-chips-wrap');
+  if (!scroller || !wrap) return;
+  const update = () => {
+    const atEnd = scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 2;
+    const overflows = scroller.scrollWidth > scroller.clientWidth + 2;
+    wrap.classList.toggle('at-end', atEnd || !overflows);
+  };
+  scroller.addEventListener('scroll', update, {passive:true});
+  window.addEventListener('resize', update);
+  // Run once after layout
+  requestAnimationFrame(update);
+  setTimeout(update, 100);
+}
+
 /* ---- sheet drag ---- */
 function bindSheetDrag(){
   const sheet = document.getElementById('m-sheet');
@@ -4382,15 +4532,35 @@ function bindSheetDrag(){
 }
 
 /* ---- ribbon drag ---- */
+const RIBBON_HINT_KEY = 'sunmaxx_ribbon_hint_seen_v1';
+function dismissRibbonHint(){
+  const sheet = document.getElementById('m-sheet');
+  if (sheet) sheet.classList.add('ribbon-hint-dismissed');
+  try { localStorage.setItem(RIBBON_HINT_KEY, '1'); } catch {}
+}
+function initRibbonHint(){
+  const sheet = document.getElementById('m-sheet');
+  if (!sheet) return;
+  let seen = false;
+  try { seen = !!localStorage.getItem(RIBBON_HINT_KEY); } catch {}
+  if (seen){
+    sheet.classList.add('ribbon-hint-dismissed');
+  } else {
+    // Auto-dismiss after 8 seconds so it doesn't linger forever.
+    setTimeout(dismissRibbonHint, 8000);
+  }
+}
 function bindRibbonDrag(){
   const rib = document.getElementById('m-ribbon');
   const sheet = document.getElementById('m-sheet');
   if (!rib) return;
+  initRibbonHint();
   let dragging = false;
 
   const onDown = (e) => {
     dragging = true;
     sheet.classList.add('ribbon-dragging');
+    dismissRibbonHint();
     const cx = e.touches ? e.touches[0].clientX : e.clientX;
     applyRibbonFromMinutes(ribbonMinutesForX(cx));
     if (e.cancelable) e.preventDefault();
@@ -4513,6 +4683,9 @@ function renderMobileSheet(){
     root.innerHTML = `
       <div class="m-details-hero ${heroCls}">
         ${hero}
+        <button class="m-details-back" id="m-details-back-btn" aria-label="${escapeHtml(t('m_details_back'))}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
         <div class="m-details-badge ${st}">${escapeHtml(badge)}</div>
         ${terraceConfidenceBadgeHTML(v, 'm-details-conf-badge')}
       </div>
@@ -4531,6 +4704,17 @@ function renderMobileSheet(){
           ${escapeHtml(t('m_details_gmaps'))}
         </a>
       </div>`;
+
+    // Wire back button → return to previous mode (browse or list)
+    const backBtn = root.querySelector('#m-details-back-btn');
+    if (backBtn){
+      backBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        mobile.selectedId = null;
+        mobile.sheetMode = mobile.snap === 'peek' ? 'browse' : 'list';
+        renderMobileSheet();
+      });
+    }
 
     // Resolve wikidata photo async if not yet
     if (v.photoUrl === undefined && v.wikidataId){
@@ -4587,6 +4771,12 @@ function renderMobileSheet(){
   };
 
   if (!candidates.length){
+    const filtersOn = anyFiltersActive();
+    const title = filtersOn ? t('m_empty_no_results_title') : 'Nothing sunny right now.';
+    const body  = filtersOn ? t('m_empty_no_results_body')  : 'Drag up to see all terraces, or scrub the time bar to find a sunny window.';
+    const clearBtn = filtersOn
+      ? `<button class="m-empty-clear-btn" id="m-browse-empty-clear" type="button">${escapeHtml(t('m_empty_clear'))}</button>`
+      : '';
     root.innerHTML = `
       <div class="m-browse">
         <div class="m-browse-head">
@@ -4597,10 +4787,13 @@ function renderMobileSheet(){
           <span class="m-browse-hint">Swipe up <span class="arr">↑</span></span>
         </div>
         <div class="m-browse-empty">
-          <b>Nothing sunny right now.</b>
-          Drag up to see all terraces, or scrub the time bar to find a sunny window.
+          <b>${escapeHtml(title)}</b>
+          ${escapeHtml(body)}
+          ${clearBtn}
         </div>
       </div>`;
+    const clearEl = root.querySelector('#m-browse-empty-clear');
+    if (clearEl) clearEl.addEventListener('click', clearAllFilters);
     return;
   }
 
@@ -4645,7 +4838,13 @@ function renderMobileList(root){
   [favorites, sunny, cloudy, shaded, nosun, night].forEach(arr => arr.sort(sortFn));
 
   if (all.length === 0){
-    root.innerHTML = `<div class="m-list-empty"><b>${escapeHtml(t('list_empty_mobile'))}</b><br>${escapeHtml(t('list_empty_mobile_help'))}</div>`;
+    const filtersOn = anyFiltersActive();
+    const clearBtn = filtersOn
+      ? `<button class="m-empty-clear-btn" id="m-list-empty-clear" type="button">${escapeHtml(t('m_empty_clear'))}</button>`
+      : '';
+    root.innerHTML = `<div class="m-list-empty"><b>${escapeHtml(t('list_empty_mobile'))}</b><br>${escapeHtml(t('list_empty_mobile_help'))}${clearBtn ? '<br>' + clearBtn : ''}</div>`;
+    const clearEl = root.querySelector('#m-list-empty-clear');
+    if (clearEl) clearEl.addEventListener('click', clearAllFilters);
     return;
   }
 
@@ -4729,6 +4928,7 @@ function initMobileUI(){
   bindMobileSearch();
   bindSheetDrag();
   bindRibbonDrag();
+  bindMobileChipScroll();
   // Intercept mobile map-marker clicks → open the sheet (not Leaflet's native popup)
   map.on('popupopen', (e) => {
     if (!isMobile()) return;
