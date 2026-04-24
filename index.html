@@ -4264,8 +4264,10 @@ function setRibbonRangeFromSun(){
     }
     scale.innerHTML = html;
   }
-  // Rebuild cloud layer
+  // Rebuild cloud overlay + coverage gradient (the base layer is cloud-aware
+  // via venueStateAt so the ribbon matches the legend's "places with sun" count).
   rebuildRibbonClouds();
+  applyMobileRibbonGradient();
 }
 function rebuildRibbonClouds(){
   const layer = document.getElementById('m-ribbon-clouds');
@@ -4285,6 +4287,67 @@ function rebuildRibbonClouds(){
     html += `<div style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;opacity:${alpha.toFixed(3)}"></div>`;
   }
   layer.innerHTML = html;
+}
+
+// Mobile ribbon coverage gradient — the counterpart to hmApplyBandGradient on
+// the desktop band. Previously the mobile ribbon only had a static CSS
+// gradient (dark → warm-amber → dark), so it kept looking "sunny at 11am"
+// even when the sky was 90% cloudy and the legend said "0 places with sun."
+//
+// We now paint the ribbon from the same hmCoverage buckets the desktop
+// uses — each 15-min bucket's count already accounts for cloud cover
+// because venueStateAt() demotes sunny → cloudy when clouds ≥ 55%.
+//
+// Separate color ramp from the desktop (more saturated dark-edge / amber
+// midday) so the mobile ribbon keeps its familiar look. Cloud overlay
+// (rebuildRibbonClouds) still paints on top as a second signal.
+const MRIBBON_STOPS = [
+  { p:0.00, c:[ 15, 23, 42] },   // #0F172A — deep night / no coverage
+  { p:0.03, c:[ 51, 65, 85] },   // #334155 — slate, barely any sun
+  { p:0.10, c:[255,212,137] },   // #FFD489 — warm cream, some sun
+  { p:0.25, c:[255,182, 39] },   // #FFB627 — amber, solid coverage
+  { p:0.50, c:[255,154,  0] },   // #FF9A00 — peak
+];
+function mRibbonColorForPct(pct){
+  const p = Math.max(0, Math.min(1, pct));
+  for (let i=1; i<MRIBBON_STOPS.length; i++){
+    const a = MRIBBON_STOPS[i-1], b = MRIBBON_STOPS[i];
+    if (p <= b.p){
+      const tt = (p - a.p) / (b.p - a.p || 1);
+      const r = Math.round(a.c[0] + (b.c[0]-a.c[0])*tt);
+      const g = Math.round(a.c[1] + (b.c[1]-a.c[1])*tt);
+      const bl= Math.round(a.c[2] + (b.c[2]-a.c[2])*tt);
+      return `rgb(${r},${g},${bl})`;
+    }
+  }
+  const last = MRIBBON_STOPS[MRIBBON_STOPS.length-1].c;
+  return `rgb(${last[0]},${last[1]},${last[2]})`;
+}
+function applyMobileRibbonGradient(){
+  const ribbon = document.querySelector('.m-ribbon');
+  if (!ribbon) return;
+  // Reuse the cached desktop coverage if present; otherwise compute fresh
+  // and cache it so the desktop band paint reuses it too. Both bars share
+  // the same minute-of-day buckets + the same sunny-definition
+  // (venueStateAt), so they stay in lockstep.
+  if (!hmCoverage) hmCoverage = hmComputeCoverage();
+  const cov = hmCoverage;
+  if (!cov || !cov.length){
+    // No venues yet — leave the CSS fallback gradient in place.
+    return;
+  }
+  const startMin = mobile.ribbonStartMin ?? 0;
+  const endMin   = mobile.ribbonEndMin   ?? 1440;
+  const span = Math.max(1, endMin - startMin);
+  // Map each bucket's position onto [0%, 100%] of the ribbon.
+  // Buckets outside the visible range get clipped to the edges so the
+  // endpoints fade naturally to dark (matching sunrise / sunset pads).
+  const parts = [];
+  for (const b of cov){
+    const pctOfRibbon = Math.max(0, Math.min(100, ((b.min - startMin) / span) * 100));
+    parts.push(`${mRibbonColorForPct(b.pct)} ${pctOfRibbon.toFixed(2)}%`);
+  }
+  ribbon.style.background = `linear-gradient(90deg, ${parts.join(', ')})`;
 }
 function updateRibbonNow(){
   const tMs = currentTimeMs();
@@ -5084,7 +5147,14 @@ async function main(){
   const windowsP = loadWindowsToday();           // 220KB
   const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
     refresh();  // 'sunny' → 'cloudy' update when it lands
-    if (state.venues?.length) { hmApplyBandGradient(); hmUpdateHandle(); }
+    if (state.venues?.length) {
+      hmApplyBandGradient();
+      hmUpdateHandle();
+      // Weather just landed — recompute the mobile ribbon coverage too, so
+      // cloudy hours dim the bar in lockstep with the venue count.
+      rebuildRibbonClouds();
+      applyMobileRibbonGradient();
+    }
   }).catch(e => {
     console.warn('[sonne] weather load failed:', e);
   });
