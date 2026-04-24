@@ -2600,6 +2600,51 @@ function berlinDateStr(d = new Date()){
   const get = k => parts.find(p => p.type === k).value;
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
+// How many Berlin-midnights between two YYYY-MM-DD dates.
+// Positive means `todayStr` is later than `bakeDateStr` (bake is stale).
+function daysBetweenDateStrs(bakeDateStr, todayStr){
+  // Interpret both as UTC midnight — we only care about integer day count,
+  // and Berlin's offset is the same for both so it cancels out.
+  const a = Date.parse(bakeDateStr + 'T00:00:00Z');
+  const b = Date.parse(todayStr   + 'T00:00:00Z');
+  if (!isFinite(a) || !isFinite(b)) return NaN;
+  return Math.round((b - a) / 86400000);
+}
+
+// Accept stale bakes up to MAX_STALE_WINDOWS_DAYS old, shifting all timestamps
+// forward by N days so start/end times land on today's clock. Sun position
+// drifts roughly 2 minutes per day in April/May, so a 7-day-old bake is still
+// accurate to within ±15 min on sun-window edges — far better than making
+// every visitor wait 15s for the client-side shadow compute fallback.
+//
+// This is a deliberate CEO-level trade: a slightly-wrong answer fast beats a
+// correct answer slow, because every previous "slow loading" regression has
+// traced back to this exact fast path being too brittle (single missed bake
+// → everyone pays 15s). Keeping the site usable when the cron wobbles is
+// worth a few minutes of window drift.
+const MAX_STALE_WINDOWS_DAYS = 7;
+
+function shiftWindowsByDays(bakedJson, offsetDays){
+  if (!offsetDays) return bakedJson;
+  const offsetMs = offsetDays * 86400000;
+  const out = { ...bakedJson };
+  if (bakedJson.sunrise) out.sunrise = new Date(+new Date(bakedJson.sunrise) + offsetMs).toISOString();
+  if (bakedJson.sunset)  out.sunset  = new Date(+new Date(bakedJson.sunset)  + offsetMs).toISOString();
+  if (bakedJson.windows){
+    const shifted = {};
+    for (const id in bakedJson.windows){
+      const entry = bakedJson.windows[id];
+      if (!entry || !Array.isArray(entry.w)){ shifted[id] = entry; continue; }
+      shifted[id] = {
+        ...entry,
+        w: entry.w.map(([s,e]) => [s + offsetMs, e + offsetMs]),
+      };
+    }
+    out.windows = shifted;
+  }
+  return out;
+}
+
 async function loadWindowsToday(){
   // 6s hard timeout: on a cold edge with a slow client, we'd rather fall back
   // to the client-side shadow computation (or just render without exact
@@ -2611,16 +2656,27 @@ async function loadWindowsToday(){
     if (!r.ok) return null;
     const j = await r.json();
     if (!j || !j.windows || !j.bakeDate) return null;
-    // Only trust the bake if it's actually for today's Berlin date — otherwise
-    // the window timestamps belong to a different day and will produce wrong
-    // sunny/shaded colors.
-    if (j.bakeDate !== berlinDateStr()){
-      console.info('[sonne] windows-today: bake is for', j.bakeDate,
-                   '— using client-side fallback for', berlinDateStr());
+    const today = berlinDateStr();
+    const staleDays = daysBetweenDateStrs(j.bakeDate, today);
+    if (!isFinite(staleDays) || staleDays < 0){
+      // Future-dated bake or unparseable date — don't trust it.
+      console.warn('[sonne] windows-today: unusable bakeDate', j.bakeDate, 'for', today);
       return null;
     }
-    console.info('[sonne] windows-today:', j.venueCount, 'venues (baked ' + j.bakedAt + ')');
-    return j;
+    if (staleDays > MAX_STALE_WINDOWS_DAYS){
+      console.warn('[sonne] windows-today: bake is', staleDays,
+                   'days old (>', MAX_STALE_WINDOWS_DAYS, ') — falling back');
+      return null;
+    }
+    const shifted = shiftWindowsByDays(j, staleDays);
+    if (staleDays === 0){
+      console.info('[sonne] windows-today:', j.venueCount, 'venues (baked ' + j.bakedAt + ')');
+    } else {
+      const level = staleDays <= 2 ? 'info' : 'warn';
+      console[level]('[sonne] windows-today: using', staleDays, 'day old bake (' + j.bakeDate +
+                     ') — timestamps shifted forward, edges may drift ~' + (staleDays * 2) + 'min');
+    }
+    return shifted;
   } catch(e){
     if (e.name === 'AbortError'){
       console.warn('[sonne] windows-today: fetch timed out at 6s — falling back');

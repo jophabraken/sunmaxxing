@@ -331,6 +331,46 @@ function preprocessBuildings(elements){
   }
   return out;
 }
+
+// Spatial grid index. Without this, bakeWindows is O(venues × all_buildings)
+// per time step: for our widened Berlin BBOX (~200k buildings × 7k venues ×
+// 170 steps) that's 240B inner-loop iterations and blows past the 45-minute
+// GitHub Actions timeout. With it, each venue only checks buildings in its
+// ~600m neighborhood, cutting the hot path ~100×.
+//
+// Cells are keyed on the (x,y) meter grid around CENTER. We bucket by the
+// centroid; a building can only cast a venue shadow if its centroid sits
+// within MAX_SHADOW_SEARCH_RADIUS + br of the venue, so querying the 3-cell
+// neighborhood (with GRID_CELL_M=200 and a max br ~100m) is enough.
+const GRID_CELL_M = 200;
+function cellKey(cx, cy){
+  return ((cx / GRID_CELL_M) | 0) + ':' + ((cy / GRID_CELL_M) | 0);
+}
+function buildBuildingGrid(bldgs){
+  const grid = new Map();
+  for (const b of bldgs){
+    const k = cellKey(b.cx, b.cy);
+    let bucket = grid.get(k);
+    if (!bucket){ bucket = []; grid.set(k, bucket); }
+    bucket.push(b);
+  }
+  return grid;
+}
+// Return every building whose centroid is within `radiusM` of (x,y).
+// Cheap superset — the isShaded inner loop still filters precisely.
+function buildingsNearPoint(grid, x, y, radiusM){
+  const out = [];
+  const cells = Math.ceil(radiusM / GRID_CELL_M);
+  const gx = (x / GRID_CELL_M) | 0;
+  const gy = (y / GRID_CELL_M) | 0;
+  for (let dx=-cells; dx<=cells; dx++){
+    for (let dy=-cells; dy<=cells; dy++){
+      const bucket = grid.get((gx+dx) + ':' + (gy+dy));
+      if (bucket) for (const b of bucket) out.push(b);
+    }
+  }
+  return out;
+}
 function rayFirstHit(ox, oy, dx, dy, poly){
   let minT = Infinity;
   for (let i=0; i<poly.length; i++){
@@ -416,6 +456,17 @@ function bakeWindows(venuesJson, buildingsJson){
   const venues = dedupeVenues(venuesJson.elements);
   console.log(`  ${venues.length} venues × ${bldgs.length} buildings`);
 
+  // Build the spatial grid once. ~100ms for 200k buildings — trivially paid
+  // back on the first 50 venues.
+  const tGrid = Date.now();
+  const grid = buildBuildingGrid(bldgs);
+  // Query radius: shadow search radius + a generous building radius buffer.
+  // A centroid up to this far from the venue might still have edges that
+  // shadow the venue, so we include it in the candidate set.
+  const QUERY_RADIUS_M = MAX_SHADOW_SEARCH_RADIUS + 150;
+  console.log(`  spatial grid: ${grid.size} cells @ ${GRID_CELL_M}m ` +
+              `built in ${Date.now()-tGrid}ms (query r=${QUERY_RADIUS_M}m)`);
+
   // Anchor on Berlin "today noon" so the same calendar day in Berlin is baked
   // regardless of when the runner kicks off (03:40 UTC or manual trigger at 15:00).
   const bakeDate = berlinDateStr();
@@ -427,14 +478,19 @@ function bakeWindows(venuesJson, buildingsJson){
 
   const windows = {};
   const t0 = Date.now();
+  let localBuildingsSum = 0;
   for (let i=0; i<venues.length; i++){
     const v = venues[i];
     const xy = toMeters(v.lat, v.lng);
+    // Per-venue candidate set — typically 100–2000 buildings instead of
+    // the full 200k. Same set is reused across all ~170 time steps.
+    const localBldgs = buildingsNearPoint(grid, xy[0], xy[1], QUERY_RADIUS_M);
+    localBuildingsSum += localBldgs.length;
     const wins = [];
     let curStart = null;
     for (let t=start; t<=end; t+=step){
       const p = SunCalc.getPosition(new Date(t), v.lat, v.lng);
-      const sunny = p.altitude > 0 && !isShaded(xy, p.azimuth, p.altitude, bldgs);
+      const sunny = p.altitude > 0 && !isShaded(xy, p.azimuth, p.altitude, localBldgs);
       if (sunny && curStart === null) curStart = t;
       else if (!sunny && curStart !== null){
         wins.push([curStart, t - step/2]);
@@ -447,7 +503,8 @@ function bakeWindows(venuesJson, buildingsJson){
     if ((i+1) % 250 === 0 || i+1 === venues.length){
       const pct = ((i+1)/venues.length*100).toFixed(0);
       const et  = ((Date.now()-t0)/1000).toFixed(0);
-      console.log(`  windows: ${i+1}/${venues.length} (${pct}%, ${et}s)`);
+      const avgLocal = Math.round(localBuildingsSum / (i+1));
+      console.log(`  windows: ${i+1}/${venues.length} (${pct}%, ${et}s, avg ${avgLocal} local bldgs/venue)`);
     }
   }
 
