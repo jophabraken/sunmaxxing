@@ -30,28 +30,45 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 45m gives the expanded Berlin BBOX (inner Mitte + Charlottenburg,
+    # Wilmersdorf, Neukölln south, Schöneberg…) enough room — Overpass
+    # can be slow, and bakeWindows scales with venue count × buildings.
+    timeout-minutes: 45
     steps:
       - name: Check out repo
+        # fetch-depth: 2 lets us see what the push changed (for the
+        # "rebake when the baker itself changes" check below).
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Bake on cron / manual runs, or if data/ is missing on any run.
-      # Skip on ordinary code pushes — they shouldn't re-hit Overpass.
+      # Bake on cron / manual runs, or if data/ is missing on any run, OR
+      # if this push touched the baker or the BBOX in index.html — those
+      # changes invalidate the deployed data, so we want fresh bundles out
+      # the door, not tomorrow morning's.
       - name: Decide whether to bake
         id: decide
         run: |
+          bake=false
           if [ "${{ github.event_name }}" = "schedule" ] \
              || [ "${{ github.event_name }}" = "workflow_dispatch" ] \
              || [ ! -f data/venues.json ]; then
-            echo "bake=true" >> $GITHUB_OUTPUT
-          else
-            echo "bake=false" >> $GITHUB_OUTPUT
+            bake=true
           fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            if git diff --name-only HEAD~1 HEAD \
+                | grep -E '^(scripts/bake-data\.js|\.github/workflows/bake-data\.yml)$' > /dev/null; then
+              echo "Push changed the baker itself — forcing a rebake."
+              bake=true
+            fi
+          fi
+          echo "bake=$bake" >> $GITHUB_OUTPUT
+          echo "Decision: bake=$bake"
 
       - name: Install bake dependencies
         if: steps.decide.outputs.bake == 'true'
