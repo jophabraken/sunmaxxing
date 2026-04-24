@@ -2226,8 +2226,15 @@ if (document.readyState !== 'loading') {
 /* ============================================================
    CONFIG
    ============================================================ */
-const BBOX = { south: 52.470, west: 13.350, north: 52.550, east: 13.490 };
-const CENTER = [(BBOX.south + BBOX.north)/2, (BBOX.west + BBOX.east)/2];
+// Venue coverage for Berlin. Kept in sync with BBOX_VENUES in scripts/bake-data.js
+// and manifest.bbox. The bake deploys only the central subset of buildings
+// (scripts/bake-data.js BBOX_BUILDINGS_DEPLOY) to stay under the 25 MiB
+// Cloudflare Pages cap, but windows-today.json covers every venue here.
+const BBOX = { south: 52.440, west: 13.240, north: 52.570, east: 13.570 };
+// Use Mitte as the map's visual anchor, not the geometric center of the wider
+// box, so users still land on the dense core (Mitte / Kreuzberg / Prenzlauer
+// Berg) rather than an arbitrary point in Wilmersdorf.
+const CENTER = [52.520, 13.405];
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
@@ -2236,7 +2243,7 @@ const OVERPASS_ENDPOINTS = [
 const OVERPASS_TIMEOUT_MS = 45_000;                // per-endpoint timeout for the sequential waterfall (used by venues)
 const BUILDING_TILE_TIMEOUT_MS = 25_000;           // per-tile timeout — each tile hits ONE endpoint, no waterfall
 const BUILDING_WALLCLOCK_MS   = 75_000;            // outer wall-clock: after this we proceed with whatever tiles finished
-const BUILDING_TILES_PER_SIDE = 3;                 // split buildings query into 3×3 grid (9 small tiles)
+const BUILDING_TILES_PER_SIDE = 5;                 // split buildings query into 5×5 grid — the wider BBOX would time out with fewer tiles
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 3;        // OSM data: 3 days
 const WEATHER_TTL_MS = 1000 * 60 * 15;               // Weather: 15 min
 const DEFAULT_LEVELS = 5;

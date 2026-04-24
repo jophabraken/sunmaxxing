@@ -24,10 +24,45 @@ const path = require('node:path');
 const SunCalc = require('suncalc');
 
 // ─── Config ─────────────────────────────────────────────────────────────────
-// Keep this in sync with the BBOX constant in index.html.
-// Expanded Apr 2026 to pick up famous rooftops in Neukölln (Klunkerkranich,
-// Hallmann & Klee, Jaja) and beer gardens in Treptow (Zenner, Freischwimmer).
-const BBOX = { south: 52.470, west: 13.350, north: 52.550, east: 13.490 };
+// We run the pipeline with TWO boxes, decoupled on purpose:
+//
+//   BBOX_VENUES           — what the site actually covers. Venues are fetched
+//                           and displayed over this wide box. Also the box the
+//                           client map opens in (kept in sync with index.html).
+//
+//   BBOX_BUILDINGS_COMPUTE — buildings we fetch for the bake, slightly wider
+//                           than BBOX_VENUES so shadows from buildings just
+//                           outside the display area still land correctly on
+//                           edge venues. Used only internally on the runner.
+//
+//   BBOX_BUILDINGS_DEPLOY — the central subset of buildings we ship in
+//                           buildings.json. Cloudflare Pages rejects files
+//                           over 25 MiB, so we only ship the dense inner
+//                           Berlin tile. This is a FALLBACK-ONLY artifact: the
+//                           fast path is windows-today.json (pre-computed from
+//                           the full compute set) which covers every venue
+//                           with accurate shadows regardless of this bbox.
+//
+// Expanded Apr 2026 from the old 52.47–52.55 × 13.35–13.49 box (~9×9km,
+// inner Mitte only) to cover Charlottenburg, Wilmersdorf, Schöneberg,
+// Neukölln South, Tempelhof, Pankow, Lichtenberg, upper Treptow-Köpenick.
+const BBOX_VENUES = {
+  south: 52.440, west: 13.240, north: 52.570, east: 13.570,
+};
+const BBOX_BUILDINGS_COMPUTE = {
+  south: BBOX_VENUES.south - 0.010,
+  west:  BBOX_VENUES.west  - 0.015,
+  north: BBOX_VENUES.north + 0.010,
+  east:  BBOX_VENUES.east  + 0.015,
+};
+const BBOX_BUILDINGS_DEPLOY = {
+  south: 52.470, west: 13.350, north: 52.550, east: 13.490,
+};
+
+// Primary bbox reported in manifest.json — clients and dashboards that read
+// manifest.bbox see the venue coverage (what the site shows), not the
+// internal compute/deploy scoping.
+const BBOX = BBOX_VENUES;
 
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -35,7 +70,7 @@ const ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter',
 ];
 
-const BUILDING_TILES_PER_SIDE = 4;   // 4×4 = 16 smaller tiles for gentler load
+const BUILDING_TILES_PER_SIDE = 7;   // 7×7 = 49 smaller tiles across the wider compute box
 const PER_ATTEMPT_TIMEOUT_MS  = 120_000;
 const MAX_ATTEMPTS_PER_QUERY  = 5;
 const PAUSE_BETWEEN_QUERIES_MS = 2500;  // be nice to public endpoints
@@ -47,7 +82,7 @@ function bboxStr(b){ return `${b.south},${b.west},${b.north},${b.east}`; }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 function venueQuery(){
-  const b = bboxStr(BBOX);
+  const b = bboxStr(BBOX_VENUES);
   return `
     [out:json][timeout:120];
     (
@@ -58,6 +93,17 @@ function venueQuery(){
     );
     out center tags;
   `;
+}
+
+function insideBbox(bbox, lat, lon){
+  return lat >= bbox.south && lat <= bbox.north
+      && lon >= bbox.west  && lon <= bbox.east;
+}
+function geometryCentroid(geom){
+  if (!Array.isArray(geom) || !geom.length) return null;
+  let clat = 0, clon = 0;
+  for (const p of geom){ clat += p.lat; clon += p.lon; }
+  return { lat: clat / geom.length, lon: clon / geom.length };
 }
 
 function buildingTileQuery(tileBbox){
@@ -186,7 +232,9 @@ function slimBuildingElement(el){
 
 async function bakeBuildings(){
   console.log('▸ Baking buildings…');
-  const tiles = makeTiles(BBOX, BUILDING_TILES_PER_SIDE);
+  console.log(`  compute bbox: ${bboxStr(BBOX_BUILDINGS_COMPUTE)}`);
+  console.log(`  deploy bbox:  ${bboxStr(BBOX_BUILDINGS_DEPLOY)}`);
+  const tiles = makeTiles(BBOX_BUILDINGS_COMPUTE, BUILDING_TILES_PER_SIDE);
   const seen = new Set();
   const merged = [];
   let ok = 0, failed = 0;
@@ -214,9 +262,25 @@ async function bakeBuildings(){
   if (failed > 0 && ok === 0){
     throw new Error('All building tiles failed');
   }
-  console.log(`  buildings: ${ok}/${tiles.length} tiles, ${merged.length} unique buildings`);
+  console.log(`  buildings (compute): ${ok}/${tiles.length} tiles, ${merged.length} unique buildings`);
 
-  return { elements: merged, _coverage: { okTiles: ok, totalTiles: tiles.length } };
+  // Split: compute set keeps all buildings (used for windows-today.json accuracy),
+  // deploy set is the central subset that ships in buildings.json. A building
+  // is in the deploy set if its centroid falls inside BBOX_BUILDINGS_DEPLOY.
+  const deployElements = [];
+  for (const el of merged){
+    const c = geometryCentroid(el.geometry);
+    if (c && insideBbox(BBOX_BUILDINGS_DEPLOY, c.lat, c.lon)){
+      deployElements.push(el);
+    }
+  }
+  console.log(`  buildings (deploy):  ${deployElements.length} buildings in central subset`);
+
+  return {
+    elements:       merged,
+    deployElements,
+    _coverage:      { okTiles: ok, totalTiles: tiles.length },
+  };
 }
 
 // ─── Sun windows (the big first-load win) ──────────────────────────────────
@@ -584,13 +648,16 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
     bakeDate:         windowsToday ? windowsToday.bakeDate : null,
     windowsBakedAt:   windowsToday ? windowsToday.bakedAt  : null,
     rooftopsBakedAt:  rooftopsToday ? rooftopsToday.bakedAt : null,
-    bbox: BBOX,
+    bbox: BBOX_VENUES,
+    bboxBuildingsDeploy:  BBOX_BUILDINGS_DEPLOY,
+    bboxBuildingsCompute: BBOX_BUILDINGS_COMPUTE,
     venues: { count: (venues.elements || []).length },
     buildings: {
-      count: (buildings.elements || []).length,
+      count:        (buildings.elements       || []).length,
+      deployCount:  (buildings.deployElements || []).length,
       tileCoverage: buildings._coverage || null,
     },
-    version: 1,
+    version: 2,
   };
 }
 
@@ -602,8 +669,13 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   const supplement = await fetchVenueSupplement();
   const buildings  = await bakeBuildings();
 
-  // Don't persist the internal coverage flag in the JSON the browser reads.
-  const buildingsOut = { elements: buildings.elements || [] };
+  // Two distinct building sets live on from bakeBuildings():
+  //   · buildingsCompute — full set across BBOX_BUILDINGS_COMPUTE. Used for
+  //     accurate shadow calculation across every venue in BBOX_VENUES.
+  //   · buildingsDeploy  — central subset inside BBOX_BUILDINGS_DEPLOY. Only
+  //     this gets written to buildings.json (25 MiB Cloudflare Pages cap).
+  const buildingsCompute = { elements: buildings.elements        || [] };
+  const buildingsDeploy  = { elements: buildings.deployElements  || [] };
 
   // Match curated rooftops against main ∪ supplement; this also returns any
   // supplement venues that matched, which we promote into venues.json so the
@@ -615,8 +687,10 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   // Don't persist `supplementAdded` in rooftops-today.json.
   delete rooftopsToday.supplementAdded;
 
-  // Compute today's sun windows for every venue (incl. promoted rooftops).
-  const windowsToday = bakeWindows(venues, buildingsOut);
+  // Compute today's sun windows for every venue (incl. promoted rooftops)
+  // against the FULL compute set — windows-today.json is the fast path and
+  // must be accurate even for venues near the edge of BBOX_VENUES.
+  const windowsToday = bakeWindows(venues, buildingsCompute);
 
   const manifest = buildManifest(venues, buildings, windowsToday, rooftopsToday);
 
@@ -627,10 +701,23 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   const manifestPath  = path.join(OUT_DIR, 'manifest.json');
 
   fs.writeFileSync(venuesPath,    JSON.stringify(venues));
-  fs.writeFileSync(buildingsPath, JSON.stringify(buildingsOut));
+  fs.writeFileSync(buildingsPath, JSON.stringify(buildingsDeploy));
   fs.writeFileSync(windowsPath,   JSON.stringify(windowsToday));
   fs.writeFileSync(rooftopsPath,  JSON.stringify(rooftopsToday));
   fs.writeFileSync(manifestPath,  JSON.stringify(manifest, null, 2));
+
+  // Loud failure if the deploy artifact would be rejected at the edge.
+  // Cloudflare Pages blocks files >25 MiB; we stop the bake now rather than
+  // push a broken manifest into a partial deploy.
+  const CF_MAX = 25 * 1024 * 1024;
+  const buildingsSize = fs.statSync(buildingsPath).size;
+  if (buildingsSize > CF_MAX){
+    throw new Error(
+      `buildings.json is ${(buildingsSize/1024/1024).toFixed(2)} MiB — over the ` +
+      `25 MiB Cloudflare Pages cap. Narrow BBOX_BUILDINGS_DEPLOY or add more ` +
+      `aggressive slimming in slimBuildingElement().`
+    );
+  }
 
   const sizes = [
     ['venues.json',         fs.statSync(venuesPath).size],
@@ -644,7 +731,7 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   for (const [name, bytes] of sizes){
     console.log(`  ${name}: ${(bytes/1024/1024).toFixed(2)} MB`);
   }
-  console.log(`  manifest: ${manifest.venues.count} venues · ${manifest.buildings.count} buildings · ${manifest.bakedAt}`);
+  console.log(`  manifest: ${manifest.venues.count} venues · ${manifest.buildings.count} buildings compute / ${manifest.buildings.deployCount} deploy · ${manifest.bakedAt}`);
   console.log(`  windows: baked for ${windowsToday.bakeDate} (Europe/Berlin), ${windowsToday.venueCount} venues`);
   console.log(`  rooftops: ${rooftopsToday.matchedCount}/${rooftopsToday.curatedCount} curated entries matched`);
 })().catch(err => {
