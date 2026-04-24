@@ -1,23 +1,36 @@
 {
-  "bakedAt": "2026-04-23T09:18:13.019Z",
-  "bakeDate": "2026-04-23",
-  "windowsBakedAt": "2026-04-23T09:18:13.019Z",
-  "rooftopsBakedAt": "2026-04-23T09:15:59.965Z",
+  "bakedAt": "2026-04-24T06:53:56.313Z",
+  "bakeDate": "2026-04-24",
+  "windowsBakedAt": "2026-04-24T06:53:56.313Z",
+  "rooftopsBakedAt": "2026-04-24T06:53:42.258Z",
   "bbox": {
+    "south": 52.44,
+    "west": 13.24,
+    "north": 52.57,
+    "east": 13.57
+  },
+  "bboxBuildingsDeploy": {
     "south": 52.47,
     "west": 13.35,
     "north": 52.55,
     "east": 13.49
   },
+  "bboxBuildingsCompute": {
+    "south": 52.43,
+    "west": 13.225,
+    "north": 52.58,
+    "east": 13.585
+  },
   "venues": {
-    "count": 2800
+    "count": 4357
   },
   "buildings": {
-    "count": 48019,
+    "count": 239732,
+    "deployCount": 47760,
     "tileCoverage": {
-      "okTiles": 16,
-      "totalTiles": 16
+      "okTiles": 49,
+      "totalTiles": 49
     }
   },
-  "version": 1
+  "version": 2
 }
