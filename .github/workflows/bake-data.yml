@@ -118,7 +118,22 @@ jobs:
             git push
           fi
 
+      # If the bake itself failed, reset data/ to the last committed state so
+      # we don't ship half-baked or partial JSON. Then let the deploy still run
+      # — the graceful-stale windows loader in index.html accepts up to a
+      # 7-day-old bake, so shipping today's code changes with yesterday's data
+      # is strictly better than blocking the deploy entirely and leaving every
+      # visitor on the 15s client-side fallback.
+      - name: Reset data/ on bake failure
+        if: failure() && steps.decide.outputs.bake == 'true'
+        run: |
+          echo "::warning::bake failed — reverting data/ to last committed state and shipping code-only deploy"
+          git checkout -- data/ || true
+          ls -lh data/ || true
+
       - name: Deploy to Cloudflare Pages
+        # Run even if bake failed — see Reset step above.
+        if: ${{ !cancelled() }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
