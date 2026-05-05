@@ -5268,14 +5268,16 @@ async function main(){
   setLoader({title:t('loader_finding'), pct:10});
   const windowsP = loadWindowsToday();           // 220KB
   const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
-    refresh();  // 'sunny' → 'cloudy' update when it lands
+    // Cloud overlays don't depend on venues — paint them as soon as weather
+    // lands. (Earlier we guarded the whole block on state.venues being
+    // populated, which meant on a cold start with weather arriving before
+    // venues, the overlays never repainted at all.)
+    rebuildBandClouds();
+    rebuildRibbonClouds();
     if (state.venues?.length) {
+      refresh();  // 'sunny' → 'cloudy' update when it lands
       hmApplyBandGradient();
       hmUpdateHandle();
-      // Weather landed: paint the cloud overlay on the desktop band, refresh
-      // the mobile ribbon overlay, and re-evaluate the overcast banner.
-      rebuildBandClouds();
-      rebuildRibbonClouds();
       applyMobileRibbonGradient();
     }
   }).catch(e => {
@@ -5357,6 +5359,7 @@ async function main(){
   updateFiltersToggleBadge();      // seed Filters button badge to 0
   setRibbonRangeFromSun();
   hmApplyBandGradient();           // desktop sun-coverage band (early paint)
+  rebuildBandClouds();             // cloud overlay (no-op if weather not ready yet)
   hmUpdateHandle();
   initMobileUI();
   refresh();                       // ← map + venues now visible to the user
@@ -5396,6 +5399,7 @@ async function main(){
     console.info('[sonne] windows-today: applied to', matched, '/', state.venues.length, 'venues');
     setRibbonRangeFromSun();       // pick up baked sunrise/sunset
     hmApplyBandGradient();         // paint desktop sun-coverage band
+    rebuildBandClouds();           // cloud overlay on top of band
     hmUpdateHandle();
     setLoader({pct:100});
     refresh();
