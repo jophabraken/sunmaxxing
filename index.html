@@ -410,6 +410,27 @@
     content:"";position:absolute;top:0;bottom:0;width:0;
     pointer-events:none;
   }
+  /* Cloud overlay — semi-transparent dim per hour bucket, mirrors mobile
+     ribbon behavior. Sits between the gradient and the handle. */
+  .hm-band-clouds{
+    position:absolute;inset:0;border-radius:10px;overflow:hidden;
+    pointer-events:none;z-index:1;
+  }
+  .hm-band-clouds > div{
+    position:absolute;top:0;bottom:0;background:rgba(80,95,115,.55);
+    transition:opacity .4s ease;
+  }
+  /* Overcast banner — shown when daylight is in progress but cloud cover
+     suppresses every venue. Sits above the band so users understand the
+     count is zero by weather, not by a bug. */
+  .hm-overcast-note{
+    display:none;align-items:center;gap:6px;
+    padding:4px 10px;margin:4px 0 0;border-radius:6px;
+    background:rgba(80,95,115,.10);color:#475569;
+    font-size:12px;font-weight:600;line-height:1.3;
+  }
+  .hm-overcast-note.visible{display:inline-flex}
+  .hm-overcast-note .ic{font-size:14px}
   .hm-handle{
     position:absolute;top:-6px;bottom:-6px;left:0;width:2px;
     pointer-events:none;transform:translateX(-1px);
@@ -1610,11 +1631,16 @@
            data-i18n-aria-label="topbar_band_aria"
            aria-label="Time of day — drag to preview sun at another time"
            aria-valuemin="0" aria-valuemax="1440" aria-valuenow="0">
+        <div class="hm-band-clouds" id="hm-band-clouds" aria-hidden="true"></div>
         <div class="hm-handle" id="hm-handle">
           <div class="hm-handle-label" id="hm-handle-label">—:—</div>
           <div class="hm-handle-stem"></div>
           <div class="hm-handle-knob"></div>
         </div>
+      </div>
+      <div class="hm-overcast-note" id="hm-overcast-note" role="status">
+        <span class="ic">☁️</span>
+        <span id="hm-overcast-text"></span>
       </div>
       <!-- Hidden range input: preserves existing scrub state + mobile code paths -->
       <input id="time" class="sr-only" type="range" min="0" max="1440" step="5" value="0" aria-hidden="true" tabindex="-1">
@@ -1791,6 +1817,8 @@ const STRINGS = {
     topbar_sunset_label: "sets",
     topbar_axis_legend_fewer: "fewer",
     topbar_axis_legend_more: "more terraces in sun",
+    overcast_note: "Overcast all day — no terraces in direct sun",
+    overcast_note_partial: "Heavy clouds right now — sun behind cover",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -1935,6 +1963,8 @@ const STRINGS = {
     topbar_sunset_label: "Untergang",
     topbar_axis_legend_fewer: "weniger",
     topbar_axis_legend_more: "mehr Terrassen in der Sonne",
+    overcast_note: "Den ganzen Tag bedeckt — keine Terrasse in direkter Sonne",
+    overcast_note_partial: "Gerade dichte Wolken — Sonne hinter der Decke",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -3915,6 +3945,16 @@ function hmMinToPct(min){ return Math.max(0, Math.min(100, (min/1440)*100)); }
    a short window scan) and only called when venue data or sun
    times change. */
 function hmComputeCoverage(){
+  // GEOMETRIC coverage only — counts venues whose pre-baked sun windows
+  // contain this minute. Deliberately ignores cloud cover: the heatmap
+  // band (and mobile ribbon) communicate "where the sun would land if the
+  // sky were clear." Weather is layered on top via rebuildBandClouds /
+  // rebuildRibbonClouds (semi-transparent dim overlay).
+  //
+  // The previous behaviour — running venueStateAt() which demotes sunny
+  // → cloudy at ≥55% cover — meant a fully overcast day produced a
+  // completely empty band, which users interpreted as "the site broke."
+  // Splitting "would-be sun" from "actual weather" lets us paint both.
   const out = [];
   const venues = state.venues || [];
   const total = venues.length;
@@ -3930,7 +3970,11 @@ function hmComputeCoverage(){
       continue;
     }
     for (let i=0; i<venues.length; i++){
-      if (venueStateAt(venues[i], tMs) === 'sunny') count++;
+      const v = venues[i];
+      if (!v.windowsComputed || !v.windows || !v.windows.length) continue;
+      for (const [s,e] of v.windows){
+        if (tMs >= s && tMs <= e){ count++; break; }
+      }
     }
     const pct = total ? count/total : 0;
     out.push({ min:m, pct, count, total });
@@ -3988,6 +4032,79 @@ function hmApplyBandGradient(){
     const tn = axPeakSpan.firstChild;
     if (tn && tn.nodeType === 3) tn.textContent = t('topbar_peak_label') + ' ';
   }
+}
+
+/* Cloud overlay on the desktop band — sister to rebuildRibbonClouds
+   for mobile. The base gradient is geometric (where the sun *would*
+   land if the sky were clear); this layer dims each hour bucket
+   proportionally to forecast cloud cover. On a 100%-overcast day the
+   band still shows the warm sun-arc underneath — just heavily dimmed —
+   which makes it visually obvious that the system is alive and the zero
+   sunny count is real weather, not a broken site. */
+/* Show / hide the overcast explanation banner based on the live sunny
+   count. We only show it when:
+     - we're in daytime (sunrise < now < sunset),
+     - the cloud-aware sunny count is 0 *but* cloudy > 0 (geometric sun
+       exists, weather is what's hiding it), and
+     - we actually have weather data to back the claim.
+   Anything else falls through silently. */
+function updateOvercastNote(tMs, sunnyCount, cloudyCount){
+  const note = document.getElementById('hm-overcast-note');
+  const txt  = document.getElementById('hm-overcast-text');
+  if (!note || !txt) return;
+  let show = false;
+  let msg = '';
+  if (state.sunrise && state.sunset && state.weather){
+    const inDaylight = tMs >= state.sunrise.getTime() && tMs <= state.sunset.getTime();
+    if (inDaylight && sunnyCount === 0 && cloudyCount > 0){
+      // Distinguish "cloudy all day" vs "cloudy right now": if the daily
+      // peak coverage (geometric) > 0 and the live cloud cover is high,
+      // we're in either a 100% overcast day or a temporary thick patch.
+      const cc = cloudCoverAt(tMs);
+      if (cc != null && cc >= CLOUD_SUNNY_THRESHOLD){
+        // Inspect the day to decide partial vs full overcast
+        const sod = startOfToday().getTime();
+        const sr = state.sunrise.getTime(), ss = state.sunset.getTime();
+        let cloudyHours = 0, daylightHours = 0;
+        for (let h = sod; h < sod + 24*60*60*1000; h += 60*60*1000){
+          if (h < sr || h > ss) continue;
+          daylightHours++;
+          const c = cloudCoverAt(h);
+          if (c != null && c >= CLOUD_SUNNY_THRESHOLD) cloudyHours++;
+        }
+        const ratio = daylightHours ? cloudyHours/daylightHours : 0;
+        msg = ratio >= 0.85 ? t('overcast_note') : t('overcast_note_partial');
+        show = true;
+      }
+    }
+  }
+  if (show){
+    txt.textContent = msg;
+    note.classList.add('visible');
+  } else {
+    note.classList.remove('visible');
+  }
+}
+
+function rebuildBandClouds(){
+  const layer = document.getElementById('hm-band-clouds');
+  if (!layer) return;
+  if (!state.weather){ layer.innerHTML = ''; return; }
+  const sod = startOfToday().getTime();
+  const dayMs = 24*60*60*1000;
+  // Sample every 30 min across the whole day.
+  const step = 30*60*1000;
+  let html = '';
+  for (let t = sod; t < sod + dayMs; t += step){
+    const cc = cloudCoverAt(t + step/2);
+    if (cc == null) continue;
+    const alpha = Math.max(0, Math.min(0.72, cc/100 * 0.72));
+    if (alpha < 0.04) continue;
+    const l = ((t - sod)/dayMs)*100;
+    const w = (step/dayMs)*100;
+    html += `<div style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;opacity:${alpha.toFixed(3)}"></div>`;
+  }
+  layer.innerHTML = html;
 }
 
 /* Position the draggable handle over the band at the current
@@ -4127,6 +4244,11 @@ function updateStats(){
     else if (st==='night') night++;
     else if (st==='nosun') nosun++;
   }
+  // Overcast banner: when daylight is in progress and zero venues are
+  // currently sunny because clouds suppressed the geometry, surface a
+  // plain-language explanation. Without this, a fully overcast day looks
+  // identical to "site is broken / data didn't load."
+  updateOvercastNote(tMs, sunny, cloudy);
   document.getElementById('stat-sunny').textContent = sunny;
   document.getElementById('stat-shaded').textContent = shaded + cloudy + nosun;
   document.getElementById('count-sunny').textContent = sunny;
@@ -5150,8 +5272,9 @@ async function main(){
     if (state.venues?.length) {
       hmApplyBandGradient();
       hmUpdateHandle();
-      // Weather just landed — recompute the mobile ribbon coverage too, so
-      // cloudy hours dim the bar in lockstep with the venue count.
+      // Weather landed: paint the cloud overlay on the desktop band, refresh
+      // the mobile ribbon overlay, and re-evaluate the overcast banner.
+      rebuildBandClouds();
       rebuildRibbonClouds();
       applyMobileRibbonGradient();
     }
