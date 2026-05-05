@@ -420,17 +420,23 @@
     position:absolute;top:0;bottom:0;background:rgba(80,95,115,.55);
     transition:opacity .4s ease;
   }
-  /* Overcast banner — shown when daylight is in progress but cloud cover
-     suppresses every venue. Sits above the band so users understand the
-     count is zero by weather, not by a bug. */
-  .hm-overcast-note{
-    display:none;align-items:center;gap:6px;
-    padding:4px 10px;margin:4px 0 0;border-radius:6px;
-    background:rgba(80,95,115,.10);color:#475569;
-    font-size:12px;font-weight:600;line-height:1.3;
+  /* Inline "cloudy all day" label, painted INSIDE the band when the day
+     is fully overcast. Sits above the cloud dim and below the scrub
+     handle, so dragging still works over it. White text + soft shadow
+     reads cleanly against the muted amber-on-slate combined background
+     of a 100%-overcast day. */
+  .hm-band-label{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em;
+    text-shadow:0 1px 2px rgba(0,0,0,.45);
+    pointer-events:none;z-index:2;opacity:0;
+    transition:opacity .35s ease;
   }
-  .hm-overcast-note.visible{display:inline-flex}
-  .hm-overcast-note .ic{font-size:14px}
+  .hm-band-label.visible{opacity:1}
+  .hm-band-label .ic{margin-right:6px;font-size:13px;text-shadow:none;
+    /* keep emoji rendering crisp */
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));
+  }
   .hm-handle{
     position:absolute;top:-6px;bottom:-6px;left:0;width:2px;
     pointer-events:none;transform:translateX(-1px);
@@ -1122,6 +1128,19 @@
     position:absolute;top:0;bottom:0;background:rgba(80,95,115,.55);
     transition:opacity .4s ease;
   }
+  /* Mobile counterpart of .hm-band-label — same in-bar "cloudy all day"
+     treatment so desktop and mobile speak the same visual language. */
+  .m-ribbon-label{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:12px;font-weight:700;letter-spacing:.02em;
+    text-shadow:0 1px 2px rgba(0,0,0,.45);
+    pointer-events:none;z-index:3;opacity:0;
+    transition:opacity .35s ease;
+  }
+  .m-ribbon-label.visible{opacity:1}
+  .m-ribbon-label .ic{margin-right:6px;font-size:13px;text-shadow:none;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));
+  }
   .m-ribbon-nowline{
     position:absolute;top:-3px;bottom:-3px;width:2px;
     background:var(--coral);border-radius:2px;
@@ -1632,15 +1651,15 @@
            aria-label="Time of day — drag to preview sun at another time"
            aria-valuemin="0" aria-valuemax="1440" aria-valuenow="0">
         <div class="hm-band-clouds" id="hm-band-clouds" aria-hidden="true"></div>
+        <div class="hm-band-label" id="hm-band-label" role="status" aria-live="polite">
+          <span class="ic" aria-hidden="true">☁️</span>
+          <span id="hm-band-label-text"></span>
+        </div>
         <div class="hm-handle" id="hm-handle">
           <div class="hm-handle-label" id="hm-handle-label">—:—</div>
           <div class="hm-handle-stem"></div>
           <div class="hm-handle-knob"></div>
         </div>
-      </div>
-      <div class="hm-overcast-note" id="hm-overcast-note" role="status">
-        <span class="ic">☁️</span>
-        <span id="hm-overcast-text"></span>
       </div>
       <!-- Hidden range input: preserves existing scrub state + mobile code paths -->
       <input id="time" class="sr-only" type="range" min="0" max="1440" step="5" value="0" aria-hidden="true" tabindex="-1">
@@ -1749,6 +1768,10 @@
         </div>
         <div class="m-ribbon" id="m-ribbon">
           <div class="m-ribbon-clouds" id="m-ribbon-clouds"></div>
+          <div class="m-ribbon-label" id="m-ribbon-label" role="status" aria-live="polite">
+            <span class="ic" aria-hidden="true">☁️</span>
+            <span id="m-ribbon-label-text"></span>
+          </div>
           <div class="m-ribbon-nowline" id="m-ribbon-nowline"></div>
           <div class="m-ribbon-nowdot" id="m-ribbon-nowdot"></div>
           <div class="m-ribbon-hint" id="m-ribbon-hint" data-i18n="m_scrubber_hint">Drag to preview sun later today →</div>
@@ -1817,8 +1840,7 @@ const STRINGS = {
     topbar_sunset_label: "sets",
     topbar_axis_legend_fewer: "fewer",
     topbar_axis_legend_more: "more terraces in sun",
-    overcast_note: "Overcast all day — no terraces in direct sun",
-    overcast_note_partial: "Heavy clouds right now — sun behind cover",
+    overcast_note: "Cloudy all day",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -1963,8 +1985,7 @@ const STRINGS = {
     topbar_sunset_label: "Untergang",
     topbar_axis_legend_fewer: "weniger",
     topbar_axis_legend_more: "mehr Terrassen in der Sonne",
-    overcast_note: "Den ganzen Tag bedeckt — keine Terrasse in direkter Sonne",
-    overcast_note_partial: "Gerade dichte Wolken — Sonne hinter der Decke",
+    overcast_note: "Den ganzen Tag bewölkt",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -4041,48 +4062,48 @@ function hmApplyBandGradient(){
    band still shows the warm sun-arc underneath — just heavily dimmed —
    which makes it visually obvious that the system is alive and the zero
    sunny count is real weather, not a broken site. */
-/* Show / hide the overcast explanation banner based on the live sunny
-   count. We only show it when:
-     - we're in daytime (sunrise < now < sunset),
-     - the cloud-aware sunny count is 0 *but* cloudy > 0 (geometric sun
-       exists, weather is what's hiding it), and
-     - we actually have weather data to back the claim.
-   Anything else falls through silently. */
-function updateOvercastNote(tMs, sunnyCount, cloudyCount){
-  const note = document.getElementById('hm-overcast-note');
-  const txt  = document.getElementById('hm-overcast-text');
-  if (!note || !txt) return;
-  let show = false;
-  let msg = '';
-  if (state.sunrise && state.sunset && state.weather){
-    const inDaylight = tMs >= state.sunrise.getTime() && tMs <= state.sunset.getTime();
-    if (inDaylight && sunnyCount === 0 && cloudyCount > 0){
-      // Distinguish "cloudy all day" vs "cloudy right now": if the daily
-      // peak coverage (geometric) > 0 and the live cloud cover is high,
-      // we're in either a 100% overcast day or a temporary thick patch.
-      const cc = cloudCoverAt(tMs);
-      if (cc != null && cc >= CLOUD_SUNNY_THRESHOLD){
-        // Inspect the day to decide partial vs full overcast
-        const sod = startOfToday().getTime();
-        const sr = state.sunrise.getTime(), ss = state.sunset.getTime();
-        let cloudyHours = 0, daylightHours = 0;
-        for (let h = sod; h < sod + 24*60*60*1000; h += 60*60*1000){
-          if (h < sr || h > ss) continue;
-          daylightHours++;
-          const c = cloudCoverAt(h);
-          if (c != null && c >= CLOUD_SUNNY_THRESHOLD) cloudyHours++;
-        }
-        const ratio = daylightHours ? cloudyHours/daylightHours : 0;
-        msg = ratio >= 0.85 ? t('overcast_note') : t('overcast_note_partial');
-        show = true;
-      }
-    }
+/* Decide whether today is functionally a "cloudy all day" day, and if
+   so paint a small label inside the heatmap band (and the mobile
+   ribbon). The label only shows on full-day overcast — partial cloudy
+   states are conveyed visually by the cloud overlay alone, no text
+   needed. Keeping it scoped to the unambiguous case keeps the bar
+   uncluttered on regular weather.
+   Triggers when:
+     - we have sunrise/sunset and weather,
+     - ≥85% of the day's daylight hours are above CLOUD_SUNNY_THRESHOLD.
+   The live sunny/cloudy counts at the scrub time aren't needed —
+   "cloudy all day" is a property of the whole day, not the moment. */
+let _overcastDayCache = { bakeKey: null, isOvercastAllDay: false };
+function isOvercastAllDay(){
+  if (!state.sunrise || !state.sunset || !state.weather) return false;
+  // Cheap memo: only recompute when the day or weather snapshot changes.
+  const key = berlinDateStr() + '@' + (state.weather.hourlyTimeMs?.[0] ?? 0);
+  if (_overcastDayCache.bakeKey === key) return _overcastDayCache.isOvercastAllDay;
+  const sod = startOfToday().getTime();
+  const sr = state.sunrise.getTime(), ss = state.sunset.getTime();
+  let cloudyHours = 0, daylightHours = 0;
+  for (let h = sod; h < sod + 24*60*60*1000; h += 60*60*1000){
+    if (h < sr || h > ss) continue;
+    daylightHours++;
+    const c = cloudCoverAt(h);
+    if (c != null && c >= CLOUD_SUNNY_THRESHOLD) cloudyHours++;
   }
-  if (show){
-    txt.textContent = msg;
-    note.classList.add('visible');
-  } else {
-    note.classList.remove('visible');
+  const ratio = daylightHours ? cloudyHours/daylightHours : 0;
+  _overcastDayCache = { bakeKey: key, isOvercastAllDay: ratio >= 0.85 };
+  return _overcastDayCache.isOvercastAllDay;
+}
+function updateOvercastNote(){
+  const show = isOvercastAllDay();
+  const msg  = show ? t('overcast_note') : '';
+  const targets = [
+    { label: 'hm-band-label', text: 'hm-band-label-text' },
+    { label: 'm-ribbon-label', text: 'm-ribbon-label-text' },
+  ];
+  for (const tt of targets){
+    const lbl = document.getElementById(tt.label);
+    const txt = document.getElementById(tt.text);
+    if (txt && txt.textContent !== msg) txt.textContent = msg;
+    if (lbl) lbl.classList.toggle('visible', show);
   }
 }
 
@@ -4244,11 +4265,10 @@ function updateStats(){
     else if (st==='night') night++;
     else if (st==='nosun') nosun++;
   }
-  // Overcast banner: when daylight is in progress and zero venues are
-  // currently sunny because clouds suppressed the geometry, surface a
-  // plain-language explanation. Without this, a fully overcast day looks
-  // identical to "site is broken / data didn't load."
-  updateOvercastNote(tMs, sunny, cloudy);
+  // Cloudy-all-day label: paints "Cloudy all day" inside the heatmap
+  // band (and mobile ribbon) on full-overcast days. Day-level signal —
+  // independent of the scrubbed time — so we don't pass tMs/sunny/cloudy.
+  updateOvercastNote();
   document.getElementById('stat-sunny').textContent = sunny;
   document.getElementById('stat-shaded').textContent = shaded + cloudy + nosun;
   document.getElementById('count-sunny').textContent = sunny;
