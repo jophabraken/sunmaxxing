@@ -794,10 +794,13 @@
   .popup-v2 .axis-y span{opacity:.55}
   .popup-v2 .chart-inner{position:absolute;left:20px;right:0;top:0;bottom:14px}
   .popup-v2 .axis-x{
-    position:absolute;left:20px;right:0;bottom:-2px;
-    display:flex;justify-content:space-between;
+    position:absolute;left:20px;right:0;bottom:-2px;height:14px;
     font-size:10px;color:var(--muted);font-weight:500;
   }
+  /* Each tick is absolutely positioned at its true hour-% so the label
+     centers line up with the SVG content. justify-content:space-between
+     was off by ~10px because span widths vary ("4" vs "10" vs "22"). */
+  .popup-v2 .axis-x span{position:absolute;transform:translateX(-50%);white-space:nowrap}
   .popup-v2 .hours-text{
     text-align:center;font-size:11.5px;color:var(--muted);
     margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
@@ -1410,11 +1413,11 @@
   .m-details-chart .axis-y span{opacity:.5}
   .m-details-chart .chart-inner{position:absolute;left:18px;right:0;top:0;bottom:14px}
   .m-details-chart .axis-x{
-    position:absolute;left:18px;right:0;bottom:-2px;
-    display:flex;justify-content:space-between;
+    position:absolute;left:18px;right:0;bottom:-2px;height:14px;
     font-size:10px;color:var(--muted);font-weight:500;
     font-variant-numeric:tabular-nums;
   }
+  .m-details-chart .axis-x span{position:absolute;transform:translateX(-50%);white-space:nowrap}
   .m-details-hours{
     text-align:center;font-size:11.5px;color:var(--muted);
     margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);
@@ -3375,17 +3378,26 @@ function sunChartSVG(v, nowMs){
   // y from cloud %: 0% clouds → top (near 0), 100% → ~65% down
   const yForCloud = (cc) => pad + (Math.max(0, Math.min(100, cc)) / 100) * (H - pad) * 0.7;
 
-  // Build one path per window with cloud-modulated top edge
+  // Build one path per window with cloud-modulated top edge AND a
+  // cloud-modulated colour. Two visual states keyed off the same
+  // CLOUD_SUNNY_THRESHOLD that venueStateAt uses to demote sunny → cloudy:
+  //   < threshold: warm yellow (sun is reaching the venue)
+  //   ≥ threshold: muted grey (sun is geometrically there but blocked
+  //                            by clouds — bar still shown so users see
+  //                            "this is when sun would land here", just
+  //                            without the misleading "looks sunny" cue)
   let shapes = '';
   for (const [s, e] of (v.windows || [])){
     const sX = xForMs(s), eX = xForMs(e);
     if (eX <= 0 || sX >= W) continue;
     const x0 = Math.max(0, sX), x1 = Math.min(W, eX);
-    // Sample cloud at window midpoint
     const midMs = (s + e) / 2;
     const cc = cloudCoverAt(midMs);
     const topY = cc != null ? yForCloud(cc) : pad;
-    shapes += `<path d="M ${x0.toFixed(1)} ${H} L ${x0.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${H} Z" fill="url(#sun-grad)" stroke="#FFA600" stroke-width="1.3" stroke-linejoin="round"/>`;
+    const isCloudy = cc != null && cc >= CLOUD_SUNNY_THRESHOLD;
+    const fill   = isCloudy ? 'url(#cloud-grad)' : 'url(#sun-grad)';
+    const stroke = isCloudy ? '#94A3B8' : '#FFA600';
+    shapes += `<path d="M ${x0.toFixed(1)} ${H} L ${x0.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${topY.toFixed(1)} L ${x1.toFixed(1)} ${H} Z" fill="${fill}" stroke="${stroke}" stroke-width="1.3" stroke-linejoin="round"/>`;
   }
 
   // Current time marker
@@ -3395,10 +3407,14 @@ function sunChartSVG(v, nowMs){
     ? `<line x1="${nowX.toFixed(1)}" y1="-2" x2="${nowX.toFixed(1)}" y2="${H+2}" stroke="#FF6B57" stroke-width="2" stroke-dasharray="3 2"/><circle cx="${nowX.toFixed(1)}" cy="-2" r="3" fill="#FF6B57"/>`
     : '';
 
-  // X-axis ticks: every 2 hours
+  // X-axis ticks: every 2 hours, each absolutely positioned at its true
+  // hour-% so visual centers line up with the SVG content. (Previously
+  // we used flex justify-content:space-between, which was off by ~10px
+  // for ticks like "10"/"22" that have wider text than "4"/"6".)
   const ticks = [];
   for (let h = startH; h <= endH; h += 2){
-    ticks.push(`<span>${h}</span>`);
+    const pct = ((h - startH) / hourSpan) * 100;
+    ticks.push(`<span style="left:${pct.toFixed(2)}%">${h}</span>`);
   }
 
   return `
@@ -3412,6 +3428,10 @@ function sunChartSVG(v, nowMs){
             <linearGradient id="sun-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#FFC340" stop-opacity=".95"/>
               <stop offset="100%" stop-color="#FFD75E" stop-opacity=".7"/>
+            </linearGradient>
+            <linearGradient id="cloud-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#B8C2CC" stop-opacity=".75"/>
+              <stop offset="100%" stop-color="#CFD6DD" stop-opacity=".55"/>
             </linearGradient>
           </defs>
           ${shapes}${nowMark}
