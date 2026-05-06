@@ -59,6 +59,13 @@ jobs:
               de/biergaerten-friedrichshain/*) add "https://sunmaxxing.com/de/biergaerten-friedrichshain/" ;;
               de/biergaerten-charlottenburg/*) add "https://sunmaxxing.com/de/biergaerten-charlottenburg/" ;;
               de/biergaerten-neukoelln/*) add "https://sunmaxxing.com/de/biergaerten-neukoelln/" ;;
+              brunch-berlin/*) add "https://sunmaxxing.com/brunch-berlin/" ;;
+              de/fruehstueck-berlin/*) add "https://sunmaxxing.com/de/fruehstueck-berlin/" ;;
+              de/fruehstueck-kreuzberg/*) add "https://sunmaxxing.com/de/fruehstueck-kreuzberg/" ;;
+              de/fruehstueck-mitte/*) add "https://sunmaxxing.com/de/fruehstueck-mitte/" ;;
+              de/fruehstueck-prenzlauer-berg/*) add "https://sunmaxxing.com/de/fruehstueck-prenzlauer-berg/" ;;
+              de/fruehstueck-neukoelln/*) add "https://sunmaxxing.com/de/fruehstueck-neukoelln/" ;;
+              de/fruehstueck-friedrichshain/*) add "https://sunmaxxing.com/de/fruehstueck-friedrichshain/" ;;
               sitemap.xml) add "https://sunmaxxing.com/sitemap.xml" ;;
             esac
           done

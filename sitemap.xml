@@ -81,6 +81,54 @@
     <priority>0.6</priority>
   </url>
 
+  <!-- Brunch / Frühstück — bilingual pair targeting the largest cluster
+       in our universe (~80-100k/mo combined). EN /brunch-berlin/ + DE
+       /de/fruehstueck-berlin/ are the city-wide pages. -->
+  <url>
+    <loc>https://sunmaxxing.com/brunch-berlin/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/brunch-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/fruehstueck-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/brunch-berlin/"/>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-berlin/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/brunch-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/fruehstueck-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/brunch-berlin/"/>
+  </url>
+
+  <!-- Frühstück by neighborhood — DE long-tail. Generated via
+       scripts/generate-de-fruehstueck-neighborhoods.py. -->
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-kreuzberg/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-mitte/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-prenzlauer-berg/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-neukoelln/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/fruehstueck-friedrichshain/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
   <!-- Neighborhood-level DE biergarten pages — long-tail (~4,360/mo combined,
        individual KD 24-30). Generated via scripts/generate-de-neighborhoods.py. -->
   <url>
