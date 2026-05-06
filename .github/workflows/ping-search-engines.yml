@@ -53,6 +53,12 @@ jobs:
               de/biergaerten-berlin/*) add "https://sunmaxxing.com/de/biergaerten-berlin/" ;;
               de/dachterrassen-berlin/*) add "https://sunmaxxing.com/de/dachterrassen-berlin/" ;;
               de/sonnenterrassen-berlin/*) add "https://sunmaxxing.com/de/sonnenterrassen-berlin/" ;;
+              de/biergaerten-kreuzberg/*) add "https://sunmaxxing.com/de/biergaerten-kreuzberg/" ;;
+              de/biergaerten-mitte/*) add "https://sunmaxxing.com/de/biergaerten-mitte/" ;;
+              de/biergaerten-prenzlauer-berg/*) add "https://sunmaxxing.com/de/biergaerten-prenzlauer-berg/" ;;
+              de/biergaerten-friedrichshain/*) add "https://sunmaxxing.com/de/biergaerten-friedrichshain/" ;;
+              de/biergaerten-charlottenburg/*) add "https://sunmaxxing.com/de/biergaerten-charlottenburg/" ;;
+              de/biergaerten-neukoelln/*) add "https://sunmaxxing.com/de/biergaerten-neukoelln/" ;;
               sitemap.xml) add "https://sunmaxxing.com/sitemap.xml" ;;
             esac
           done

@@ -80,4 +80,37 @@
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+
+  <!-- Neighborhood-level DE biergarten pages — long-tail (~4,360/mo combined,
+       individual KD 24-30). Generated via scripts/generate-de-neighborhoods.py. -->
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-kreuzberg/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-mitte/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-prenzlauer-berg/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-friedrichshain/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-charlottenburg/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/biergaerten-neukoelln/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
 </urlset>
