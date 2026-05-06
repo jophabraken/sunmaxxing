@@ -81,6 +81,26 @@
     <priority>0.6</priority>
   </url>
 
+  <!-- Guides hub — bilingual pair. CollectionPage that aggregates the
+       whole article cluster; topic-authority signal + visible entry
+       point from the live map UI. -->
+  <url>
+    <loc>https://sunmaxxing.com/guides/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/guides/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/guides/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/guides/"/>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/guides/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/guides/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/guides/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/guides/"/>
+  </url>
+
   <!-- Brunch / Frühstück — bilingual pair targeting the largest cluster
        in our universe (~80-100k/mo combined). EN /brunch-berlin/ + DE
        /de/fruehstueck-berlin/ are the city-wide pages. -->

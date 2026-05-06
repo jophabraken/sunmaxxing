@@ -66,6 +66,8 @@ jobs:
               de/fruehstueck-prenzlauer-berg/*) add "https://sunmaxxing.com/de/fruehstueck-prenzlauer-berg/" ;;
               de/fruehstueck-neukoelln/*) add "https://sunmaxxing.com/de/fruehstueck-neukoelln/" ;;
               de/fruehstueck-friedrichshain/*) add "https://sunmaxxing.com/de/fruehstueck-friedrichshain/" ;;
+              guides/*) add "https://sunmaxxing.com/guides/" ;;
+              de/guides/*) add "https://sunmaxxing.com/de/guides/" ;;
               sitemap.xml) add "https://sunmaxxing.com/sitemap.xml" ;;
             esac
           done

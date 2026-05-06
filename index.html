@@ -366,6 +366,25 @@
     flex:1;min-width:220px;height:38px;
   }
   .topbar .tabs{height:38px}
+  /* Topbar "Guides" link — visible entry point from the live map into the
+     article cluster. Same pill silhouette as .btn-filters but with an
+     anchor link semantics + a subtle arrow. Drives both human clicks
+     (engagement signal Google rewards) and Googlebot's crawl path
+     beyond the JS-rendered map UI. */
+  .btn-guides{
+    display:inline-flex;align-items:center;gap:6px;
+    height:40px;padding:0 14px;border-radius:999px;
+    background:var(--card);color:var(--text);
+    border:1px solid var(--border);
+    font:inherit;font-size:13.5px;font-weight:600;
+    text-decoration:none;cursor:pointer;
+    box-shadow:var(--shadow-sm);transition:border-color .15s,transform .15s,background .15s;
+  }
+  .btn-guides::after{content:"›";opacity:.55;font-weight:700;font-size:16px;line-height:1}
+  .btn-guides:hover{border-color:var(--sun);color:var(--text);background:#FFFAEC}
+  .btn-guides:active{transform:scale(.97)}
+  @media (max-width:640px){.btn-guides{padding:0 12px;font-size:13px}}
+
   .btn-filters{
     display:inline-flex;align-items:center;gap:8px;
     height:38px;padding:0 14px;border-radius:999px;
@@ -1680,6 +1699,7 @@
       <button class="btn-filters" id="btn-filters-toggle" aria-expanded="true">
         <span data-i18n="topbar_filters_label">Filters</span> <span class="count" id="btn-filters-count">0</span>
       </button>
+      <a class="btn-guides" id="btn-guides" href="/guides/" data-i18n="topbar_guides_label" data-i18n-title="topbar_guides_title" title="Browse Berlin sun guides">Guides</a>
       <button class="lang-toggle" id="lang-toggle" aria-label="Auf Deutsch wechseln" title="Auf Deutsch wechseln"></button>
     </div>
 
@@ -1897,6 +1917,8 @@ const STRINGS = {
     topbar_axis_legend_fewer: "fewer",
     topbar_axis_legend_more: "more terraces in sun",
     overcast_note: "Cloudy all day",
+    topbar_guides_label: "Guides",
+    topbar_guides_title: "Browse Berlin sun guides — best rooftops, beer gardens, brunch, sunset",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -2042,6 +2064,8 @@ const STRINGS = {
     topbar_axis_legend_fewer: "weniger",
     topbar_axis_legend_more: "mehr Terrassen in der Sonne",
     overcast_note: "Den ganzen Tag bewölkt",
+    topbar_guides_label: "Guides",
+    topbar_guides_title: "Berlin-Guides — die besten Dachterrassen, Biergärten, Brunch-Spots, Sonnenuntergänge",
     lang_toggle_to_de: "Auf Deutsch wechseln",
     lang_toggle_to_en: "Switch to English",
 
@@ -2251,6 +2275,9 @@ function applyI18nStaticDom() {
     toggle.setAttribute('aria-label', toggleLabel);
     toggle.setAttribute('title', toggleLabel);
   }
+  // Guides hub link: language-matched on initial paint + on lang toggle.
+  const guides = document.getElementById('btn-guides');
+  if (guides) guides.href = (CURRENT_LANG === 'de') ? '/de/guides/' : '/guides/';
   const mToggle = document.getElementById('m-lang-toggle');
   if (mToggle) {
     // Wrap the SVG in a span so the circular clip happens on a plain div,
@@ -2298,6 +2325,12 @@ function setLang(lang) {
   }
   CURRENT_LANG = lang;
   applyI18nStaticDom();
+  // Point the topbar Guides link at the language-matched hub page so the
+  // article cluster stays consistent across the lang toggle.
+  try {
+    const g = document.getElementById('btn-guides');
+    if (g) g.href = (lang === 'de') ? '/de/guides/' : '/guides/';
+  } catch(_){}
   // Re-render live state (markers, list, details) if the app is initialized
   try { if (typeof scheduleRefresh === 'function') scheduleRefresh(); } catch(_){}
   try { if (typeof renderList === 'function') renderList(); } catch(_){}
@@ -5599,6 +5632,7 @@ if ('serviceWorker' in navigator &&
   <nav>
     <strong>Guides &amp; lists</strong>
     <ul>
+      <li><a href="/guides/"><strong>All guides — index page</strong></a></li>
       <li><a href="/best-rooftops-berlin/">The 10 sunniest rooftop bars in Berlin</a></li>
       <li><a href="/best-beer-gardens-berlin/">The 10 best beer gardens in Berlin</a></li>
       <li><a href="/best-sunset-spots-berlin/">The 10 best sunset spots in Berlin</a></li>
