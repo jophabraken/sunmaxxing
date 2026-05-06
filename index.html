@@ -17,6 +17,9 @@
      ────────────────────────────────────────────────────────────────────── -->
 <meta name="description" content="Find the sunniest terraces, rooftop bars, and beer gardens in Berlin — live. Weather-aware, shadow-tracked, updated every minute. Free, no app needed.">
 <meta name="theme-color" content="#F5A623">
+<!-- max-image-preview:large lets Google render a large hero image
+     (og-image at 1200×630) in SERP cards — meaningful CTR uplift. -->
+<meta name="robots" content="index,follow,max-image-preview:large">
 <link rel="canonical" href="https://sunmaxxing.com/">
 
 <!-- Bilingual pair. /de/ is the canonical DE homepage and is rewritten to
@@ -39,6 +42,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Sonne Berlin — find the sunniest terrace in Berlin, right now. sunmaxxing.com">
 <meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="de_DE">
 
 <!-- Twitter/X — summary_large_image gets the full 1200×630 treatment.
      No @handle yet, so we skip twitter:site/twitter:creator. -->
@@ -48,14 +52,57 @@
 <meta name="twitter:image" content="https://sunmaxxing.com/og-image.png">
 <meta name="twitter:image:alt" content="Sonne Berlin — find the sunniest terrace in Berlin, right now.">
 
-<!-- Favicons. SVG first (scales to any density), PNG fallback for older
-     browsers + the iOS Home Screen bookmark. -->
+<!-- Favicons. Order matters: /favicon.ico is what Google's SERP icon
+     crawler hits first; SVG is what modern browsers prefer; sized PNGs
+     cover Android, iOS, and high-DPI cases. The .ico is a true
+     multi-size file (16/32/48) so a single fetch satisfies every
+     non-SVG client. -->
+<link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 
-<!-- JSON-LD structured data. WebApplication tells Google this is a free
-     tool serving Berlin, which nudges the SERP rendering toward a "site
-     card" style result rather than a generic blue link. -->
+<!-- JSON-LD structured data. Three layered schemas, each targeting a
+     different SERP feature:
+       1. Organization — feeds Google's Knowledge Graph entry for the
+          brand (logo + sameAs links eventually if we get social).
+       2. WebSite + SearchAction — eligible for a sitelinks search box
+          on branded queries (e.g. typing "sunmaxxing" gets a search
+          input directly under the homepage in the SERP).
+       3. WebApplication — nudges Google to render this as a tool/site
+          card instead of a plain blue link, since the live map is the
+          actual product. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Sonne Berlin",
+  "alternateName": "sunmaxxing.com",
+  "url": "https://sunmaxxing.com/",
+  "logo": "https://sunmaxxing.com/android-chrome-512x512.png",
+  "description": "Sonne Berlin runs sunmaxxing.com, a live map of Berlin's sunniest terraces, rooftop bars, and beer gardens."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Sonne Berlin",
+  "alternateName": "sunmaxxing",
+  "url": "https://sunmaxxing.com/",
+  "inLanguage": ["en", "de"],
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://sunmaxxing.com/?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -70,7 +117,13 @@
   "isAccessibleForFree": true,
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
   "inLanguage": "en",
-  "areaServed": { "@type": "City", "name": "Berlin", "addressCountry": "DE" }
+  "areaServed": { "@type": "City", "name": "Berlin", "addressCountry": "DE" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Sonne Berlin",
+    "url": "https://sunmaxxing.com/",
+    "logo": { "@type": "ImageObject", "url": "https://sunmaxxing.com/android-chrome-512x512.png" }
+  }
 }
 </script>
 
