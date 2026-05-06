@@ -73,6 +73,51 @@
 }
 </script>
 
+<!-- HowTo schema — eligible for Google's "How to" rich result. The four
+     steps mirror the actual data pipeline so the schema stays honest. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to find a sunny terrace in Berlin right now",
+  "description": "Open the live map, let it load today's pre-baked sun windows, and pick the venue currently in direct sun.",
+  "totalTime": "PT10S",
+  "tool": [
+    { "@type": "HowToTool", "name": "Web browser (mobile or desktop)" }
+  ],
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Open the live map",
+      "text": "Visit sunmaxxing.com — no login, no app install. The map loads with every Berlin terrace pre-checked against today's sun position and weather.",
+      "url": "https://sunmaxxing.com/"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Read the colour code",
+      "text": "Yellow circles are venues currently in direct sun (more than 60 minutes of sun left). Pale yellow means under 60 minutes — catch them now. Grey means shaded or cloudy. Outside daylight everything is grey.",
+      "url": "https://sunmaxxing.com/"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Use the time scrubber to plan ahead",
+      "text": "Drag the band at the top of the screen to preview which terraces will be sunny at any time today. The map updates live to show the future state.",
+      "url": "https://sunmaxxing.com/"
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Filter by category and walk distance",
+      "text": "Tap a category chip (rooftop, beer garden, restaurant) to narrow the list. Allow location access to see only what's within a 10- or 20-minute walk.",
+      "url": "https://sunmaxxing.com/"
+    }
+  ]
+}
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">

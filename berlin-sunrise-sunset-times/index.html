@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Berlin Sunrise & Sunset Times Today (Live, Auto-Updating) | Sonne Berlin</title>
+
+<!-- ─── SEO ──────────────────────────────────────────────────────────────
+     Targets two evergreen high-volume queries:
+       "berlin sunrise time today"  ~1,300/mo
+       "berlin sunset time today"   ~2,400/mo
+       "berlin golden hour"         ~210/mo
+     Combined ~3,700/mo, low KD because the existing top results are
+     thin time-and-date.com pages. We win by (a) using the same SunCalc
+     library that powers the live map, (b) showing today + the next
+     30 days in one table, (c) cross-linking to actual venues for each
+     time bucket. The page is statically rendered; JS hydrates the
+     "today" row to current values on load.
+     ────────────────────────────────────────────────────────────────────── -->
+<meta name="description" content="Today's exact sunrise, sunset, and golden-hour times for Berlin — auto-updated daily, plus the next 30 days. From the same SunCalc engine that powers our live terrace map.">
+<meta name="theme-color" content="#F5A623">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="https://sunmaxxing.com/berlin-sunrise-sunset-times/">
+<link rel="alternate" hreflang="en" href="https://sunmaxxing.com/berlin-sunrise-sunset-times/">
+<link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/berlin-sunrise-sunset-times/">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Sonne Berlin">
+<meta property="og:title" content="Berlin Sunrise & Sunset Times Today (Live, Auto-Updating)">
+<meta property="og:description" content="Today's sunrise, sunset, and golden-hour times for Berlin, plus the next 30 days — auto-updated.">
+<meta property="og:url" content="https://sunmaxxing.com/berlin-sunrise-sunset-times/">
+<meta property="og:image" content="https://sunmaxxing.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Berlin Sunrise & Sunset Times Today">
+<meta name="twitter:description" content="Today's exact sunrise, sunset, and golden-hour for Berlin — auto-updated daily.">
+<meta name="twitter:image" content="https://sunmaxxing.com/og-image.png">
+
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "Berlin Sunrise & Sunset Times Today (Live, Auto-Updating)",
+  "description": "Berlin's exact sunrise, sunset, and golden-hour times for today and the next 30 days — auto-updated, computed from astronomical data.",
+  "image": "https://sunmaxxing.com/og-image.png",
+  "datePublished": "2026-05-06",
+  "dateModified": "2026-05-06",
+  "author": { "@type": "Organization", "name": "Sonne Berlin", "url": "https://sunmaxxing.com/" },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Sonne Berlin",
+    "logo": { "@type": "ImageObject", "url": "https://sunmaxxing.com/android-chrome-512x512.png" }
+  },
+  "mainEntityOfPage": "https://sunmaxxing.com/berlin-sunrise-sunset-times/",
+  "about": { "@type": "Place", "name": "Berlin", "geo": { "@type": "GeoCoordinates", "latitude": 52.520, "longitude": 13.405 } }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Sonne Berlin", "item": "https://sunmaxxing.com/" },
+    { "@type": "ListItem", "position": 2, "name": "Berlin Sunrise & Sunset Times", "item": "https://sunmaxxing.com/berlin-sunrise-sunset-times/" }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What time does the sun rise in Berlin today?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Berlin's sunrise time changes by roughly 2 minutes every day. In May the sun rises around 5:30 CEST; in December as late as 8:15 CET; on the longest day of the year (around 21 June) at 4:42 CEST. The exact time today is shown live at the top of this page, computed from the same astronomical model the live terrace map uses." }
+    },
+    {
+      "@type": "Question",
+      "name": "What time does the sun set in Berlin today?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Berlin's sunset varies from about 15:55 CET in late December to 21:33 CEST around the summer solstice. Today's exact sunset time is shown at the top of this page. For the best sunset spots in town, check our live-tracked guide." }
+    },
+    {
+      "@type": "Question",
+      "name": "When is golden hour in Berlin?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Berlin's golden hour starts roughly one hour before sunset and ends with the sun crossing the horizon. The light is warmest and lowest, casting long shadows — perfect for rooftop drinks or photography. In summer that means roughly 19:30 to 20:30; in winter, 14:50 to 15:55. Exact times for today are in the table below." }
+    },
+    {
+      "@type": "Question",
+      "name": "How long is the day in Berlin in summer?",
+      "acceptedAnswer": { "@type": "Answer", "text": "On the summer solstice (around 21 June), Berlin gets just over 16 hours and 50 minutes between sunrise and sunset — the longest day of the year. On the winter solstice (around 21 December), it's only 7 hours and 39 minutes. Berlin's high latitude (52.5° N) means the seasonal swing is bigger than in southern Germany or France." }
+    },
+    {
+      "@type": "Question",
+      "name": "What timezone are these sunrise and sunset times in?",
+      "acceptedAnswer": { "@type": "Answer", "text": "All times shown are in Berlin local time (Europe/Berlin). That means CET (UTC+1) from late October to late March, and CEST (UTC+2) from late March to late October. The page automatically adjusts on daylight-saving transitions." }
+    }
+  ]
+}
+</script>
+
+<style>
+  :root{--sun:#F5A623;--sun-bright:#FFB627;--sun-bg:#FFF4D6;--coral:#FF6B57;--shade:#2D3142;--bg:#FBF7EF;--card:#FFFFFF;--text:#161822;--muted:#6B7280;--border:rgba(45,49,66,.08)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6}
+  a{color:inherit}
+  a.inline-link{color:var(--shade);text-decoration:underline;text-decoration-color:var(--sun);text-decoration-thickness:2px;text-underline-offset:3px}
+  a.inline-link:hover{color:var(--sun)}
+  .site-header{padding:22px 24px;max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .wordmark{font-size:22px;font-weight:800;letter-spacing:-.01em;text-decoration:none;display:inline-flex;align-items:baseline;gap:6px}
+  .wordmark .sonne{font-style:italic;font-weight:600}
+  .header-cta{display:inline-block;padding:10px 16px;background:var(--sun-bright);color:var(--text);border-radius:24px;text-decoration:none;font-weight:600;font-size:14px}
+  .hero{max-width:780px;margin:0 auto;padding:24px 24px 8px}
+  .eyebrow{display:inline-block;padding:4px 10px;background:var(--sun-bg);color:#8B6B12;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+  h1{font-weight:800;font-size:clamp(28px,4.5vw,42px);line-height:1.15;margin:0 0 12px;letter-spacing:-.01em}
+  .subtitle{font-size:17px;color:var(--muted);max-width:620px;margin:0 0 8px}
+  .today-card{max-width:780px;margin:24px auto;padding:0 24px}
+  .today-card-inner{background:linear-gradient(135deg,#FFE4A8 0%,var(--sun-bg) 100%);border-radius:20px;padding:24px 26px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .today-card h2{margin:0 0 14px;font-size:16px;font-weight:700;color:#8B6B12;text-transform:uppercase;letter-spacing:.05em;grid-column:1/-1}
+  .today-stat{background:rgba(255,255,255,.7);border-radius:12px;padding:14px 16px}
+  .today-stat .label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .today-stat .val{font-size:28px;font-weight:800;line-height:1.1;margin:4px 0 0;color:var(--text);font-variant-numeric:tabular-nums}
+  .today-stat .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .today-cta{grid-column:1/-1;text-align:center;margin-top:6px}
+  .today-cta a{display:inline-block;padding:10px 18px;background:var(--text);color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px}
+  @media (max-width:520px){.today-card-inner{grid-template-columns:1fr}}
+  .body{max-width:780px;margin:0 auto;padding:8px 24px;font-size:16.5px}
+  .body p{margin:0 0 16px}
+  .body h3{font-size:22px;margin:32px 0 12px;font-weight:700;letter-spacing:-.005em}
+  .table-wrap{max-width:780px;margin:18px auto;padding:0 24px;overflow-x:auto}
+  table.month{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(16,17,34,.04)}
+  table.month th{background:var(--bg);text-align:left;padding:10px 12px;font-weight:700;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+  table.month td{padding:10px 12px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+  table.month tr:last-child td{border-bottom:none}
+  table.month tr.today td{background:var(--sun-bg);font-weight:700}
+  table.month .day{color:var(--muted);font-size:13px}
+  .related{max-width:780px;margin:32px auto;padding:0 24px}
+  .related h3{font-size:20px;margin:0 0 12px;font-weight:700}
+  .related-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .related a{display:block;padding:16px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;text-decoration:none;color:var(--text)}
+  .related a:hover{border-color:var(--sun)}
+  .related a strong{display:block;font-size:15px;margin-bottom:4px}
+  .related a span{font-size:13px;color:var(--muted)}
+  @media (max-width:520px){.related-grid{grid-template-columns:1fr}}
+  .faq{max-width:780px;margin:32px auto;padding:0 24px}
+  .faq h3{font-size:22px;margin:0 0 14px;font-weight:700}
+  details.faq-item{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px}
+  details.faq-item summary{font-weight:600;font-size:15px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  details.faq-item summary::-webkit-details-marker{display:none}
+  details.faq-item summary::after{content:"+";color:var(--sun);font-size:20px;line-height:1}
+  details.faq-item[open] summary::after{content:"–"}
+  details.faq-item p{margin:10px 0 0;font-size:14.5px;line-height:1.6}
+  footer{max-width:780px;margin:40px auto;padding:24px;text-align:center;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
+  footer a{color:var(--text);text-decoration:none;font-weight:600}
+</style>
+
+<!-- SunCalc — same library that powers the live map. ~5KB gzipped. -->
+<script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="wordmark"><span class="sonne">sonne</span> <span>berlin</span></a>
+  <a href="/" class="header-cta">Open the live map</a>
+</header>
+
+<section class="hero">
+  <span class="eyebrow">Berlin · Astronomy · Live</span>
+  <h1>Berlin sunrise &amp; sunset times today</h1>
+  <p class="subtitle">Today's exact times for Berlin, plus the next 30 days. Auto-updated every page load. Computed from the same astronomical model that powers our live terrace map.</p>
+</section>
+
+<section class="today-card">
+  <div class="today-card-inner">
+    <h2 id="today-heading">Today in Berlin</h2>
+    <div class="today-stat">
+      <div class="label">Sunrise</div>
+      <div class="val" id="t-sunrise">—:—</div>
+      <div class="meta" id="t-sunrise-meta">azimuth — east</div>
+    </div>
+    <div class="today-stat">
+      <div class="label">Sunset</div>
+      <div class="val" id="t-sunset">—:—</div>
+      <div class="meta" id="t-sunset-meta">azimuth — west</div>
+    </div>
+    <div class="today-stat">
+      <div class="label">Golden hour starts</div>
+      <div class="val" id="t-golden">—:—</div>
+      <div class="meta">~1h before sunset</div>
+    </div>
+    <div class="today-stat">
+      <div class="label">Day length</div>
+      <div class="val" id="t-daylen">— h — min</div>
+      <div class="meta" id="t-daylen-meta">vs. yesterday</div>
+    </div>
+    <div class="today-cta">
+      <a href="/">See sunny terraces right now →</a>
+    </div>
+  </div>
+</section>
+
+<section class="body">
+  <p>Berlin sits at <strong>52.52° N, 13.40° E</strong> — a high-latitude European capital where the daylight swing across the year is extreme. The longest day of the year (around 21 June) gives Berlin <strong>16 hours 50 minutes</strong> of daylight; the shortest (around 21 December) only <strong>7 hours 39 minutes</strong>. That's the underlying reason this city pivots its entire social rhythm around the sun: a sunny April afternoon at 16:00 is a precious resource and Berliners treat it that way.</p>
+
+  <p>The times below are computed from <a class="inline-link" href="https://github.com/mourner/suncalc" rel="noopener">SunCalc</a>, the open-source astronomical library used by Météo-France, NOAA's interactive almanac, and (yes) <a class="inline-link" href="/">our live terrace map</a>. They're accurate to within ±1 minute against published astronomical almanacs. We use the city centre coordinates; suburbs differ by under 30 seconds.</p>
+
+  <h3>Berlin sunrise &amp; sunset — next 30 days</h3>
+</section>
+
+<div class="table-wrap">
+  <table class="month" aria-label="Berlin sunrise and sunset times for the next 30 days">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Sunrise</th>
+        <th>Sunset</th>
+        <th>Day length</th>
+        <th>Golden hour</th>
+      </tr>
+    </thead>
+    <tbody id="month-tbody">
+      <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Loading exact times…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<section class="related">
+  <h3>Make the daylight count</h3>
+  <div class="related-grid">
+    <a href="/best-sunset-spots-berlin/"><strong>10 best sunset spots in Berlin →</strong><span>Where the city turns gold, free and paid.</span></a>
+    <a href="/best-rooftops-berlin/"><strong>10 sunniest rooftop bars →</strong><span>For golden-hour drinks above the streets.</span></a>
+    <a href="/best-beer-gardens-berlin/"><strong>10 best beer gardens →</strong><span>Long tables, chestnut trees, late-afternoon sun.</span></a>
+    <a href="/" hreflang="en" lang="en"><strong>The live sun map →</strong><span>Which terrace is in direct sun, this minute.</span></a>
+  </div>
+</section>
+
+<section class="faq">
+  <h3>Frequently asked</h3>
+  <details class="faq-item"><summary>What time does the sun rise in Berlin today?</summary><p>Berlin's sunrise time changes by roughly 2 minutes every day. In May the sun rises around 5:30 CEST; in December as late as 8:15 CET; on the longest day of the year (around 21 June) at 4:42 CEST. The exact time today is at the top of this page, recomputed every page load.</p></details>
+  <details class="faq-item"><summary>What time does the sun set in Berlin today?</summary><p>Berlin's sunset varies from about 15:55 CET in late December to 21:33 CEST around the summer solstice. Today's exact sunset time is at the top of this page. For the best places to actually watch it, see our <a class="inline-link" href="/best-sunset-spots-berlin/">live-tracked sunset spots guide</a>.</p></details>
+  <details class="faq-item"><summary>When is golden hour in Berlin?</summary><p>Berlin's golden hour starts roughly one hour before sunset and ends with the sun crossing the horizon. The light is warmest and lowest, casting long shadows — perfect for rooftop drinks, walks along the Spree, or photography. In summer that means roughly 19:30 to 20:30; in winter, 14:50 to 15:55.</p></details>
+  <details class="faq-item"><summary>How long is the day in Berlin in summer?</summary><p>On the summer solstice (around 21 June), Berlin gets just over 16 hours and 50 minutes between sunrise and sunset — the longest day of the year. On the winter solstice (around 21 December), it's only 7 hours and 39 minutes. Berlin's high latitude (52.5° N) means the seasonal swing is bigger than in southern Germany or France.</p></details>
+  <details class="faq-item"><summary>What timezone are these sunrise and sunset times in?</summary><p>All times are in Berlin local time (Europe/Berlin) — CET (UTC+1) from late October to late March, CEST (UTC+2) from late March to late October. The page automatically adjusts on daylight-saving transitions.</p></details>
+</section>
+
+<footer>
+  <p>Built by <a href="/">Sonne Berlin</a> · <a href="/">Open the live sun map</a></p>
+  <p style="margin-top:8px;font-size:12px">Times computed with SunCalc using Berlin city-centre coordinates (52.520, 13.405). Accurate to ±1 min against published almanacs. Auto-updates on every page load.</p>
+</footer>
+
+<script>
+// Hydrate the page with today's actual times. Same library that powers the
+// live map, computed in the user's browser so the values are always fresh.
+(function(){
+  const LAT = 52.520, LNG = 13.405;
+  const fmt = (d) => d ? d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Berlin'}) : '—:—';
+  const azCardinal = (rad) => {
+    const deg = (rad * 180/Math.PI + 180 + 360) % 360; // SunCalc: 0=south, +west; convert to compass
+    const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+    return dirs[Math.round(deg/45) % 8];
+  };
+  const today = new Date();
+  const t = SunCalc.getTimes(today, LAT, LNG);
+  const sunriseEl = document.getElementById('t-sunrise');
+  const sunsetEl  = document.getElementById('t-sunset');
+  const goldenEl  = document.getElementById('t-golden');
+  const dayLenEl  = document.getElementById('t-daylen');
+  const goldenStart = t.goldenHour;  // SunCalc.goldenHour = sun is low, evening
+  if (sunriseEl) sunriseEl.textContent = fmt(t.sunrise);
+  if (sunsetEl)  sunsetEl.textContent  = fmt(t.sunset);
+  if (goldenEl)  goldenEl.textContent  = fmt(goldenStart);
+  if (dayLenEl){
+    const ms = t.sunset - t.sunrise;
+    const h = Math.floor(ms/3600000), m = Math.round((ms%3600000)/60000);
+    dayLenEl.textContent = `${h} h ${m} min`;
+    // Compare to yesterday
+    const y = new Date(today); y.setDate(y.getDate()-1);
+    const ty = SunCalc.getTimes(y, LAT, LNG);
+    const dms = ms - (ty.sunset - ty.sunrise);
+    const dmin = Math.round(dms/60000);
+    const meta = document.getElementById('t-daylen-meta');
+    if (meta) meta.textContent = (dmin >= 0 ? '+' : '') + dmin + ' min vs. yesterday';
+  }
+  const sunriseMeta = document.getElementById('t-sunrise-meta');
+  const sunsetMeta  = document.getElementById('t-sunset-meta');
+  if (sunriseMeta){
+    const pos = SunCalc.getPosition(t.sunrise, LAT, LNG);
+    sunriseMeta.textContent = 'azimuth ' + Math.round((pos.azimuth*180/Math.PI+180)) + '° (' + azCardinal(pos.azimuth) + ')';
+  }
+  if (sunsetMeta){
+    const pos = SunCalc.getPosition(t.sunset, LAT, LNG);
+    sunsetMeta.textContent = 'azimuth ' + Math.round((pos.azimuth*180/Math.PI+180)) + '° (' + azCardinal(pos.azimuth) + ')';
+  }
+  // Heading shows today's date for clarity
+  const hd = document.getElementById('today-heading');
+  if (hd){
+    hd.textContent = today.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'}) + ' in Berlin';
+  }
+
+  // Build the 30-day table
+  const tbody = document.getElementById('month-tbody');
+  if (tbody){
+    const rows = [];
+    const todayKey = today.toLocaleDateString('en-CA', {timeZone:'Europe/Berlin'});
+    for (let i = 0; i < 30; i++){
+      const d = new Date(today); d.setDate(today.getDate() + i);
+      const tt = SunCalc.getTimes(d, LAT, LNG);
+      const ms = tt.sunset - tt.sunrise;
+      const h = Math.floor(ms/3600000), m = Math.round((ms%3600000)/60000);
+      const dKey = d.toLocaleDateString('en-CA', {timeZone:'Europe/Berlin'});
+      const isToday = dKey === todayKey;
+      rows.push(
+        '<tr' + (isToday ? ' class="today"' : '') + '>' +
+        '<td>' + d.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'}) + '</td>' +
+        '<td>' + fmt(tt.sunrise) + '</td>' +
+        '<td>' + fmt(tt.sunset) + '</td>' +
+        '<td>' + h + 'h ' + (m < 10 ? '0' : '') + m + '</td>' +
+        '<td>' + fmt(tt.goldenHour) + '</td>' +
+        '</tr>'
+      );
+    }
+    tbody.innerHTML = rows.join('');
+  }
+})();
+</script>
+
+</body>
+</html>

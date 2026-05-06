@@ -19,9 +19,7 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/"/>
   </url>
 
-  <!-- Beer-gardens — bilingual pair (EN ranks for "best beer gardens berlin"; DE
-       ranks for "biergarten berlin" which is ~14,800/mo, the largest German
-       term in our cluster). -->
+  <!-- Beer-gardens — bilingual pair (DE targets "biergarten berlin", ~14,800/mo) -->
   <url>
     <loc>https://sunmaxxing.com/best-beer-gardens-berlin/</loc>
     <changefreq>weekly</changefreq>
@@ -39,12 +37,39 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/best-beer-gardens-berlin/"/>
   </url>
 
-  <!-- EN-only for now (DE versions queued — see docs/zoey-keywords.md) -->
+  <!-- Rooftops — bilingual pair (DE targets "dachterrasse berlin", ~4,400/mo) -->
   <url>
     <loc>https://sunmaxxing.com/best-rooftops-berlin/</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/best-rooftops-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/dachterrassen-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/best-rooftops-berlin/"/>
   </url>
+  <url>
+    <loc>https://sunmaxxing.com/de/dachterrassen-berlin/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://sunmaxxing.com/best-rooftops-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://sunmaxxing.com/de/dachterrassen-berlin/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://sunmaxxing.com/best-rooftops-berlin/"/>
+  </url>
+
+  <!-- Money-keyword DE: "sonnenterrasse berlin" (~720/mo, KD 22 — easiest fast win) -->
+  <url>
+    <loc>https://sunmaxxing.com/de/sonnenterrassen-berlin/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+  </url>
+
+  <!-- Sunrise/sunset times — evergreen, ~3,700/mo combined -->
+  <url>
+    <loc>https://sunmaxxing.com/berlin-sunrise-sunset-times/</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- EN-only listicles -->
   <url>
     <loc>https://sunmaxxing.com/best-sunset-spots-berlin/</loc>
     <changefreq>weekly</changefreq>

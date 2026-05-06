@@ -1,0 +1,84 @@
+name: Ping search engines on push
+
+# After every push to main, tell Bing + Yandex (via IndexNow) and Google
+# about updated URLs so they recrawl quickly. Free, no auth required for
+# IndexNow once the key file is hosted at the site root.
+#
+# IndexNow protocol: https://www.indexnow.org/
+# Single POST to api.indexnow.org with a list of URLs and a host-verification
+# key. Bing forwards to Yandex, Seznam, etc. Google has its own quota-limited
+# Indexing API but you can also just resubmit the sitemap URL via a GET.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'best-*/**'
+      - 'how-it-works/**'
+      - 'de/**'
+      - 'berlin-*/**'
+      - 'sitemap.xml'
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Compute changed URLs
+        id: changed
+        run: |
+          # Map changed file paths → public URLs.
+          # We only ping HTML pages (canonical entry points), not data/assets.
+          changed=$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')
+          echo "Changed files: $changed"
+          urls=""
+          add() { urls="$urls$1\n"; }
+          for f in $changed; do
+            case "$f" in
+              index.html) add "https://sunmaxxing.com/" ;;
+              best-rooftops-berlin/*) add "https://sunmaxxing.com/best-rooftops-berlin/" ;;
+              best-beer-gardens-berlin/*) add "https://sunmaxxing.com/best-beer-gardens-berlin/" ;;
+              best-sunset-spots-berlin/*) add "https://sunmaxxing.com/best-sunset-spots-berlin/" ;;
+              how-it-works/*) add "https://sunmaxxing.com/how-it-works/" ;;
+              berlin-sunrise-sunset-times/*) add "https://sunmaxxing.com/berlin-sunrise-sunset-times/" ;;
+              de/biergaerten-berlin/*) add "https://sunmaxxing.com/de/biergaerten-berlin/" ;;
+              de/dachterrassen-berlin/*) add "https://sunmaxxing.com/de/dachterrassen-berlin/" ;;
+              de/sonnenterrassen-berlin/*) add "https://sunmaxxing.com/de/sonnenterrassen-berlin/" ;;
+              sitemap.xml) add "https://sunmaxxing.com/sitemap.xml" ;;
+            esac
+          done
+          # Dedupe.
+          printf "$urls" | sort -u > urls.txt
+          count=$(wc -l < urls.txt | tr -d ' ')
+          echo "count=$count" >> $GITHUB_OUTPUT
+          echo "Will ping $count URL(s):"
+          cat urls.txt
+
+      - name: Ping IndexNow (Bing + Yandex)
+        if: steps.changed.outputs.count != '0'
+        run: |
+          KEY=$(cat .indexnow-key)
+          # Build JSON body.
+          urls_json=$(jq -R . < urls.txt | jq -s .)
+          body=$(jq -n \
+            --arg host sunmaxxing.com \
+            --arg key "$KEY" \
+            --arg keyLocation "https://sunmaxxing.com/${KEY}.txt" \
+            --argjson urlList "$urls_json" \
+            '{host: $host, key: $key, keyLocation: $keyLocation, urlList: $urlList}')
+          echo "$body"
+          # Bing endpoint forwards to all participating search engines.
+          curl -sS -X POST 'https://api.indexnow.org/indexnow' \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            -d "$body" \
+            -o response.txt -w 'HTTP %{http_code}\n' || true
+          cat response.txt || true

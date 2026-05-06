@@ -45,3 +45,17 @@
   Cache-Control: public, max-age=86400
 /sitemap.xml
   Cache-Control: public, max-age=86400
+
+# IndexNow host-verification key file — Bing/Yandex fetch this to confirm
+# we own the domain before accepting submitted URLs. Must be plain text
+# with body equal to the filename stem. The hex name acts as the secret;
+# the .indexnow-key file at repo root (gitignored from public serving) is
+# the source of truth used by the GitHub Action.
+/5ccb406fcb0933cee66d91f2f1a0d3a8.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+# RFC 9116 security.txt
+/.well-known/security.txt
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=86400

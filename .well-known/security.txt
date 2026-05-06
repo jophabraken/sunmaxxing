@@ -1,0 +1,6 @@
+# https://securitytxt.org/
+# Found a security issue with sunmaxxing.com? Tell us.
+Contact: mailto:hello@sunmaxxing.com
+Expires: 2027-05-06T00:00:00.000Z
+Preferred-Languages: en, de
+Canonical: https://sunmaxxing.com/.well-known/security.txt
