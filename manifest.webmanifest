@@ -1,6 +1,6 @@
 {
-  "name": "Sonne Berlin",
-  "short_name": "Sonne",
+  "name": "Sunmaxxing — Find the sun in Berlin",
+  "short_name": "Sunmaxxing",
   "description": "Live map of Berlin's sunniest terraces, rooftops, and beer gardens — weather-aware and shadow-tracked.",
   "start_url": "/",
   "scope": "/",

@@ -13,10 +13,13 @@
  * - Cross-origin       → pass through (Overpass, OSM tiles, Wikidata, weather API)
  */
 
-const SW_VERSION   = 'sonne-sw-v1';
-const SHELL_CACHE  = 'sonne-shell-v1';
-const DATA_CACHE   = 'sonne-data-v1';
-const STATIC_CACHE = 'sonne-static-v1';
+// Bumped from 'sonne-*' to 'sunmaxxing-*' on the brand consolidation. The
+// activate handler deletes any cache not in KEEP, so the old 'sonne-*' caches
+// auto-evict on first SW activate after this deploy.
+const SW_VERSION   = 'sunmaxxing-sw-v1';
+const SHELL_CACHE  = 'sunmaxxing-shell-v1';
+const DATA_CACHE   = 'sunmaxxing-data-v1';
+const STATIC_CACHE = 'sunmaxxing-static-v1';
 const KEEP = new Set([SHELL_CACHE, DATA_CACHE, STATIC_CACHE]);
 
 self.addEventListener('install', () => {

@@ -1,4 +1,4 @@
-# sunmaxxing.com — Sonne Berlin
+# sunmaxxing.com — Sunmaxxing
 
 Find the sunny terrace in Berlin, right now. Live sun-math over OpenStreetMap
 venues and building footprints.

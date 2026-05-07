@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>How Sonne Berlin Works — Live Shadow Tracking Explained | Sonne Berlin</title>
+<title>How Sunmaxxing Works — Live Shadow Tracking Explained | Sunmaxxing</title>
 
 <!-- ─── SEO ──────────────────────────────────────────────────────────────
      Technical explainer page. Serves three purposes:
@@ -12,7 +12,7 @@
         to point to when someone asks "wait how does this work?"
      3. Builds trust — the map can feel magic; this removes the magic.
      ────────────────────────────────────────────────────────────────────── -->
-<meta name="description" content="How Sonne Berlin tracks the sun across Berlin's terraces minute by minute. The data sources (OSM, Open-Meteo, SunCalc), the shadow math, and the architecture behind sunmaxxing.com.">
+<meta name="description" content="How Sunmaxxing tracks the sun across Berlin's terraces minute by minute. The data sources (OSM, Open-Meteo, SunCalc), the shadow math, and the architecture behind sunmaxxing.com.">
 <meta name="theme-color" content="#F5A623">
 <link rel="canonical" href="https://sunmaxxing.com/how-it-works/">
 <link rel="alternate" hreflang="en" href="https://sunmaxxing.com/how-it-works/">
@@ -20,18 +20,18 @@
 <meta name="robots" content="index,follow,max-image-preview:large">
 
 <meta property="og:type" content="article">
-<meta property="og:site_name" content="Sonne Berlin">
-<meta property="og:title" content="How Sonne Berlin Works — Live Shadow Tracking Explained">
+<meta property="og:site_name" content="Sunmaxxing">
+<meta property="og:title" content="How Sunmaxxing Works — Live Shadow Tracking Explained">
 <meta property="og:description" content="The data sources, shadow math, and architecture behind Berlin's live sun and terrace map.">
 <meta property="og:url" content="https://sunmaxxing.com/how-it-works/">
 <meta property="og:image" content="https://sunmaxxing.com/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Sonne Berlin — how it works.">
+<meta property="og:image:alt" content="Sunmaxxing — how it works.">
 <meta property="og:locale" content="en_US">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="How Sonne Berlin Works — Live Shadow Tracking Explained">
+<meta name="twitter:title" content="How Sunmaxxing Works — Live Shadow Tracking Explained">
 <meta name="twitter:description" content="The data, math, and architecture behind Berlin's live sun map.">
 <meta name="twitter:image" content="https://sunmaxxing.com/og-image.png">
 
@@ -47,15 +47,15 @@
 {
   "@context": "https://schema.org",
   "@type": "TechArticle",
-  "headline": "How Sonne Berlin Works — Live Shadow Tracking Explained",
-  "description": "A technical explainer: how Sonne Berlin combines OpenStreetMap geometry, Open-Meteo weather data, and SunCalc astronomical math to track sun and shade across 2,000+ Berlin terraces in real time.",
+  "headline": "How Sunmaxxing Works — Live Shadow Tracking Explained",
+  "description": "A technical explainer: how Sunmaxxing combines OpenStreetMap geometry, Open-Meteo weather data, and SunCalc astronomical math to track sun and shade across 2,000+ Berlin terraces in real time.",
   "image": "https://sunmaxxing.com/og-image.png",
   "datePublished": "2026-04-21",
   "dateModified": "2026-04-21",
-  "author": { "@type": "Organization", "name": "Sonne Berlin", "url": "https://sunmaxxing.com/" },
+  "author": { "@type": "Organization", "name": "Sunmaxxing", "url": "https://sunmaxxing.com/" },
   "publisher": {
     "@type": "Organization",
-    "name": "Sonne Berlin",
+    "name": "Sunmaxxing",
     "logo": { "@type": "ImageObject", "url": "https://sunmaxxing.com/apple-touch-icon.png" }
   },
   "mainEntityOfPage": "https://sunmaxxing.com/how-it-works/"
@@ -67,7 +67,7 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    { "@type": "ListItem", "position": 1, "name": "Sonne Berlin", "item": "https://sunmaxxing.com/" },
+    { "@type": "ListItem", "position": 1, "name": "Sunmaxxing", "item": "https://sunmaxxing.com/" },
     { "@type": "ListItem", "position": 2, "name": "How it works", "item": "https://sunmaxxing.com/how-it-works/" }
   ]
 }
@@ -183,22 +183,21 @@
 <body>
 
 <header class="site-header">
-  <a href="/" class="wordmark" aria-label="Sonne Berlin — home">
-    <span class="sonne">sonne</span>
-    <span class="berlin">berlin</span>
+  <a href="/" class="wordmark" aria-label="Sunmaxxing — home">
+    <span class="sonne">sun</span><span class="berlin">maxxing</span>
   </a>
   <a href="/" class="header-cta">Open live map</a>
 </header>
 
 <section class="hero">
   <span class="eyebrow">Technical · How it works</span> <a class="hub-link-injected" href="/guides/" style="font-size:12px;font-weight:600;color:var(--muted);text-decoration:none;margin-left:8px">All guides ↗</a>
-  <h1>How Sonne Berlin tracks the sun</h1>
+  <h1>How Sunmaxxing tracks the sun</h1>
   <p class="subtitle">A short tour of the data, the math, and the architecture behind Berlin's live sun and shadow map.</p>
 </section>
 
 <article class="doc">
 
-  <p>Sonne Berlin is a map of roughly 2,000 Berlin terraces, rooftops, and beer gardens, each one annotated with whether it's currently in the sun. Everything on the map updates every minute, with no app install and no account required. Here's what's under the hood.</p>
+  <p>Sunmaxxing is a map of roughly 2,000 Berlin terraces, rooftops, and beer gardens, each one annotated with whether it's currently in the sun. Everything on the map updates every minute, with no app install and no account required. Here's what's under the hood.</p>
 
   <h2>The question</h2>
 
@@ -268,7 +267,7 @@ return "in sun"</code></pre>
 
   <h2>What it isn't</h2>
 
-  <p>A few things Sonne Berlin is deliberately not:</p>
+  <p>A few things Sunmaxxing is deliberately not:</p>
   <ul>
     <li><strong>Not a reservation system.</strong> We don't know if a rooftop has a free table; we know if it's in the sun. Those are different questions.</li>
     <li><strong>Not a replacement for the venue's own info.</strong> Opening hours, seasonal closures, and private events come and go faster than we can track. When we say "usually open 3pm–midnight, seasonal", we mean <em>check the venue before you go</em>.</li>
@@ -277,7 +276,7 @@ return "in sun"</code></pre>
 
   <h2>Why it's free</h2>
 
-  <p>Sonne Berlin is a personal project, not a startup. There's no subscription, no ad, no account, no tracking cookie. It runs on free tiers of Cloudflare Pages, GitHub Actions, and the public APIs listed above. If it gets popular enough to hit a free-tier limit, we'll figure that out then.</p>
+  <p>Sunmaxxing is a personal project, not a startup. There's no subscription, no ad, no account, no tracking cookie. It runs on free tiers of Cloudflare Pages, GitHub Actions, and the public APIs listed above. If it gets popular enough to hit a free-tier limit, we'll figure that out then.</p>
 
 </article>
 
@@ -290,7 +289,7 @@ return "in sun"</code></pre>
 </aside>
 
 <footer>
-  <p>Built by <a href="/">Sonne Berlin</a> · <a href="/best-rooftops-berlin/">Rooftops</a> · <a href="/best-beer-gardens-berlin/">Beer gardens</a> · <a href="/best-sunset-spots-berlin/">Sunsets</a></p>
+  <p>Built by <a href="/">Sunmaxxing</a> · <a href="/best-rooftops-berlin/">Rooftops</a> · <a href="/best-beer-gardens-berlin/">Beer gardens</a> · <a href="/best-sunset-spots-berlin/">Sunsets</a></p>
   <p style="margin-top:10px;font-size:12px">Questions, corrections, or venue suggestions? Open the map and tap "suggest a place" — every bit of feedback improves the data.</p>
 </footer>
 

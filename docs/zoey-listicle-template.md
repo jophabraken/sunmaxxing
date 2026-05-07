@@ -10,7 +10,7 @@ Every listicle lives at `/<slug>/index.html`. DE variants at `/de/<slug>/index.h
 
 ```
 1. <!DOCTYPE html> + <head>
-   - <title> must include "(Live-Tracked for Sun)" or a variant. Keep brand "Sonne Berlin" at the end.
+   - <title> must include "(Live-Tracked for Sun)" or a variant. Keep brand "Sunmaxxing" at the end.
    - <meta name="description"> — 150-160 chars. Must include the primary keyword and a sun-angle hook.
    - <link rel="canonical">
    - OG + Twitter meta (reuse the exact structure from beer-gardens page)
@@ -60,7 +60,7 @@ Every listicle lives at `/<slug>/index.html`. DE variants at `/de/<slug>/index.h
 - Article.dateModified: update every time ZOEY refreshes the page.
 - ItemList: one BarOrPub (or Restaurant/CafeOrCoffeeShop depending on category) per venue, with proper address schema.
 - FAQPage: 4-6 questions that real searchers ask. Copy the question patterns from Google's "People Also Ask" for the target keyword.
-- BreadcrumbList: always 2 items — "Sonne Berlin" → page title.
+- BreadcrumbList: always 2 items — "Sunmaxxing" → page title.
 
 ## Pre-publish checklist
 
