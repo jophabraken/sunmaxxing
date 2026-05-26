@@ -127,6 +127,59 @@
 }
 </script>
 
+<!-- FAQPage schema — pairs with the FAQ <details> blocks lower down on the
+     page. Both EN and DE FAQs are included here; Google picks the one
+     that matches the page's inLanguage. Eligible for "FAQ" rich snippets
+     in SERP, which roughly double CTR for branded queries. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "When does the sun set in Berlin today?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Berlin's sunset time changes a lot through the year — from around 16:00 in mid-December to nearly 21:30 in late June. Current daily sunrise and sunset times for Berlin live at sunmaxxing.com/berlin-sunrise-sunset-times/."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What's the difference between a Biergarten and a Sonnenterrasse?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "A Biergarten is the Bavarian tradition — usually shaded by old chestnut trees, often serving traditional German food. A Sonnenterrasse (sun terrace) is any outdoor terrace deliberately oriented to catch the sun. Sunmaxxing maps both."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why is a terrace I know to be sunny showing as in shadow?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Two common reasons: cloud cover (Open-Meteo overcast conditions override the geometry call) or geometry gaps in OpenStreetMap data. The data improves every night."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Sunmaxxing work outside Berlin?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Right now Sunmaxxing covers Berlin only — inner ring including Mitte, Kreuzberg, Prenzlauer Berg, Friedrichshain, Neukölln, Charlottenburg, stretching to Tempelhofer Feld and along the Spree."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Sunmaxxing free?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Free, no ads, no account, no app to install. Runs entirely in the browser."
+      }
+    }
+  ]
+}
+</script>
+
 <!-- Google Search Console verification. Once you've added sunmaxxing.com
      as a property in search.google.com/search-console, Google will give
      you a verification meta tag — paste its `content` value below and
@@ -1676,6 +1729,42 @@
 </style>
 </head>
 <body>
+
+<script>
+// ─── SEO canonical/title/meta swap for /de/ ───────────────────────────
+// /de/ shares index.html with / via a Cloudflare Pages rewrite. The static
+// head tags target English (canonical, og:url, title, lang). Without this
+// inline swap, Googlebot crawling /de/ sees a canonical pointing to / and
+// treats the German page as a non-indexable alternate. Result: the entire
+// German homepage gets no SEO equity.
+//
+// This runs before any other JS so Googlebot sees the corrected meta tags
+// on first paint. The main app's setLang() handles the visible UI later.
+(function () {
+  var p = location.pathname;
+  if (p !== '/de/' && p !== '/de') return;
+
+  function set(sel, attr, val) {
+    var el = document.querySelector(sel);
+    if (el) el.setAttribute(attr, val);
+  }
+
+  var DE_TITLE = 'Sunmaxxing — Sonne in Berlin finden | Sonnenterrassen, Biergärten, Dachterrassen';
+  var DE_DESC  = 'Sonne in Berlin finden — Live-Karte der sonnigsten Terrassen, Dachterrassen und Biergärten. Wetter-aware, schatten-getrackt, jede Minute aktualisiert. Kostenlos, ohne App.';
+
+  set('link[rel="canonical"]', 'href', 'https://sunmaxxing.com/de/');
+  set('meta[property="og:url"]', 'content', 'https://sunmaxxing.com/de/');
+  set('meta[property="og:locale"]', 'content', 'de_DE');
+  set('meta[property="og:locale:alternate"]', 'content', 'en_US');
+  set('meta[property="og:title"]', 'content', DE_TITLE);
+  set('meta[name="twitter:title"]', 'content', DE_TITLE);
+  set('meta[name="description"]', 'content', DE_DESC);
+  set('meta[property="og:description"]', 'content', DE_DESC);
+  set('meta[name="twitter:description"]', 'content', DE_DESC);
+  document.title = DE_TITLE;
+  document.documentElement.lang = 'de';
+})();
+</script>
 
 <div class="app">
 
@@ -5621,6 +5710,106 @@ if ('serviceWorker' in navigator &&
   });
 }
 </script>
+
+<!-- ─── On-page SEO content ─────────────────────────────────────────────
+     The main app fills the viewport so this content lives below fold for
+     users, but it's plain semantic HTML that Googlebot reads first-pass.
+     Without it, the homepage is a SPA shell with ~1.5KB of static text,
+     which Google flags as Soft 404 in Search Console.
+     EN and DE versions are mutually exclusive — html[lang] toggles which
+     one is visible, switched by the inline meta-swap script above and the
+     i18n system in the main JS bundle.
+     ────────────────────────────────────────────────────────────────── -->
+<section class="seo-content" id="seo-content">
+  <!-- ENGLISH ▼ -->
+  <div lang="en" class="seo-content-en">
+    <h1>Find the sun in Berlin</h1>
+    <p class="seo-lede">Sunmaxxing is a free, live map of every sunny terrace, rooftop, beer garden, and brunch spot in Berlin. Every minute, we calculate which of Berlin's 2,800+ outdoor venues are currently in direct sunlight — using OpenStreetMap building geometry, the sun's exact position, and the current weather. No app install. No signup. Just open the map and find a sunny seat.</p>
+
+    <h2>Where to sunmaxx in Berlin right now</h2>
+    <p>Berlin's outdoor scene clusters into a handful of clearly defined types — and each one catches the sun differently. <a href="/best-rooftops-berlin/"><strong>Rooftop bars</strong></a> like Klunkerkranich, Monkey Bar, and Hotel Amano sit above the city's shadow line and stay sunny long after the streets go dark. <a href="/best-beer-gardens-berlin/"><strong>Beer gardens (Biergärten)</strong></a> are the city's most reliable summer institution — Café am Neuen See, Prater, and Schleusenkrug all run from midday well into the evening, with most of their tables in full sun until at least 19:00 in June and July.</p>
+    <p>If you're after breakfast in the sun, <a href="/brunch-berlin/"><strong>brunch spots with outdoor seating</strong></a> across Kreuzberg, Mitte, and Prenzlauer Berg open from around 9 a.m. and catch the morning light. And for golden hour, the <a href="/best-sunset-spots-berlin/"><strong>best sunset spots in Berlin</strong></a> — the canal at the Oberbaumbrücke, the hill at Viktoriapark, the dome at Tempelhofer Feld — face west and are made for slowing down at the end of the day.</p>
+
+    <h2>How Sunmaxxing tracks the sun</h2>
+    <p>Each venue on the map is annotated with whether it's currently in direct sunlight, based on three inputs: the building geometry around it (from OpenStreetMap), the sun's exact azimuth and altitude right now (computed with SunCalc), and the current cloud cover at that location (from Open-Meteo). The result updates every minute on the map and ahead of time — drag the time slider to see exactly when a terrace falls into shadow later today. Full technical explainer: <a href="/how-it-works/">how Sunmaxxing works</a>.</p>
+
+    <h2>Frequently asked questions</h2>
+    <details>
+      <summary>When does the sun set in Berlin today?</summary>
+      <p>Berlin's sunset time changes a lot through the year — from around 16:00 in mid-December to nearly 21:30 in late June. Current daily sunrise and sunset times for Berlin, plus the best places to watch them, live at <a href="/berlin-sunrise-sunset-times/">Berlin sunrise &amp; sunset times</a>.</p>
+    </details>
+    <details>
+      <summary>What's the difference between a Biergarten and a Sonnenterrasse?</summary>
+      <p>A <em>Biergarten</em> is the Bavarian tradition — usually shaded by old chestnut trees, often serving traditional German food, culturally made for long, lazy sessions. A <em>Sonnenterrasse</em> (sun terrace) is any outdoor terrace deliberately oriented to catch the sun — a café terrace facing south, a rooftop bar, the deck of a Spree-side restaurant. Sunmaxxing maps both, and you can filter between them using the chips at the top of the map.</p>
+    </details>
+    <details>
+      <summary>Why is a terrace I know to be sunny showing as in shadow?</summary>
+      <p>Two common reasons. First, cloud cover: when Open-Meteo reports overcast conditions, no terrace is in direct sun even if the geometry would otherwise allow it. Second, geometry gaps: OpenStreetMap building outlines are crowdsourced and occasionally miss a small structure (a kiosk, a pergola, a temporary stage) that's casting real shadow. The data improves every night.</p>
+    </details>
+    <details>
+      <summary>Does Sunmaxxing work outside Berlin?</summary>
+      <p>Right now Sunmaxxing covers Berlin only — the inner ring of the city including Mitte, Kreuzberg, Prenzlauer Berg, Friedrichshain, Neukölln, and Charlottenburg, stretching out to Tempelhofer Feld and along the Spree. Expanding to other cities is on the roadmap.</p>
+    </details>
+    <details>
+      <summary>Is Sunmaxxing free?</summary>
+      <p>Yes. Sunmaxxing is free, has no ads, no account, and no app to install. It runs entirely in your browser.</p>
+    </details>
+  </div>
+
+  <!-- GERMAN ▼ -->
+  <div lang="de" class="seo-content-de">
+    <h1>Sonne in Berlin finden</h1>
+    <p class="seo-lede">Sunmaxxing ist eine kostenlose, live aktualisierte Karte aller sonnigen Terrassen, Dachterrassen, Biergärten und Brunch-Spots in Berlin. Jede Minute berechnet die Seite, welche von Berlins 2.800+ Außenplätzen gerade in der Sonne stehen — auf Basis der Gebäudegeometrie aus OpenStreetMap, dem genauen Sonnenstand und der aktuellen Wettervorhersage. Keine App, keine Anmeldung. Karte öffnen, sonnigen Platz finden.</p>
+
+    <h2>Wo gerade Sonne ist in Berlin</h2>
+    <p>Berlins Outdoor-Szene teilt sich in klar erkennbare Typen — und jeder fängt die Sonne anders ein. <a href="/de/dachterrassen-berlin/"><strong>Dachterrassen</strong></a> wie Klunkerkranich, Monkey Bar oder Hotel Amano stehen über der Schattengrenze der Stadt und bleiben lange in der Abendsonne. <a href="/de/biergaerten-berlin/"><strong>Biergärten</strong></a> sind Berlins zuverlässigste Sommerinstitution — Café am Neuen See, Prater und Schleusenkrug laufen vom Mittag bis spät in den Abend, und die meisten Tische stehen im Juni und Juli bis mindestens 19 Uhr in voller Sonne.</p>
+    <p>Für Frühstück in der Sonne: <a href="/de/fruehstueck-berlin/"><strong>Frühstückslokale mit Außenplätzen</strong></a> in Kreuzberg, Mitte, Prenzlauer Berg, Neukölln und Friedrichshain öffnen ab etwa 9 Uhr und fangen das Morgenlicht ein. Und für die echten <a href="/de/sonnenterrassen-berlin/"><strong>Sonnenterrassen</strong></a> der Stadt — vom Spreeufer an der Oberbaumbrücke bis zum Hang im Viktoriapark, alle nach Westen ausgerichtet, gemacht für den langsamen Abend.</p>
+
+    <h2>Wie Sunmaxxing die Sonne verfolgt</h2>
+    <p>Jeder Ort auf der Karte ist damit beschriftet, ob gerade direkte Sonne dort scheint — basierend auf drei Quellen: der Gebäudegeometrie drumherum (aus OpenStreetMap), dem genauen Sonnenstand jetzt (berechnet mit SunCalc) und der aktuellen Bewölkung an genau diesem Punkt (von Open-Meteo). Das Ergebnis aktualisiert sich jede Minute — und mit dem Zeitregler kannst du vorausschauen, wann eine bestimmte Terrasse heute in den Schatten fällt. Technischer Hintergrund: <a href="/how-it-works/">how Sunmaxxing works</a>.</p>
+
+    <h2>Häufig gestellte Fragen</h2>
+    <details>
+      <summary>Wann geht heute in Berlin die Sonne unter?</summary>
+      <p>Berlins Sonnenuntergang variiert stark übers Jahr — von etwa 16:00 Uhr Mitte Dezember bis kurz vor 21:30 Uhr Ende Juni. Aktuelle Sonnenauf- und -untergangszeiten für Berlin, samt der besten Aussichtspunkte: <a href="/berlin-sunrise-sunset-times/">Berlin sunrise &amp; sunset times</a>.</p>
+    </details>
+    <details>
+      <summary>Was ist der Unterschied zwischen einem Biergarten und einer Sonnenterrasse?</summary>
+      <p>Ein <em>Biergarten</em> ist eine bayerische Tradition — meistens unter alten Kastanien, mit deutscher Küche, gemacht für lange Sommerabende. Eine <em>Sonnenterrasse</em> ist jede Außenterrasse, die bewusst auf Sonne ausgerichtet ist — Café-Terrasse nach Süden, Dachbar, Spree-Restaurant. Sunmaxxing zeigt beides; per Filter-Chip oben auf der Karte kannst du zwischen den Kategorien wechseln.</p>
+    </details>
+    <details>
+      <summary>Warum zeigt mir eine bekannte sonnige Terrasse Schatten an?</summary>
+      <p>Zwei Gründe sind häufig. Erstens Bewölkung: wenn Open-Meteo bedeckten Himmel meldet, ist keine Terrasse in direkter Sonne, auch wenn die Geometrie sie zuließe. Zweitens Lücken in den Daten: OpenStreetMap-Gebäudeumrisse sind crowdsourced und übersehen manchmal kleinere Strukturen (Kiosk, Pergola, temporäre Bühne), die echten Schatten werfen. Die Daten verbessern sich täglich.</p>
+    </details>
+    <details>
+      <summary>Funktioniert Sunmaxxing auch außerhalb Berlins?</summary>
+      <p>Im Moment deckt Sunmaxxing nur Berlin ab — den inneren Ring der Stadt mit Mitte, Kreuzberg, Prenzlauer Berg, Friedrichshain, Neukölln, Charlottenburg und bis zum Tempelhofer Feld und entlang der Spree. Andere Städte sind in Planung.</p>
+    </details>
+    <details>
+      <summary>Ist Sunmaxxing kostenlos?</summary>
+      <p>Ja. Sunmaxxing ist kostenlos, ohne Werbung, ohne Account, ohne App. Läuft komplett im Browser.</p>
+    </details>
+  </div>
+</section>
+<style>
+  .seo-content{max-width:760px;margin:30px auto 0;padding:0 24px;color:var(--text);font-size:15px;line-height:1.7}
+  .seo-content h1{font-size:32px;font-weight:800;line-height:1.15;margin:0 0 18px;letter-spacing:-0.01em}
+  .seo-content h2{font-size:22px;font-weight:700;line-height:1.3;margin:36px 0 12px;letter-spacing:-0.005em}
+  .seo-content .seo-lede{font-size:17px;line-height:1.55;color:var(--muted)}
+  .seo-content p{margin:0 0 14px}
+  .seo-content a{color:var(--text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+  .seo-content a:hover{color:var(--sun)}
+  .seo-content details{margin:10px 0;padding:12px 14px;background:var(--card,#fff);border:1px solid var(--border);border-radius:8px}
+  .seo-content details summary{cursor:pointer;font-weight:600;list-style:none}
+  .seo-content details summary::-webkit-details-marker{display:none}
+  .seo-content details summary::after{content:"›";float:right;transition:transform 0.18s ease;color:var(--muted)}
+  .seo-content details[open] summary::after{transform:rotate(90deg)}
+  .seo-content details > *:not(summary){margin-top:10px}
+  /* Language toggle: only one block is visible at a time */
+  html[lang="en"] .seo-content-de{display:none}
+  html[lang="de"] .seo-content-en{display:none}
+  @media (max-width:640px){.seo-content{padding:0 16px;font-size:14px}.seo-content h1{font-size:26px}.seo-content h2{font-size:19px}}
+</style>
 
 <!-- ─── SEO footer — crawlable internal links ──────────────────────────
      The main UI fills the viewport (map + list) so this sits below fold
