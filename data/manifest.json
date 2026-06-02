@@ -1,8 +1,8 @@
 {
-  "bakedAt": "2026-06-01T09:41:38.762Z",
-  "bakeDate": "2026-06-01",
-  "windowsBakedAt": "2026-06-01T09:41:38.762Z",
-  "rooftopsBakedAt": "2026-06-01T09:41:22.676Z",
+  "bakedAt": "2026-06-02T08:45:42.673Z",
+  "bakeDate": "2026-06-02",
+  "windowsBakedAt": "2026-06-02T08:45:42.672Z",
+  "rooftopsBakedAt": "2026-06-02T08:45:26.168Z",
   "bbox": {
     "south": 52.44,
     "west": 13.24,
@@ -22,11 +22,11 @@
     "east": 13.585
   },
   "venues": {
-    "count": 4372
+    "count": 4371
   },
   "buildings": {
-    "count": 240116,
-    "deployCount": 47962,
+    "count": 240122,
+    "deployCount": 47959,
     "tileCoverage": {
       "okTiles": 49,
       "totalTiles": 49
