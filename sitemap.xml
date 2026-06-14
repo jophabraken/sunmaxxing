@@ -168,6 +168,70 @@
     <priority>0.85</priority>
   </url>
 
+  <!-- EN neighborhood pages — long-tail mirrors of the DE strategy.
+       Generated via scripts/generate-en-neighborhoods.py.
+       Rooftops, beer gardens, brunch × neighborhood, hand-written content. -->
+  <url>
+    <loc>https://sunmaxxing.com/best-rooftops-mitte/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/best-rooftops-neukolln/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/best-rooftops-friedrichshain/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/best-beer-gardens-kreuzberg/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/best-beer-gardens-prenzlauer-berg/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/best-beer-gardens-mitte/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/brunch-kreuzberg/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/brunch-mitte/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/brunch-prenzlauer-berg/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://sunmaxxing.com/brunch-neukolln/</loc>
+    <lastmod>2026-05-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
   <!-- Neighborhood-level DE biergarten pages — long-tail (~4,360/mo combined,
        individual KD 24-30). Generated via scripts/generate-de-neighborhoods.py. -->
   <url>
