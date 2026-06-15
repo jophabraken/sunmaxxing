@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Add jop@almedia.co contact link to all listicle/neighborhood page footers.
+Add jophabraken@gmail.com contact link to all listicle/neighborhood page footers.
 
 Patterns:
-- EN pages: '<p>Built by <a href="/">Sunmaxxing</a> · ...</p>' → append '· <a href="mailto:jop@almedia.co">Contact</a>'
-- DE pages: '<p>Gebaut von <a href="/de/">Sunmaxxing</a> · ...</p>' → append '· <a href="mailto:jop@almedia.co">Kontakt</a>'
+- EN pages: '<p>Built by <a href="/">Sunmaxxing</a> · ...</p>' → append '· <a href="mailto:jophabraken@gmail.com">Contact</a>'
+- DE pages: '<p>Gebaut von <a href="/de/">Sunmaxxing</a> · ...</p>' → append '· <a href="mailto:jophabraken@gmail.com">Kontakt</a>'
 
 Homepage (index.html) is handled separately because it uses a different
 seo-footer structure (link list + blurb), and gets a dedicated Contact
@@ -24,8 +24,8 @@ DE_PATTERN = re.compile(
     re.IGNORECASE
 )
 
-EN_REPLACEMENT = r'\1 · <a href="mailto:jop@almedia.co">Contact</a></p>'
-DE_REPLACEMENT = r'\1 · <a href="mailto:jop@almedia.co">Kontakt</a></p>'
+EN_REPLACEMENT = r'\1 · <a href="mailto:jophabraken@gmail.com">Contact</a></p>'
+DE_REPLACEMENT = r'\1 · <a href="mailto:jophabraken@gmail.com">Kontakt</a></p>'
 
 changes = []
 for path in sorted(ROOT.glob("**/*.html")):
@@ -38,7 +38,7 @@ for path in sorted(ROOT.glob("**/*.html")):
     original = text
 
     # Skip if already has the contact link
-    if 'mailto:jop@almedia.co' in text:
+    if 'mailto:jophabraken@gmail.com' in text:
         continue
 
     new_text, en_n = EN_PATTERN.subn(EN_REPLACEMENT, text)

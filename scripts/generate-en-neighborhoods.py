@@ -724,7 +724,7 @@ def render_page(p: dict) -> str:
 </section>
 
 <footer>
-  <p>Built by <a href="/">Sunmaxxing</a> · <a href="{cat_meta['parent_url']}">All {cat_meta['category_label'].lower()} in Berlin</a> · <a href="mailto:jop@almedia.co">Contact</a></p>
+  <p>Built by <a href="/">Sunmaxxing</a> · <a href="{cat_meta['parent_url']}">All {cat_meta['category_label'].lower()} in Berlin</a> · <a href="mailto:jophabraken@gmail.com">Contact</a></p>
   <p style="margin-top:8px;font-size:12px">Opening hours and availability change seasonally. Check directly with the venue before you head over.</p>
 </footer>
 
