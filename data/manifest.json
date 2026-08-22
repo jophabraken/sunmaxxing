@@ -1,8 +1,8 @@
 {
-  "bakedAt": "2026-08-21T04:30:00.874Z",
-  "bakeDate": "2026-08-21",
-  "windowsBakedAt": "2026-08-21T04:30:00.873Z",
-  "rooftopsBakedAt": "2026-08-21T04:29:48.137Z",
+  "bakedAt": "2026-08-22T04:26:08.679Z",
+  "bakeDate": "2026-08-22",
+  "windowsBakedAt": "2026-08-22T04:26:08.678Z",
+  "rooftopsBakedAt": "2026-08-22T04:25:54.870Z",
   "bbox": {
     "south": 52.44,
     "west": 13.24,
@@ -25,8 +25,8 @@
     "count": 4401
   },
   "buildings": {
-    "count": 240292,
-    "deployCount": 47984,
+    "count": 240295,
+    "deployCount": 47987,
     "tileCoverage": {
       "okTiles": 49,
       "totalTiles": 49
