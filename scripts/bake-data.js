@@ -901,9 +901,9 @@ if (require.main === module) (async () => {
     hzAgeDays = (Date.now() - Date.parse(hz.bakedAt)) / 86400000;
   } catch {}
   const haveShadowTiles = fs.existsSync(path.join(OUT_DIR, 'shadows', 'index.json'));
-  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS && haveShadowTiles){
-    console.log(`▸ Light run: horizons.json is ${hzAgeDays.toFixed(1)} days old ` +
-                `(< ${HORIZON_REFRESH_DAYS}) — skipping buildings + shadow bake`);
+  // Writes venues + rooftops + manifest only; keeps horizons/shadows as they are.
+  const writeLight = (why) => {
+    console.log(`▸ Light run: ${why} — skipping buildings + shadow bake`);
     const rooftopsLight = bakeRooftops(venues, supplement);
     if (rooftopsLight.supplementAdded && rooftopsLight.supplementAdded.length){
       venues.elements = [...(venues.elements || []), ...rooftopsLight.supplementAdded];
@@ -923,11 +923,30 @@ if (require.main === module) (async () => {
     fs.writeFileSync(manifestPathEarly, JSON.stringify(manifestLight, null, 2));
     console.log(`\n✓ Light bake: ${manifestLight.venues.count} venues, ` +
                 `${rooftopsLight.matchedCount}/${rooftopsLight.curatedCount} rooftops matched`);
+  };
+  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS && haveShadowTiles){
+    writeLight(`horizons.json is ${hzAgeDays.toFixed(1)} days old (< ${HORIZON_REFRESH_DAYS})`);
     return;
   }
   console.log(`▸ Full run: horizons.json age ${isFinite(hzAgeDays) ? hzAgeDays.toFixed(1) + ' days' : 'unknown'}`);
 
-  const buildings  = await bakeBuildings();
+  // Overpass can be very slow. The whole Actions job has a 45-minute limit
+  // and a timed-out job deploys nothing, so cap the building fetch at 28 min:
+  // if it's slower, do a light run today (site keeps last month's horizons +
+  // shadows, which stay valid) and the next nightly run tries again.
+  let buildings, capTimer;
+  try {
+    buildings = await Promise.race([
+      bakeBuildings(),
+      new Promise((_, rej) => { capTimer = setTimeout(() => rej(new Error('building fetch exceeded 28 min')), 28 * 60 * 1000); }),
+    ]);
+    clearTimeout(capTimer);
+  } catch (e){
+    clearTimeout(capTimer);
+    if (!fs.existsSync(path.join(OUT_DIR, 'horizons.json'))) throw e;
+    writeLight(e.message);
+    process.exit(0);
+  }
 
   // Two distinct building sets live on from bakeBuildings():
   //   · buildingsCompute — full set across BBOX_BUILDINGS_COMPUTE. Used for

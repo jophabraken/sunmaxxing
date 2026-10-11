@@ -159,6 +159,7 @@ function decodeHorizon(str, bins){
 const WIN = {};
 function windows(day = ST.day){
   if (WIN[day]) return WIN[day];
+  if (!VEN.length || !HZ) return [];          // not loaded yet — don't cache an empty result
   const st = sunTimes(day), step = 5, steps = [];
   if (HZ) for (let m = Math.ceil(st.rise / step) * step; m <= st.set; m += step){
     const p = sunPos(m, day), az = p.azimuth * 180 / Math.PI, alt = p.altitude * 180 / Math.PI;
@@ -265,7 +266,7 @@ const CanvasLayer = L.Layer.extend({
 // ─── Shadows ───────────────────────────────────────────────────────────────
 const SH = { index: null, tiles: new Map(), z: 15 };
 async function loadShadowIndex(){
-  try { const r = await fetch('/data/shadows/index.json'); const j = await r.json(); SH.index = new Set(j.tiles.map(([x, y]) => x + '/' + y)); SH.z = j.z || 15; }
+  try { const r = await fetch('/data/shadows/index.json', { cache: 'no-cache' }); const j = await r.json(); SH.index = new Set(j.tiles.map(([x, y]) => x + '/' + y)); SH.z = j.z || 15; }
   catch { SH.index = new Set(); }
 }
 function loadShadowTile(key){
@@ -702,6 +703,7 @@ setInterval(() => {
   const roofs = new Set(rt?.ids || []);
   HZ = hz;
   VEN.forEach((v, i) => { v.i = i; v.roof = roofs.has(v.id); v.hz = HZ && v.id in HZ.h ? decodeHorizon(HZ.h[v.id], HZ.bins) : null; });
+  for (const k in WIN) delete WIN[k];
   render();
   $('loading').classList.add('done');
   loadWeather().then(render);
