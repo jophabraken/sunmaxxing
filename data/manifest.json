@@ -1,8 +1,8 @@
 {
-  "bakedAt": "2026-10-11T14:59:23.676Z",
+  "bakedAt": "2026-10-11T19:27:34.928Z",
   "bakeDate": "2026-10-11",
   "windowsBakedAt": "2026-10-11T14:59:23.395Z",
-  "rooftopsBakedAt": "2026-10-11T14:59:15.692Z",
+  "rooftopsBakedAt": "2026-10-11T19:27:34.928Z",
   "bbox": {
     "south": 52.44,
     "west": 13.24,
@@ -32,5 +32,6 @@
       "totalTiles": 49
     }
   },
-  "version": 2
+  "version": 2,
+  "lastRun": "light"
 }
