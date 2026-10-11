@@ -172,6 +172,18 @@ function decodeHorizon(str, bins){
   for (const run of str.split(';')){ const s = run.indexOf('*'); const v = parseInt(s < 0 ? run : run.slice(0, s), 16), n = s < 0 ? 1 : parseInt(run.slice(s + 1), 16); out.fill(v, k, k + n); k += n; }
   return out;
 }
+const D64 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-';
+function decodeD64(str, bins){
+  const out = new Uint8Array(bins); if (!str) return out;
+  let prev = 0, k = 0;
+  for (let i = 0; i < str.length && k < bins; ){
+    const c = str[i];
+    if (c === '_'){ prev = parseInt(str.substr(i + 1, 2), 16); i += 3; }
+    else { prev += D64.indexOf(c) - 31; i++; }
+    out[k++] = prev;
+  }
+  return out;
+}
 // Sun windows per venue for a day, in minutes after Berlin midnight. Cached.
 const WIN = {};
 function windows(day = ST.day){
@@ -206,8 +218,18 @@ function vstate(v, min = ST.min, day = ST.day){
   return { known: true, W, win, geo: !!win, sunny: !!win && !cl, cloudy: cl, left, next };
 }
 // opening hours (library loads deferred)
+// The opening-hours parser (+ its i18next dependency, ~290 KB) is only loaded
+// when something needs it: a terrace page with hours, or the "Open now" chip.
+let hoursLoading = null;
+function ensureHours(){
+  if (window.opening_hours || hoursLoading) return hoursLoading;
+  const add = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  hoursLoading = add('/vendor/i18next.min.js').then(() => add('/vendor/opening_hours.min.js')).then(() => render()).catch(() => { hoursLoading = null; });
+  return hoursLoading;
+}
 function isOpen(v, ms){
-  if (!v.hoursStr || !window.opening_hours) return null;
+  if (!v.hoursStr) return null;
+  if (!window.opening_hours){ ensureHours(); return null; }
   try { if (v.oh === undefined) v.oh = new opening_hours(v.hoursStr, { lat: v.lat, lon: v.lng, address: { country_code: 'de', state: 'Berlin' } }); return v.oh ? v.oh.getState(new Date(ms)) : null; }
   catch { v.oh = null; return null; }
 }
@@ -323,6 +345,12 @@ const shadowLayer = new CanvasLayer('shadowPane', (ctx, v) => {
   const keys = [];
   for (let tx = toT(x0) - 1; tx <= toT(x1) + 1; tx++) for (let ty = toT(y0) - 1; ty <= toT(y1) + 1; ty++){ const k = tx + '/' + ty; if (SH.index.has(k)) keys.push(k); }
   if (keys.length > 40) return;
+  // Fetch what's on screen first; the surrounding ring (shadows cast in from
+  // neighbours) only once those have arrived.
+  const cx0 = toT(x0), cx1 = toT(x1), cy0 = toT(y0), cy1 = toT(y1);
+  const core = keys.filter(k => { const [tx, ty] = k.split('/').map(Number); return tx >= cx0 && tx <= cx1 && ty >= cy0 && ty <= cy1; });
+  core.forEach(loadShadowTile);
+  if (core.every(k => SH.tiles.get(k))) keys.forEach(loadShadowTile);
   const X = x => x * v.S - v.ox, Y = y => y * v.S - v.oy;
   const shadows = new Path2D(), roofs = new Path2D();
   const up = alt > 0.01 && !cl;
@@ -340,7 +368,7 @@ const shadowLayer = new CanvasLayer('shadowPane', (ctx, v) => {
   if (SH.vkey !== vkey){
     SH.vkey = vkey; SH.vis = [];
     for (const k of keys){
-      const t = loadShadowTile(k); if (!t) continue;
+      const t = SH.tiles.get(k); if (!t) continue;
       for (const b of t.blds){
         const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
         if (bx1 < -margin || bx0 > v.W + margin || by1 < -margin || by0 > v.H + margin) continue;
@@ -850,16 +878,28 @@ setInterval(() => {
 (async () => {
   document.documentElement.lang = LANG;
   document.body.dataset.sheet = 'peek';
-  const [vj, hz, rt] = await Promise.all([
-    fetch('/data/venues.json').then(r => r.json()),
-    fetch('/data/horizons.json').then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch('/data/rooftops-today.json').then(r => r.ok ? r.json() : null).catch(() => null),
-    loadShadowIndex(),
-  ]);
-  VEN = parseVenues(vj);
-  const roofs = new Set(rt?.ids || []);
-  HZ = hz;
-  VEN.forEach((v, i) => { v.i = i; v.roof = roofs.has(v.id); v.hz = HZ && v.id in HZ.h ? decodeHorizon(HZ.h[v.id], HZ.bins) : null; });
+  const [pj] = await Promise.all([window.__places || fetch('/data/places.json').then(r => r.ok ? r.json() : null).catch(() => null), loadShadowIndex()]);
+  if (pj && pj.p && pj.hz){
+    // places.json: one compact file with terrace positions + horizon profiles
+    HZ = pj.hz;
+    VEN = pj.p.map(([id, name, lat, lng, a, cuisine, street, hn, hours, web, roof, img, commons, wd, hz]) => {
+      const [x0, y0] = P0(lat, lng);
+      return { id, name, lat, lng, x0, y0, a, cuisine: (cuisine || '').split(';')[0].replace(/_/g, ' '), street, hn, hoursStr: hours, web,
+        roof: !!roof, img, commons, wd, hz: hz == null ? null : decodeD64(hz, HZ.bins) };
+    });
+  } else {
+    // Legacy files (until the data job has produced places.json)
+    const [vj, hz, rt] = await Promise.all([
+      fetch('/data/venues.json').then(r => r.json()),
+      fetch('/data/horizons.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/data/rooftops-today.json').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    VEN = parseVenues(vj);
+    const roofs = new Set(rt?.ids || []);
+    HZ = hz;
+    VEN.forEach(v => { v.roof = roofs.has(v.id); v.hz = HZ && v.id in HZ.h ? decodeHorizon(HZ.h[v.id], HZ.bins) : null; });
+  }
+  VEN.forEach((v, i) => { v.i = i; });
   for (const k in WIN) delete WIN[k];
   VBY = new Map(VEN.map(v => [v.id, v]));
   render();

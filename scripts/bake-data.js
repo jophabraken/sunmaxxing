@@ -593,26 +593,67 @@ function horizonProfile(xy, bldgs){
   return runs.join(';');
 }
 
+// Terrace position. OSM usually puts a café's node INSIDE its building, and
+// shade maths can't use that point: its own building would be ignored, so a
+// terrace on the building's shady side would come out sunny (measured: ~2/3
+// of terraces sit inside their footprint; median error in June ≈ 2.5 h).
+// We move the point 3 m outside the nearest wall that opens onto real open
+// space (≥ 20 m clear in front — a street or square, not a party wall or a
+// light well), and then count every building, including its own.
+const inPoly = (x, y, P) => pointInPoly(x, y, P);
+function terracePoint(xy, local){
+  const [x, y] = xy;
+  const own = local.find(b => inPoly(x, y, b.poly));
+  if (!own) return null;
+  const P = own.poly, cands = [];
+  for (let i = 0; i < P.length; i++){
+    const [ax, ay] = P[i], [bx, by] = P[(i + 1) % P.length];
+    const ex = bx - ax, ey = by - ay, L = Math.hypot(ex, ey);
+    if (L < 1.5) continue;
+    let t = ((x - ax) * ex + (y - ay) * ey) / (L * L); t = Math.max(0.1, Math.min(0.9, t));
+    const px = ax + t * ex, py = ay + t * ey;
+    let nx = ey / L, ny = -ex / L;
+    if (inPoly(px + nx * 0.5, py + ny * 0.5, P)){ nx = -nx; ny = -ny; }
+    const cx = px + nx * 3, cy = py + ny * 3;
+    if (local.some(o => inPoly(cx, cy, o.poly))) continue;          // party wall
+    let free = 40;
+    for (let s = 4; s <= 40; s += 2) if (local.some(o => inPoly(px + nx * s, py + ny * s, o.poly))){ free = s; break; }
+    cands.push({ x: cx, y: cy, d: Math.hypot(px - x, py - y), free });
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) => a.d - b.d);
+  return cands.find(c => c.free >= 20) || cands[0];
+}
+function fromMeters(x, y){
+  const latRad = CENTER[0] * Math.PI / 180;
+  return [+(CENTER[0] + y / 111320).toFixed(6), +(CENTER[1] + x / (Math.cos(latRad) * 111320)).toFixed(6)];
+}
+
 function bakeHorizons(venuesJson, buildingsJson){
   console.log('▸ Baking horizon profiles…');
   const bldgs = preprocessBuildings(buildingsJson.elements || []);
   const venues = dedupeVenues(venuesJson.elements);
   const grid = buildBuildingGrid(bldgs);
   const QUERY_RADIUS_M = MAX_SHADOW_SEARCH_RADIUS + 150;
-  const profiles = {};
+  const profiles = {}, terrace = {};
+  let moved = 0;
   const t0 = Date.now();
   for (let i = 0; i < venues.length; i++){
     const v = venues[i];
     const xy = toMeters(v.lat, v.lng);
     const local = buildingsNearPoint(grid, xy[0], xy[1], QUERY_RADIUS_M);
-    profiles[v.id] = horizonProfile(xy, local);
+    const tp = terracePoint(xy, local);
+    if (tp){ terrace[v.id] = fromMeters(tp.x, tp.y); moved++; }
+    profiles[v.id] = horizonProfile(tp ? [tp.x, tp.y] : xy, local);
     if ((i+1) % 500 === 0 || i+1 === venues.length){
       console.log(`  horizons: ${i+1}/${venues.length} (${((Date.now()-t0)/1000).toFixed(0)}s)`);
     }
   }
+  console.log(`  terrace points moved out of their building: ${moved}/${venues.length}`);
   return {
-    v: 2,
+    v: 3,
     bakedAt: new Date().toISOString(),
+    tp: terrace,
     azMinDeg: HZ_AZ_MIN_DEG,
     binDeg: HZ_BIN_DEG,
     bins: HZ_BINS,
@@ -854,6 +895,51 @@ function bakeRooftops(venuesJson, supplementJson){
   };
 }
 
+// ─── places.json (what the app loads) ───────────────────────────────────────
+// One compact file: only the fields the app shows, terrace position, and the
+// horizon profile. ~6× smaller than venues.json + horizons.json together.
+// Row: [id, name, lat, lng, amenity, cuisine, street, housenumber, opening_hours,
+//       website, rooftop(0/1), image, wikimedia_commons, wikidata, horizon|null]
+// Horizon profiles for the app, delta-encoded: one char per 2° bin holding the
+// change from the previous bin (−31…+31 → '0'…'-'), '_'+2 hex for bigger jumps.
+// Neighbouring bins are usually within a few half-degrees, so this gzips far
+// better than the run-length form in horizons.json.
+const D64 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-';
+function rleToBytes(str, bins){
+  const out = new Array(bins).fill(0); if (!str) return out;
+  let k = 0;
+  for (const run of str.split(';')){ const i = run.indexOf('*'); const v = parseInt(i < 0 ? run : run.slice(0, i), 16), n = i < 0 ? 1 : parseInt(run.slice(i + 1), 16); for (let j = 0; j < n; j++) out[k++] = v; }
+  return out;
+}
+function deltaEncode(vals){
+  if (!vals.some(Boolean)) return '';
+  let prev = 0, s = '';
+  for (const v of vals){ const d = v - prev; s += d >= -31 && d <= 31 ? D64[d + 31] : '_' + v.toString(16).padStart(2, '0'); prev = v; }
+  return s;
+}
+function writePlaces(venuesJson, rooftops){
+  let hz = null;
+  try { hz = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'horizons.json'), 'utf8')); } catch {}
+  const roof = new Set((rooftops && rooftops.ids) || []);
+  const seen = new Set(), rows = [];
+  for (const el of venuesJson.elements || []){
+    const t = el.tags || {}, lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
+    if (lat == null || lng == null || !t.name || t.outdoor_seating === 'no') continue;
+    const key = `${t.name.toLowerCase()}::${lat.toFixed(4)},${lng.toFixed(4)}`;
+    if (seen.has(key)) continue; seen.add(key);
+    const id = `${el.type}/${el.id}`, tp = hz && hz.tp && hz.tp[id];
+    rows.push([id, t.name, tp ? tp[0] : +lat.toFixed(6), tp ? tp[1] : +lng.toFixed(6), t.amenity || '',
+      t.cuisine || '', t['addr:street'] || '', t['addr:housenumber'] || '', t.opening_hours || '',
+      t.website || t['contact:website'] || '', roof.has(id) ? 1 : 0, t.image || '', t.wikimedia_commons || '', t.wikidata || '',
+      hz && id in hz.h ? deltaEncode(rleToBytes(hz.h[id], hz.bins)) : null]);
+  }
+  const out = { v: 1, bakedAt: new Date().toISOString(),
+    hz: hz ? { v: hz.v, enc: 'd64', bakedAt: hz.bakedAt, azMinDeg: hz.azMinDeg, binDeg: hz.binDeg, bins: hz.bins, stepDeg: hz.stepDeg } : null, p: rows };
+  const fp = path.join(OUT_DIR, 'places.json');
+  fs.writeFileSync(fp, JSON.stringify(out));
+  console.log(`  places.json: ${rows.length} places, ${(fs.statSync(fp).size / 1024).toFixed(0)} KB`);
+}
+
 // ─── Manifest ───────────────────────────────────────────────────────────────
 // windowsBakedAt + bakeDate let the client detect stale bakes cheaply — it
 // already loads manifest.json, so no extra round-trip. If bakeDate != today's
@@ -879,7 +965,7 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
-module.exports = { bakeShadowTiles, bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
+module.exports = { terracePoint, writePlaces, bakeShadowTiles, bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -898,7 +984,8 @@ if (require.main === module) (async () => {
   let hzAgeDays = Infinity;
   try {
     const hz = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'horizons.json'), 'utf8'));
-    hzAgeDays = (Date.now() - Date.parse(hz.bakedAt)) / 86400000;
+    // v3 = horizons from terrace points (outside the building). Older → rebake.
+    if ((hz.v || 0) >= 3) hzAgeDays = (Date.now() - Date.parse(hz.bakedAt)) / 86400000;
   } catch {}
   const haveShadowTiles = fs.existsSync(path.join(OUT_DIR, 'shadows', 'index.json'));
   // Writes venues + rooftops + manifest only; keeps horizons/shadows as they are.
@@ -921,6 +1008,7 @@ if (require.main === module) (async () => {
     fs.writeFileSync(path.join(OUT_DIR, 'venues.json'), JSON.stringify(venues));
     fs.writeFileSync(path.join(OUT_DIR, 'rooftops-today.json'), JSON.stringify(rooftopsLight));
     fs.writeFileSync(manifestPathEarly, JSON.stringify(manifestLight, null, 2));
+    writePlaces(venues, rooftopsLight);
     console.log(`\n✓ Light bake: ${manifestLight.venues.count} venues, ` +
                 `${rooftopsLight.matchedCount}/${rooftopsLight.curatedCount} rooftops matched`);
   };
@@ -1003,6 +1091,7 @@ if (require.main === module) (async () => {
   fs.writeFileSync(windowsPath,   JSON.stringify(windowsToday));
   fs.writeFileSync(rooftopsPath,  JSON.stringify(rooftopsToday));
   fs.writeFileSync(manifestPath,  JSON.stringify(manifest, null, 2));
+  writePlaces(venues, rooftopsToday);
 
   // Loud failure if the deploy artifact would be rejected at the edge.
   // Cloudflare Pages blocks files >25 MiB; we stop the bake now rather than

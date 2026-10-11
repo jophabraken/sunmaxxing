@@ -11,9 +11,9 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/data/horizons.json" as="fetch" crossorigin>
+<script>window.__places = fetch('/data/places.json').then(r => r.ok ? r.json() : null).catch(() => null);</script>
 <link rel="stylesheet" href="/vendor/leaflet.css">
-<link rel="stylesheet" href="/new/app.css?v=202610112144">
+<link rel="stylesheet" href="/new/app.css?v=202610112240">
 </head>
 <body>
 <div id="app">
@@ -70,8 +70,6 @@
 <script src="/vendor/leaflet.js"></script>
 <script src="/vendor/suncalc.js"></script>
 <script async src="/vendor/protomaps-leaflet.js" onload="window.__basemapReady && window.__basemapReady()"></script>
-<script defer src="/vendor/i18next.min.js"></script>
-<script defer src="/vendor/opening_hours.min.js" onload="window.__hoursReady && window.__hoursReady()"></script>
-<script src="/new/app.js?v=202610112144"></script>
+<script src="/new/app.js?v=202610112240"></script>
 </body>
 </html>
