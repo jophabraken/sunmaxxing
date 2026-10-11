@@ -827,6 +827,47 @@ if (require.main === module) (async () => {
 
   const venues     = await bakeVenues();
   const supplement = await fetchVenueSupplement();
+
+  // ─── Light run (most days) ───────────────────────────────────────────────
+  // Buildings change on a scale of years and horizons.json is valid for any
+  // date, so the slow Overpass building fetch — the step that kept hitting
+  // the 45-minute Actions timeout — only runs when horizons.json is older
+  // than HORIZON_REFRESH_DAYS (or BAKE_FULL=1). Other days just refresh
+  // venues + rooftops in a few minutes. New venues show up immediately but
+  // stay uncoloured until the next full run computes their horizon.
+  const HORIZON_REFRESH_DAYS = 30;
+  const manifestPathEarly = path.join(OUT_DIR, 'manifest.json');
+  let hzAgeDays = Infinity;
+  try {
+    const hz = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'horizons.json'), 'utf8'));
+    hzAgeDays = (Date.now() - Date.parse(hz.bakedAt)) / 86400000;
+  } catch {}
+  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS){
+    console.log(`▸ Light run: horizons.json is ${hzAgeDays.toFixed(1)} days old ` +
+                `(< ${HORIZON_REFRESH_DAYS}) — skipping buildings + shadow bake`);
+    const rooftopsLight = bakeRooftops(venues, supplement);
+    if (rooftopsLight.supplementAdded && rooftopsLight.supplementAdded.length){
+      venues.elements = [...(venues.elements || []), ...rooftopsLight.supplementAdded];
+    }
+    delete rooftopsLight.supplementAdded;
+    let prev = {};
+    try { prev = JSON.parse(fs.readFileSync(manifestPathEarly, 'utf8')); } catch {}
+    const manifestLight = {
+      ...prev,
+      bakedAt: new Date().toISOString(),
+      rooftopsBakedAt: rooftopsLight.bakedAt || new Date().toISOString(),
+      venues: { count: (venues.elements || []).length },
+      lastRun: 'light',
+    };
+    fs.writeFileSync(path.join(OUT_DIR, 'venues.json'), JSON.stringify(venues));
+    fs.writeFileSync(path.join(OUT_DIR, 'rooftops-today.json'), JSON.stringify(rooftopsLight));
+    fs.writeFileSync(manifestPathEarly, JSON.stringify(manifestLight, null, 2));
+    console.log(`\n✓ Light bake: ${manifestLight.venues.count} venues, ` +
+                `${rooftopsLight.matchedCount}/${rooftopsLight.curatedCount} rooftops matched`);
+    return;
+  }
+  console.log(`▸ Full run: horizons.json age ${isFinite(hzAgeDays) ? hzAgeDays.toFixed(1) + ' days' : 'unknown'}`);
+
   const buildings  = await bakeBuildings();
 
   // Two distinct building sets live on from bakeBuildings():

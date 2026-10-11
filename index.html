@@ -2002,10 +2002,13 @@
      Async: the map, venues and sun colours paint without waiting for it. -->
 <script async src="/vendor/protomaps-leaflet.js"
         onload="if(typeof addBasemap==='function')addBasemap();"></script>
-<!-- opening_hours is ~236KB — load async so it never blocks first paint.
-     parseAllOpeningHours() already no-ops when the library isn't there yet;
-     once it arrives, we parse + refresh so the "closed/open" badges appear. -->
-<script async
+<!-- opening_hours is ~236KB — deferred so it never blocks first paint.
+     It needs the i18next global, so both are `defer` (runs in order, after
+     parsing). Without i18next it throws on load and "Open now" silently
+     breaks. parseAllOpeningHours() no-ops until the library is there; once it
+     arrives, we parse + refresh so the "closed/open" badges appear. -->
+<script defer src="/vendor/i18next.min.js"></script>
+<script defer
         src="/vendor/opening_hours.min.js"
         onload="if(typeof parseAllOpeningHours==='function'){parseAllOpeningHours();if(typeof refresh==='function')refresh();}"></script>
 
