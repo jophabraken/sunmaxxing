@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Build tiles/berlin.pmtiles — a self-hosted Protomaps (OpenStreetMap) vector
+# Build tiles/{z}/{x}/{y}.pbf — a self-hosted Protomaps (OpenStreetMap) vector
 # basemap covering the site's venue bbox. One-off: the result is committed and
 # served by Cloudflare Pages; rebuild only if you want fresher street data.
 #
-# Needs the `pmtiles` CLI:  brew install pmtiles   (macOS)
+# Needs the `pmtiles` CLI:  brew install pmtiles   (macOS), and Node
 #                           or https://github.com/protomaps/go-pmtiles/releases
 #
 # Cloudflare Pages caps files at 25 MiB, so we try maxzoom 15 → 14 → 13 and
@@ -38,7 +38,13 @@ for z in 15 14 13; do
     perl -pi -e "s/maxDataZoom: \d+,/maxDataZoom: $z,/" "$REPO/index.html"
     printf '{"source":"%s","maxzoom":%s,"bbox":"%s","bytes":%s,"builtAt":"%s"}\n' \
       "$SRC" "$z" "$BBOX" "$size" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$REPO/tiles/meta.json"
-    echo "✓ tiles/berlin.pmtiles ready (maxzoom $z)"
+    # Serve as static z/x/y files: Cloudflare Pages doesn't reliably honour
+    # range requests on uncached files, which PMTiles depends on.
+    find "$REPO/tiles" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
+    (cd "$REPO" && npm install --no-save --no-audit --no-fund pmtiles@4.5.0 >/dev/null \
+      && node scripts/pmtiles-to-zxy.js tiles/berlin.pmtiles tiles)
+    rm -f "$REPO/tiles/berlin.pmtiles"
+    echo "✓ tiles/{z}/{x}/{y}.pbf ready (maxzoom $z)"
     exit 0
   fi
 done

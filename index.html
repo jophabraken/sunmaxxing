@@ -198,7 +198,6 @@
      break the site. Vendored files live in /vendor (see ops history). -->
 <link rel="preload" href="/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/data/horizons.json" as="fetch" crossorigin>
-<link rel="preload" href="/data/venues.json" as="fetch" crossorigin>
 <link rel="stylesheet" href="/vendor/leaflet.css">
 <style>
 @font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:100 900;
@@ -2522,17 +2521,18 @@ const WALK_DETOUR_FACTOR = 1.3;     // straight-line → actual walking dist
    MAP
    ============================================================ */
 const map = L.map('map', {zoomControl:true, preferCanvas:true}).setView(CENTER, 14);
-// Basemap: one self-hosted vector-tile file of Berlin (Protomaps / OSM),
-// served from our own Cloudflare Pages deploy via HTTP range requests.
-// No API key, no tile vendor, nothing to expire.
-const BASEMAP_URL = '/tiles/berlin.pmtiles';
+// Basemap: self-hosted static vector tiles of Berlin (Protomaps / OSM build),
+// plain files under /tiles/{z}/{x}/{y}.pbf on our own Cloudflare Pages deploy.
+// No API key, no tile vendor, no range requests, nothing to expire.
+const BASEMAP_URL = '/tiles/{z}/{x}/{y}.pbf';
+const BASEMAP_PROBE = '/tiles/0/0/0.pbf';
 let basemapAdded = false;
 function addBasemap(){
   if (basemapAdded || !window.protomapsL) return;
   basemapAdded = true;
   // Safety net: if the basemap file is ever missing, fall back to plain OSM
   // raster tiles rather than showing an empty map.
-  fetch(BASEMAP_URL, {method:'HEAD'}).then(r => {
+  fetch(BASEMAP_PROBE, {method:'HEAD'}).then(r => {
     if (r.ok) return;
     console.warn('[sonne] basemap missing — falling back to OSM raster tiles');
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {

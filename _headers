@@ -13,9 +13,10 @@
 /vendor/*
   Cache-Control: public, max-age=2592000
 
-# Basemap: one PMTiles file read with HTTP range requests. Changes only when
-# the basemap is regenerated; a week of caching is safe.
+# Basemap: static vector tiles (uncompressed MVT). The protobuf content type
+# lets Cloudflare compress them in transit. Regenerated rarely; cache a week.
 /tiles/*
+  Content-Type: application/x-protobuf
   Cache-Control: public, max-age=604800
   Access-Control-Allow-Origin: *
 
