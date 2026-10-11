@@ -521,6 +521,108 @@ function bakeWindows(venuesJson, buildingsJson){
   };
 }
 
+// ─── Horizon profiles (the "never goes stale" path) ────────────────────────
+// For each venue we record how high the surrounding buildings reach, as an
+// elevation angle, for every 1° of azimuth the sun can ever occupy in Berlin.
+// Sun position is pure astronomy, so with this profile the browser can work
+// out sun/shade for ANY date and time — no daily bake required. Buildings
+// change on a scale of years; this file stays valid until they do.
+//
+// Encoding (keep in sync with index.html → decodeHorizon):
+//   azimuth uses SunCalc's convention (degrees from south, west positive).
+//   Bins are HZ_BIN_DEG wide, centred on HZ_AZ_MIN_DEG + i*HZ_BIN_DEG; Berlin's
+//   sun stays inside about ±135° from south all year. Each bin holds the
+//   obstruction elevation in HZ_STEP_DEG units, rounded UP (errs toward shade);
+//   255 = blocked at any sun height.
+//   A profile is run-length text: runs joined by ';', each run "<hex value>"
+//   or "<hex value>*<hex count>". Open sky = "" (most compact, most common).
+//   This text form gzips ~2× better than base64 bytes.
+const HZ_AZ_MIN_DEG = -140;
+const HZ_AZ_MAX_DEG = 140;
+const HZ_BIN_DEG = 2;
+const HZ_BINS = (HZ_AZ_MAX_DEG - HZ_AZ_MIN_DEG) / HZ_BIN_DEG + 1;   // 141
+const HZ_STEP_DEG = 0.5;
+
+// Highest obstruction tangent along azimuth `az` (radians, SunCalc convention).
+// Same geometry as isShaded(), just returning max(height / distance) instead
+// of comparing it to one sun altitude.
+function horizonTan(xy, az, bldgs){
+  const dx = -Math.sin(az), dy = -Math.cos(az);
+  const [ox, oy] = xy;
+  let best = 0;
+  for (const b of bldgs){
+    const vx = b.cx - ox, vy = b.cy - oy;
+    const proj = vx*dx + vy*dy;
+    if (proj < -b.br) continue;
+    const perp = Math.abs(vx*dy - vy*dx);
+    if (perp > b.br + 2) continue;
+    if (proj > MAX_SHADOW_SEARCH_RADIUS + b.br) continue;
+    if (pointInPoly(ox, oy, b.poly)) continue;
+    const t = rayFirstHit(ox, oy, dx, dy, b.poly);
+    if (t == null || t > MAX_SHADOW_SEARCH_RADIUS) continue;
+    const tan = b.heightM / t;
+    if (tan > best) best = tan;
+  }
+  return best;
+}
+
+function horizonProfile(xy, bldgs){
+  const vals = new Array(HZ_BINS).fill(0);
+  const half = HZ_BIN_DEG / 2;
+  for (let i = 0; i < HZ_BINS; i++){
+    const c = HZ_AZ_MIN_DEG + i * HZ_BIN_DEG;
+    let tan = 0;
+    // Sample across the bin and keep the highest obstruction.
+    for (const f of [-0.5, 0, 0.5]){
+      tan = Math.max(tan, horizonTan(xy, (c + f * half) * Math.PI / 180, bldgs));
+    }
+    if (tan <= 0) continue;
+    const deg = Math.atan(tan) * 180 / Math.PI;
+    vals[i] = Math.min(255, Math.ceil(deg / HZ_STEP_DEG));
+    if (deg >= 254 * HZ_STEP_DEG) vals[i] = 255;
+  }
+  if (!vals.some(Boolean)) return '';
+  const runs = [];
+  for (let i = 0; i < vals.length;){
+    let j = i;
+    while (j < vals.length && vals[j] === vals[i]) j++;
+    const n = j - i;
+    runs.push(vals[i].toString(16) + (n > 1 ? '*' + n.toString(16) : ''));
+    i = j;
+  }
+  return runs.join(';');
+}
+
+function bakeHorizons(venuesJson, buildingsJson){
+  console.log('▸ Baking horizon profiles…');
+  const bldgs = preprocessBuildings(buildingsJson.elements || []);
+  const venues = dedupeVenues(venuesJson.elements);
+  const grid = buildBuildingGrid(bldgs);
+  const QUERY_RADIUS_M = MAX_SHADOW_SEARCH_RADIUS + 150;
+  const profiles = {};
+  const t0 = Date.now();
+  for (let i = 0; i < venues.length; i++){
+    const v = venues[i];
+    const xy = toMeters(v.lat, v.lng);
+    const local = buildingsNearPoint(grid, xy[0], xy[1], QUERY_RADIUS_M);
+    profiles[v.id] = horizonProfile(xy, local);
+    if ((i+1) % 500 === 0 || i+1 === venues.length){
+      console.log(`  horizons: ${i+1}/${venues.length} (${((Date.now()-t0)/1000).toFixed(0)}s)`);
+    }
+  }
+  return {
+    v: 2,
+    bakedAt: new Date().toISOString(),
+    azMinDeg: HZ_AZ_MIN_DEG,
+    binDeg: HZ_BIN_DEG,
+    bins: HZ_BINS,
+    stepDeg: HZ_STEP_DEG,
+    venueCount: venues.length,
+    buildingCount: bldgs.length,
+    h: profiles,
+  };
+}
+
 // ─── Rooftop matching ──────────────────────────────────────────────────────
 // Hand-curated list of well-known Berlin rooftops/terraces/beer gardens
 // (data/rooftops.json) gets matched to venues in the OSM dataset at bake time.
@@ -719,7 +821,8 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
-(async () => {
+module.exports = { bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
+if (require.main === module) (async () => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
   const venues     = await bakeVenues();
@@ -748,6 +851,21 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   // against the FULL compute set — windows-today.json is the fast path and
   // must be accurate even for venues near the edge of BBOX_VENUES.
   const windowsToday = bakeWindows(venues, buildingsCompute);
+
+  // Horizon profiles power the client's sun math for any date. Only replace
+  // the committed file when building coverage is complete — a partial
+  // Overpass run would otherwise mark shaded terraces as sunny. A missing
+  // tile just means we keep last month's (still-valid) horizons.
+  const cov = buildings._coverage || {};
+  const horizonsPath = path.join(OUT_DIR, 'horizons.json');
+  const coverageComplete = cov.okTiles && cov.okTiles === cov.totalTiles;
+  if (coverageComplete || !fs.existsSync(horizonsPath)){
+    const horizons = bakeHorizons(venues, buildingsCompute);
+    fs.writeFileSync(horizonsPath, JSON.stringify(horizons));
+    console.log(`  horizons.json: ${(fs.statSync(horizonsPath).size/1024).toFixed(0)} KB, ${horizons.venueCount} venues`);
+  } else {
+    console.warn(`  horizons.json kept as-is: building coverage ${cov.okTiles}/${cov.totalTiles}`);
+  }
 
   const manifest = buildManifest(venues, buildings, windowsToday, rooftopsToday);
 

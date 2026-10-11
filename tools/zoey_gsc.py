@@ -31,14 +31,15 @@ from googleapiclient.errors import HttpError
 ROOT = Path(__file__).resolve().parent.parent
 SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 
-# Look for the key in two places:
-#  1. repo-local .secrets/ (gitignored) — useful for dev sessions
-#  2. /sessions/nice-inspiring-cerf/mnt/outputs/.secrets/ — persistent across
-#     Cowork sessions, on Jop's computer. ZOEY's scheduled task uses this one.
+# Look for the key, in priority order:
+#  1. $ZOEY_GSC_KEY — explicit override (scheduled-task runs can point this at
+#     whatever temp file they wrote the embedded JSON to)
+#  2. repo-local .secrets/gsc-key.json (gitignored) — interactive runs where
+#     Jop has dropped the key into ~/sunmaxxing/.secrets/ on his Mac, and
+#     scheduled runs that mkdir .secrets/ from the embedded JSON blob
 CANDIDATE_KEY_PATHS = [
+    Path(os.environ.get("ZOEY_GSC_KEY", "")),  # explicit override
     ROOT / ".secrets" / "gsc-key.json",
-    Path("/sessions/nice-inspiring-cerf/mnt/outputs/.secrets/gsc-key.json"),
-    Path(os.environ.get("ZOEY_GSC_KEY", "")),  # escape hatch
 ]
 KEY_PATH = next((p for p in CANDIDATE_KEY_PATHS if p and p.exists()), None)
 
@@ -54,7 +55,7 @@ def get_service():
         checked = "\n  ".join(str(p) for p in CANDIDATE_KEY_PATHS if p)
         sys.exit(
             "FATAL: gsc-key.json not found. Checked:\n  "
-            f"{checked}\n→ See /docs/zoey-playbook.md for setup."
+            f"{checked}\n→ See docs/zoey-playbook.md §7.4 for setup."
         )
     creds = service_account.Credentials.from_service_account_file(
         str(KEY_PATH), scopes=SCOPES

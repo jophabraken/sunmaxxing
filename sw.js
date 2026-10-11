@@ -8,18 +8,25 @@
  *
  * Strategies
  * - Navigation / HTML  → network-first, cache fallback
- * - /data/*.json       → stale-while-revalidate (serve cached instantly, fetch fresh in bg)
+ * - /data/*.json       → network-first (3 s timeout), cache fallback. v1 used
+ *                        stale-while-revalidate here, which served returning
+ *                        visitors weeks-old sun data and pushed them onto the
+ *                        slow path. Data is small now; fresh beats instant.
+ * - /tiles/*, Range    → pass through (PMTiles uses HTTP range requests,
+ *                        which the Cache API can't store)
  * - Same-origin static → cache-first
- * - Cross-origin       → pass through (Overpass, OSM tiles, Wikidata, weather API)
+ * - Cross-origin       → pass through (Wikidata, weather API)
  */
 
 // Bumped from 'sonne-*' to 'sunmaxxing-*' on the brand consolidation. The
 // activate handler deletes any cache not in KEEP, so the old 'sonne-*' caches
 // auto-evict on first SW activate after this deploy.
-const SW_VERSION   = 'sunmaxxing-sw-v1';
-const SHELL_CACHE  = 'sunmaxxing-shell-v1';
-const DATA_CACHE   = 'sunmaxxing-data-v1';
-const STATIC_CACHE = 'sunmaxxing-static-v1';
+// v2: bumping these names evicts every v1 cache (incl. stale sun data) on
+// activate.
+const SW_VERSION   = 'sunmaxxing-sw-v2';
+const SHELL_CACHE  = 'sunmaxxing-shell-v2';
+const DATA_CACHE   = 'sunmaxxing-data-v2';
+const STATIC_CACHE = 'sunmaxxing-static-v2';
 const KEEP = new Set([SHELL_CACHE, DATA_CACHE, STATIC_CACHE]);
 
 self.addEventListener('install', () => {
@@ -50,9 +57,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Nightly-baked data → stale-while-revalidate
+  // Range requests (basemap tiles) can't be cached by the Cache API.
+  if (req.headers.has('range') || url.pathname.startsWith('/tiles/')) return;
+
+  // Baked data → network-first with a short timeout, cached copy as fallback.
   if (url.pathname.startsWith('/data/')){
-    event.respondWith(staleWhileRevalidate(req, DATA_CACHE));
+    event.respondWith(networkFirst(req, DATA_CACHE, 3000));
     return;
   }
 
@@ -60,11 +70,14 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(cacheFirst(req, STATIC_CACHE));
 });
 
-async function networkFirst(req, cacheName){
+async function networkFirst(req, cacheName, timeoutMs){
   const cache = await caches.open(cacheName);
   try {
-    const fresh = await fetch(req);
-    if (fresh && fresh.ok) cache.put(req, fresh.clone());
+    const net = fetch(req);
+    const fresh = timeoutMs
+      ? await Promise.race([net, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs))])
+      : await net;
+    if (fresh && fresh.status === 200) cache.put(req, fresh.clone()).catch(() => {});
     return fresh;
   } catch (e) {
     const cached = await cache.match(req);
@@ -73,22 +86,11 @@ async function networkFirst(req, cacheName){
   }
 }
 
-async function staleWhileRevalidate(req, cacheName){
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(req);
-  const fresh = fetch(req).then(res => {
-    if (res && res.ok) cache.put(req, res.clone());
-    return res;
-  }).catch(() => cached);
-  // Return cached immediately if we have it; otherwise wait for network.
-  return cached || fresh;
-}
-
 async function cacheFirst(req, cacheName){
   const cache = await caches.open(cacheName);
   const cached = await cache.match(req);
   if (cached) return cached;
   const fresh = await fetch(req);
-  if (fresh && fresh.ok) cache.put(req, fresh.clone());
+  if (fresh && fresh.status === 200) cache.put(req, fresh.clone()).catch(() => {});
   return fresh;
 }

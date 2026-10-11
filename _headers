@@ -9,6 +9,16 @@
 /sw.js
   Cache-Control: public, max-age=0, must-revalidate
 
+# Self-hosted libraries + fonts: pinned versions, change only via a deploy.
+/vendor/*
+  Cache-Control: public, max-age=2592000
+
+# Basemap: one PMTiles file read with HTTP range requests. Changes only when
+# the basemap is regenerated; a week of caching is safe.
+/tiles/*
+  Cache-Control: public, max-age=604800
+  Access-Control-Allow-Origin: *
+
 # Nightly-baked data: OK to serve cached for up to 1h, and stale-serve while
 # revalidating for a day. Bake pipeline runs once per day, so visitors at worst
 # see data ~1h old.

@@ -194,13 +194,20 @@
      which is more robust since it survives HTML rewrites.) -->
 <!-- <meta name="google-site-verification" content="PASTE_TOKEN_HERE"> -->
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""/>
+<!-- Everything is self-hosted: no third-party CDN, font or tile service can
+     break the site. Vendored files live in /vendor (see ops history). -->
+<link rel="preload" href="/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/data/horizons.json" as="fetch" crossorigin>
+<link rel="preload" href="/data/venues.json" as="fetch" crossorigin>
+<link rel="stylesheet" href="/vendor/leaflet.css">
+<style>
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:100 900;
+  src:url(/vendor/fonts/inter-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-display:swap;font-weight:100 900;
+  src:url(/vendor/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+</style>
 
 <style>
   :root{
@@ -1733,6 +1740,25 @@
   @media (max-width:860px){
     .leaflet-marker-icon{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
   }
+
+  /* ─── 2026-10 refresh ─────────────────────────────────────────────────── */
+  :root{
+    --sun: #FFA81A;
+    --sun-bright: #FFB627;
+    --bg: #FAF6EE;
+    --radius: 16px;
+    --radius-lg: 24px;
+    --shadow-md: 0 6px 24px rgba(31, 24, 10, 0.08);
+    --shadow-lg: 0 16px 48px rgba(31, 24, 10, 0.14);
+  }
+  #map{background:#F2EEE6}
+  /* Warm the vector basemap so it reads like late-afternoon paper, not GIS. */
+  .leaflet-tile-pane{filter:sepia(.18) saturate(.85) brightness(1.03) contrast(.96)}
+  .leaflet-control-attribution{background:rgba(250,246,238,.75)!important;backdrop-filter:blur(6px);border-radius:8px 0 0 0;font-size:10px}
+  .leaflet-control-zoom{border:none!important;box-shadow:var(--shadow-md)!important;border-radius:14px!important;overflow:hidden}
+  .leaflet-control-zoom a{border:none!important;width:36px!important;height:36px!important;line-height:36px!important;color:var(--text)!important}
+  .loader{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(255,255,255,.86)}
+  .m-browse-empty b{font-size:17px;letter-spacing:-.01em}
 </style>
 </head>
 <body>
@@ -1971,15 +1997,17 @@
 
 <div id="toast-root"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
-<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
+<script src="/vendor/leaflet.js"></script>
+<script src="/vendor/suncalc.js"></script>
+<!-- Vector basemap renderer (self-hosted Protomaps tiles, /tiles/berlin.pmtiles).
+     Async: the map, venues and sun colours paint without waiting for it. -->
+<script async src="/vendor/protomaps-leaflet.js"
+        onload="if(typeof addBasemap==='function')addBasemap();"></script>
 <!-- opening_hours is ~236KB — load async so it never blocks first paint.
      parseAllOpeningHours() already no-ops when the library isn't there yet;
      once it arrives, we parse + refresh so the "closed/open" badges appear. -->
 <script async
-        src="https://cdn.jsdelivr.net/npm/opening_hours@3.8.0/build/opening_hours.min.js"
+        src="/vendor/opening_hours.min.js"
         onload="if(typeof parseAllOpeningHours==='function'){parseAllOpeningHours();if(typeof refresh==='function')refresh();}"></script>
 
 <script>
@@ -2494,10 +2522,34 @@ const WALK_DETOUR_FACTOR = 1.3;     // straight-line → actual walking dist
    MAP
    ============================================================ */
 const map = L.map('map', {zoomControl:true, preferCanvas:true}).setView(CENTER, 14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-  attribution:'&copy; OpenStreetMap &copy; CARTO · sun math: SunCalc · weather: Open-Meteo',
-  maxZoom:19
-}).addTo(map);
+// Basemap: one self-hosted vector-tile file of Berlin (Protomaps / OSM),
+// served from our own Cloudflare Pages deploy via HTTP range requests.
+// No API key, no tile vendor, nothing to expire.
+const BASEMAP_URL = '/tiles/berlin.pmtiles';
+let basemapAdded = false;
+function addBasemap(){
+  if (basemapAdded || !window.protomapsL) return;
+  basemapAdded = true;
+  // Safety net: if the basemap file is ever missing, fall back to plain OSM
+  // raster tiles rather than showing an empty map.
+  fetch(BASEMAP_URL, {method:'HEAD'}).then(r => {
+    if (r.ok) return;
+    console.warn('[sonne] basemap missing — falling back to OSM raster tiles');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, attribution: '&copy; OpenStreetMap contributors · weather: Open-Meteo'
+    }).addTo(map);
+  }).catch(() => {});
+  protomapsL.leafletLayer({
+    url: BASEMAP_URL,
+    flavor: 'light',
+    lang: (typeof CURRENT_LANG === 'string' ? CURRENT_LANG : 'en'),
+    maxDataZoom: 14,
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://protomaps.com">Protomaps</a> · weather: Open-Meteo',
+  }).addTo(map);
+  // Keep the basemap under the venue dots.
+  map.getPanes().tilePane.style.zIndex = 150;
+}
+if (window.protomapsL) addBasemap();
 const venueLayer = L.layerGroup().addTo(map);
 let userMarker = null;
 
@@ -2923,6 +2975,109 @@ async function loadWindowsToday(){
   } finally {
     clearTimeout(to);
   }
+}
+
+// ─── Horizon profiles: sun windows for ANY day, computed in the browser ─────
+// data/horizons.json holds, per venue, how high the surrounding buildings
+// reach in each compass direction (see scripts/bake-data.js → bakeHorizons).
+// Sun position is pure astronomy, so with this profile we can compute sun
+// windows for today, tomorrow or any date in ~20 ms — nothing to go stale,
+// no daily bake on the critical path, no 20 MB buildings download ever.
+async function loadHorizons(){
+  const ctrl = new AbortController();
+  const to = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch('data/horizons.json', {signal: ctrl.signal});
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !j.h || !j.bins) return null;
+    console.info('[sonne] horizons:', j.venueCount, 'venues (baked ' + j.bakedAt + ')');
+    return j;
+  } catch(e){
+    console.warn('[sonne] horizons load failed:', e);
+    return null;
+  } finally {
+    clearTimeout(to);
+  }
+}
+
+function decodeHorizon(str, bins){
+  const out = new Uint8Array(bins);
+  if (!str) return out;
+  let k = 0;
+  for (const run of str.split(';')){
+    const star = run.indexOf('*');
+    const val = parseInt(star < 0 ? run : run.slice(0, star), 16);
+    const cnt = star < 0 ? 1 : parseInt(run.slice(star + 1), 16);
+    out.fill(val, k, k + cnt);
+    k += cnt;
+  }
+  return out;
+}
+
+// Attach decoded profiles to venues once. Venues missing from the file (new in
+// OSM since the last full bake) get null → treated as unknown, not sunny.
+function attachHorizons(hz){
+  let matched = 0;
+  for (const v of state.venues){
+    if (v.id in hz.h){ v.horizon = decodeHorizon(hz.h[v.id], hz.bins); matched++; }
+    else v.horizon = null;
+  }
+  state.horizonMeta = { azMinDeg: hz.azMinDeg, binDeg: hz.binDeg, bins: hz.bins, stepDeg: hz.stepDeg };
+  return matched;
+}
+
+// Sun windows for every venue on the Berlin calendar day containing `dayDate`.
+// Returns { sunrise, sunset } and writes v.windows / v.totalSunMin, unless
+// `writeKey` is given — then results go to v[writeKey] (used for tomorrow).
+function computeWindowsFromHorizons(dayDate, writeKey){
+  const meta = state.horizonMeta;
+  if (!meta) return null;
+  const noon = new Date(berlinDateStr(dayDate) + 'T12:00:00+01:00');
+  const times = SunCalc.getTimes(noon, CENTER[0], CENTER[1]);
+  const start = times.sunrise.getTime(), end = times.sunset.getTime();
+  const step = 5 * 60 * 1000;   // fine-grained: costs ~10 ms for all venues
+  // Sun position per step is shared by all venues (Berlin is small: <0.2°).
+  const steps = [];
+  for (let t = start; t <= end; t += step){
+    const p = SunCalc.getPosition(new Date(t), CENTER[0], CENTER[1]);
+    const azDeg = p.azimuth * 180 / Math.PI, altDeg = p.altitude * 180 / Math.PI;
+    let bin = Math.round((azDeg - meta.azMinDeg) / meta.binDeg);
+    bin = Math.max(0, Math.min(meta.bins - 1, bin));
+    steps.push({ t, bin, altQ: altDeg / meta.stepDeg, up: altDeg > 0 });
+  }
+  for (const v of state.venues){
+    const hz = v.horizon;
+    const wins = [];
+    if (hz){
+      let cur = null;
+      for (const s of steps){
+        const q = hz[s.bin];
+        const sunny = s.up && q !== 255 && s.altQ > q;
+        if (sunny && cur === null) cur = s.t;
+        else if (!sunny && cur !== null){ wins.push([cur, s.t - step/2]); cur = null; }
+      }
+      if (cur !== null) wins.push([cur, end]);
+    }
+    const mins = Math.round(wins.reduce((a, [s, e]) => a + (e - s) / 60000, 0));
+    if (writeKey){ v[writeKey] = wins; }
+    else {
+      v.windows = wins;
+      v.totalSunMin = mins;
+      v.windowsComputed = !!hz;
+    }
+  }
+  return { sunrise: times.sunrise, sunset: times.sunset, solarNoon: times.solarNoon };
+}
+
+function applyHorizonWindowsForToday(){
+  const r = computeWindowsFromHorizons(new Date());
+  if (!r) return false;
+  state.sunrise = r.sunrise; state.sunset = r.sunset; state.solarNoon = r.solarNoon;
+  state.windowsDay = berlinDateStr();
+  // Tomorrow's windows power the "next sun" hint on cloudy evenings/nights.
+  computeWindowsFromHorizons(new Date(Date.now() + 86400000), 'windowsTomorrow');
+  return true;
 }
 
 // Rooftop chip backing data: curated list matched to OSM venue ids at bake time.
@@ -3357,6 +3512,44 @@ function visibleVenues(){
   return out;
 }
 
+
+// "When is the next sun?" — turns the cloudy / evening / night dead end into
+// a plan. Uses today's remaining windows, else tomorrow's (both computed
+// from horizon profiles, so this works on any day without a fresh bake).
+function nextSunHint(){
+  const de = CURRENT_LANG === 'de';
+  const now = currentTimeMs();
+  const fmt = ms => new Date(ms).toLocaleTimeString(de ? 'de-DE' : 'en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'Europe/Berlin'});
+  const vs = state.venues || [];
+  // Geometric sun right now, but clouds in the way.
+  const sunnyButCloudy = vs.filter(v => (v.windows||[]).some(([s,e]) => now >= s && now <= e)).length;
+  if (sunnyButCloudy > 0){
+    return de
+      ? { title: 'Wolken über Berlin.', body: `${sunnyButCloudy} Terrassen hätten gerade Sonne. Schieb die Zeitleiste, um zu sehen, wann es aufklart.` }
+      : { title: 'Clouds over Berlin.', body: `${sunnyButCloudy} terraces would be in the sun right now. Scrub the time bar to see when it clears.` };
+  }
+  let laterToday = Infinity, laterCount = 0;
+  for (const v of vs){
+    const n = (v.windows||[]).find(([s]) => s > now);
+    if (n){ laterCount++; if (n[0] < laterToday) laterToday = n[0]; }
+  }
+  if (laterCount){
+    return de
+      ? { title: `Nächste Sonne ab ${fmt(laterToday)}.`, body: `${laterCount} Terrassen bekommen heute noch Sonne. Schieb die Zeitleiste, um sie zu sehen.` }
+      : { title: `Next sun from ${fmt(laterToday)}.`, body: `${laterCount} terraces still get sun today. Scrub the time bar to see them.` };
+  }
+  let first = Infinity, count = 0;
+  for (const v of vs){
+    const w = (v.windowsTomorrow||[])[0];
+    if (w){ count++; if (w[0] < first) first = w[0]; }
+  }
+  if (count){
+    return de
+      ? { title: `Morgen ab ${fmt(first)} wieder Sonne.`, body: `${count} Terrassen bekommen morgen Sonne. Komm morgen früh wieder vorbei.` }
+      : { title: `Sun's back tomorrow from ${fmt(first)}.`, body: `${count} terraces get sun tomorrow. Check back in the morning.` };
+  }
+  return null;
+}
 /* ============================================================
    RENDER: MAP
    ============================================================ */
@@ -3371,21 +3564,22 @@ function visibleVenues(){
    has to composite thousands of <div>s on every frame. We lose the soft
    "glow" halo (it was DOM-only) but keep the 3-state color coding. */
 function circleStyleFor(st){
+  // Sun pops, everything else recedes into the map.
   if (st === 'locked-in'){
-    return {radius:7, fillColor:'#FFB627', color:'#fff',
-            weight:1.5, fillOpacity:1,   opacity:1};
+    return {radius:7.5, fillColor:'#FFA81A', color:'#FFFFFF',
+            weight:2, fillOpacity:1, opacity:1};
   }
   if (st === 'catch-now'){
-    return {radius:7, fillColor:'#FFE08A', color:'#fff',
-            weight:1.5, fillOpacity:1,   opacity:1};
+    return {radius:7, fillColor:'#FFD166', color:'#FFFFFF',
+            weight:2, fillOpacity:1, opacity:1};
   }
   if (st === 'pending'){
-    return {radius:6, fillColor:'#E5E7EB', color:'#fff',
-            weight:1,   fillOpacity:1,   opacity:1};
+    return {radius:4, fillColor:'#C9CED8', color:'#FFFFFF',
+            weight:1, fillOpacity:0.9, opacity:0.9};
   }
-  // 'off' — muted grey
-  return   {radius:5, fillColor:'#8892A6', color:'#fff',
-            weight:1,   fillOpacity:0.75, opacity:0.9};
+  // 'off' — small, quiet, still tappable
+  return   {radius:4.5, fillColor:'#7C869B', color:'#FFFFFF',
+            weight:1, fillOpacity:0.55, opacity:0.7};
 }
 function renderMap(){
   const tMs = currentTimeMs();
@@ -5265,8 +5459,9 @@ function renderMobileSheet(){
 
   if (!candidates.length){
     const filtersOn = anyFiltersActive();
-    const title = filtersOn ? t('m_empty_no_results_title') : 'Nothing sunny right now.';
-    const body  = filtersOn ? t('m_empty_no_results_body')  : 'Drag up to see all terraces, or scrub the time bar to find a sunny window.';
+    const ns = filtersOn ? null : nextSunHint();
+    const title = filtersOn ? t('m_empty_no_results_title') : (ns ? ns.title : 'Nothing sunny right now.');
+    const body  = filtersOn ? t('m_empty_no_results_body')  : (ns ? ns.body : 'Drag up to see all terraces, or scrub the time bar to find a sunny window.');
     const clearBtn = filtersOn
       ? `<button class="m-empty-clear-btn" id="m-browse-empty-clear" type="button">${escapeHtml(t('m_empty_clear'))}</button>`
       : '';
@@ -5488,7 +5683,8 @@ async function main(){
   // windows/weather settle while we parse + render. On a warm edge we go from
   // ~1.5s of sequential fetches to ~400ms of overlapped ones.
   setLoader({title:t('loader_finding'), pct:10});
-  const windowsP = loadWindowsToday();           // 220KB
+  const horizonsP = loadHorizons();              // ~250KB, valid for any date
+  const windowsP = horizonsP.then(h => h ? null : loadWindowsToday());  // legacy fallback
   const weatherP = fetchWeather().then(() => {   // tiny, free to fire early
     // Cloud overlays don't depend on venues — paint them as soon as weather
     // lands. (Earlier we guarded the whole block on state.venues being
@@ -5597,8 +5793,20 @@ async function main(){
   // ─── Fast path: apply pre-baked sun windows, skip ~17 MB of buildings ──────
   // windowsP is the fetch we kicked off at Phase 1 in parallel with venues,
   // so on a cold cache the bytes usually arrived while we parsed venues.json.
-  const baked = await windowsP;
-  if (baked){
+  const horizons = await horizonsP;
+  const baked = horizons ? null : await windowsP;
+  if (horizons){
+    const matched = attachHorizons(horizons);
+    applyHorizonWindowsForToday();
+    console.info('[sonne] horizons: applied to', matched, '/', state.venues.length, 'venues');
+    setRibbonRangeFromSun();
+    hmApplyBandGradient();
+    rebuildBandClouds();
+    hmUpdateHandle();
+    setLoader({pct:100});
+    refresh();
+    setTimeout(() => setLoader({title:null}), 150);
+  } else if (baked){
     // Pin sunrise/sunset from the bake so client timestamps line up exactly.
     state.sunrise = new Date(baked.sunrise);
     state.sunset  = new Date(baked.sunset);
@@ -5630,57 +5838,22 @@ async function main(){
     // calls refresh() to update 'sunny' → 'cloudy' on affected venues.
     setTimeout(() => setLoader({title:null}), 250);
   } else {
-    // ─── Fallback: no baked windows → compute client-side (old path) ─────────
-    // Loud log so a dev-tools glance reveals the slow path is active.
-    // If this fires on production, the nightly bake hasn't written
-    // data/windows-today.json — trigger a manual workflow run in GitHub Actions.
-    const mf = await manifestP;
-    const mfCtx = mf
-      ? ' (manifest bakeDate=' + (mf.bakeDate || '—') +
-        ', bakedAt=' + (mf.windowsBakedAt || mf.bakedAt || '—') + ')'
-      : ' (manifest.json also missing)';
-    console.warn(
-      '%c[sonne] SLOW PATH: windows-today.json missing or stale — ' +
-      'falling back to ~17 MB buildings.json + client-side shadow compute. ' +
-      'Trigger a nightly bake to fix.' + mfCtx,
-      'background:#FFB627;color:#3a2900;padding:2px 6px;border-radius:3px;font-weight:700'
-    );
-    const buildingsP = loadBuildingsData((done, total) => {
-      const pct = 25 + Math.round((done/total) * 25);
-      const prefix = CURRENT_LANG === 'de' ? 'Schattendaten · Kachel' : 'Shadow data · tile';
-      setLoader({detail: `${prefix} ${done}/${total}…`, pct});
-    }).catch(e => {
-      console.warn('[sonne] buildings load failed, proceeding without shadows:', e);
-      return { elements: [], okTiles: 0, total: 1, partial: true };
-    });
-
-    const bldJson = await buildingsP;
-    state.buildings = parseBuildings(bldJson);
-    state.buildingsLocal = preprocessBuildings(state.buildings);
-    const coverage = (bldJson.okTiles !== undefined && bldJson.okTiles < bldJson.total)
-      ? ` (${t('loader_buildings_partial', { ok: bldJson.okTiles, total: bldJson.total })})`
-      : '';
-    setLoader({
-      title: t('loader_buildings_count', { count: state.buildings.length }) + coverage,
-      detail: t('loader_computing'),
-      pct:55
-    });
-
-    await computeAllWindows((done, total) => {
-      const pct = 55 + Math.round((done/total) * 44);
-      setLoader({detail: t('loader_progress', { done, total, percent: Math.round(done/total*100) }), pct});
-      if (done % 240 === 0 || done === total) refresh();
-    });
-
+    // No shadow data at all (both files unreachable). Show the map and the
+    // venues without sun colouring rather than downloading ~20 MB of
+    // buildings and ray-casting on the visitor's phone.
+    console.warn('[sonne] no horizons and no windows-today — rendering without shadow data');
     setLoader({pct:100});
     refresh();
-    // Slow path is already far past the perceived "loading" point — let weather
-    // update in the background via its own .then() refresh. No need to block.
     setTimeout(() => setLoader({title:null}), 250);
   }
 
   // Live refresh every 60s
   setInterval(async () => {
+    if (state.horizonMeta && state.windowsDay !== berlinDateStr()){
+      applyHorizonWindowsForToday();   // new Berlin day → new sun windows
+      setRibbonRangeFromSun();
+      hmApplyBandGradient();
+    }
     if (!state.selectedTimeMs){
       if (Math.random() < 0.2) await fetchWeather();
       updateTimeSliderToNow();

@@ -33,20 +33,22 @@ If you slip two weeks behind the benchmark, raise it in the next daily brief's "
 
 ## 3. Your daily loop (execute top-to-bottom, every run)
 
+**All paths in this playbook are repo-relative** (e.g. `docs/zoey-playbook.md`). Every run — scheduled or interactive — begins with a fresh clone of the repo into a scratch directory; `cd` into that clone and execute the rest of the loop from there. See §7 for the exact clone/commit/push mechanics.
+
 ### Step 1 — Read state
-- This file: `/sessions/nice-inspiring-cerf/work/docs/zoey-playbook.md`
-- Yesterday's scorecard row: `/sessions/nice-inspiring-cerf/work/docs/zoey-scorecard.csv` (tail)
-- Content calendar: `/sessions/nice-inspiring-cerf/work/docs/zoey-content-calendar.md`
-- Target keywords: `/sessions/nice-inspiring-cerf/work/docs/zoey-keywords.md`
-- Outreach queue (check for Jop-replied items): `/sessions/nice-inspiring-cerf/work/docs/zoey-outreach-queue.md`
+- This file: `docs/zoey-playbook.md`
+- Yesterday's scorecard row: `docs/zoey-scorecard.csv` (tail)
+- Content calendar: `docs/zoey-content-calendar.md`
+- Target keywords: `docs/zoey-keywords.md`
+- Outreach queue (check for Jop-replied items): `docs/zoey-outreach-queue.md`
 - Notion briefs page: `https://www.notion.so/349c92df215b81978309e2dd1a1134ee` (ID: `349c92df-215b-8197-8309-e2dd1a1134ee`). If a recent brief has a "Needs Jop" entry and Jop has responded (check the page for any edits below your last brief), act on it first.
 
 ### Step 2 — Pull metrics
-- **Google Search Console:** clicks, impressions, CTR, avg position per page for yesterday and the trailing 7 days. If no service-account key is wired yet, skip this step and log `gsc_auth_missing` in today's brief's "Needs Jop".
+- **Google Search Console:** clicks, impressions, CTR, avg position per page for yesterday and the trailing 7 days. The service-account key must exist at `./.secrets/gsc-key.json` before `tools/zoey_gsc.py` will work — see §7 for how each run type gets that file in place. If the fetcher 403s, the service-account email isn't on the GSC property yet → log `gsc_auth_missing` in "Needs Jop" and continue with partial data.
 - **Cloudflare Web Analytics:** yesterday's pageviews + country breakdown (look for DE = Berlin proxy until you have better). If no API wired yet, log `cwa_auth_missing` similarly.
 - **Fallback public signal:** `https://sunmaxxing.com/sitemap.xml` lastmod dates + `curl -sI` response time for the top 5 pages. Always works.
 
-Append one row to `/docs/zoey-scorecard.csv` even if several columns are empty.
+Append one row to `docs/zoey-scorecard.csv` even if several columns are empty.
 
 ### Step 3 — Decide today's primary action
 
@@ -56,14 +58,14 @@ Pick **one** primary action from this tree, in order:
 2. **Production incident?** (site returns non-200 on homepage or any top-5 listicle, or Cloudflare deploy failed for >2h) → Alert Jop in "Needs Jop", make no content changes today.
 3. **Content calendar has a slot for today?** → Write + publish that page (both EN + DE).
 4. **Any live page has dropped 3+ positions in GSC over 7d?** → Refresh it (add content, fix intent mismatch, improve FAQ, add internal links).
-5. **Any top-20 keyword from `/docs/zoey-keywords.md` that we don't yet rank for?** → Pick the highest-volume one and write its page today. Add the page to the calendar as "shipped today".
-6. **Fallback:** pick the next item from the backlog in `/docs/zoey-content-calendar.md` under "## Backlog".
+5. **Any top-20 keyword from `docs/zoey-keywords.md` that we don't yet rank for?** → Pick the highest-volume one and write its page today. Add the page to the calendar as "shipped today".
+6. **Fallback:** pick the next item from the backlog in `docs/zoey-content-calendar.md` under "## Backlog".
 
 Also every run, **as a secondary action**, do exactly one of these small upkeep items (rotate through them Mon→Sun):
 - Mon: check Google Indexing API status for last 10 pages + request reindex of any showing "Discovered - not indexed"
 - Tue: check Core Web Vitals on sunmaxxing.com via `https://pagespeed.web.dev/` (fetch the API if available)
 - Wed: add 3 new internal links between existing pages (pick ones that actually add reader value, never footer-spam)
-- Thu: draft **one** outreach email to a Berlin publication (Mit Vergnügen, tip-berlin, Exberliner, Berliner Morgenpost digital, Sugarhigh, Creme Guides, iHeartBerlin) → append to `/docs/zoey-outreach-queue.md` with status `draft_needs_jop`
+- Thu: draft **one** outreach email to a Berlin publication (Mit Vergnügen, tip-berlin, Exberliner, Berliner Morgenpost digital, Sugarhigh, Creme Guides, iHeartBerlin) → append to `docs/zoey-outreach-queue.md` with status `draft_needs_jop`
 - Fri: update one evergreen listicle with a "seasonal update for <Month YYYY>" paragraph + touch `dateModified` in schema
 - Sat: check `https://trends.google.com` signal for your top 10 target keywords; note movers in the brief
 - Sun: write the week's recap in the brief; reorder the content calendar based on what worked
@@ -94,17 +96,19 @@ Append a new dated section to the Notion page (ID: `349c92df-215b-8197-8309-e2dd
 ```
 
 ### Step 6 — Commit + push
+Run from inside the fresh clone:
 - `git add -A docs/` (scorecard, calendar updates, outreach queue)
 - `git add -A <any-content-paths>`
 - `git commit -m "zoey: <YYYY-MM-DD>: <summary>"`
-- `git push origin main`
-- If the push fails, append to `/docs/zoey-errors.log` and mention in the brief.
+- Push: if `git push origin main` works (credentials present), use it. Otherwise push the changed files with the **GitHub connector** (`push_files` to `jophabraken/sunmaxxing`, branch `main`) — it is signed in as Jop and needs no token. Only text files you changed; one commit per run.
+- If both fail, append one line to `docs/zoey-errors.log` (tab-separated: ISO timestamp, context, error), mention it in the brief, and stop — do NOT leave the scorecard/content diverged from origin.
+- Cloudflare Pages auto-deploys from `origin/main` in ~60–90s. No extra step.
 
 ---
 
 ## 4. Guardrails — NEVER do these
 
-1. **Never modify `/sessions/nice-inspiring-cerf/work/index.html`** (the main app). UI/UX changes need Jop.
+1. **Never modify `index.html`** (the main app — top level of the repo). UI/UX changes need Jop.
 2. **Never sign up for paid services** — if you need a tool (Ahrefs, Semrush, DataForSEO, etc.), ask Jop in "Needs Jop". Free tier or nothing.
 3. **Never send email or post on social media** on Jop's behalf — always draft, always flag.
 4. **Never delete existing pages or redirect them** without explicit Jop approval.
@@ -200,28 +204,57 @@ Jop's voice and the Sunmaxxing voice overlap. Key moves:
 
 ## 7. Tools & auth
 
-- **Working directory:** `/sessions/nice-inspiring-cerf/work/`
-- **Git remote:** authenticated (token in remote URL). `git push origin main` just works.
-- **Cloudflare Pages:** auto-deploys from `origin/main`. Takes ~60-90s.
-- **Notion:** use the notion MCP tools. Daily briefs page ID: `349c92df-215b-8197-8309-e2dd1a1134ee`. Parent ideas page: `349c92df-215b-8139-9eb4-d5e3d1339e72`.
-- **GSC (Google Search Console):** authenticated via service-account JSON at one of:
-    - `./.secrets/gsc-key.json` (repo-local, gitignored)
-    - `/sessions/nice-inspiring-cerf/mnt/outputs/.secrets/gsc-key.json` (persistent workspace — primary location)
-  Service account: `zoey-gsc-reader@sunmaxxing-seo.iam.gserviceaccount.com`, property: `sc-domain:sunmaxxing.com`.
-  Run the fetcher first thing every morning:
-    ```bash
-    cd /sessions/nice-inspiring-cerf/work && python3 tools/zoey_gsc.py --days 7 --json > /tmp/zoey-gsc.json
-    ```
-  Read the JSON and use it to fill `gsc_impressions_berlin` (use the `germany.impressions` field — it's country-level DEU; city-level Berlin isn't available via the API, so country-DE is our proxy), `gsc_clicks_berlin` (`germany.clicks`), `gsc_avg_position` (`germany.avg_position`), `gsc_ctr` (`germany.ctr`) columns in `/docs/zoey-scorecard.csv`. The `top_queries` and `top_pages` arrays drive today's editorial decisions.
-  If the fetcher fails with a 403 or "property not accessible" error, the service-account email isn't added to GSC yet → note in "Needs Jop" and use Cloudflare Web Analytics only.
-- **Cloudflare Web Analytics:** secondary session-level signal. No API wired up yet — if Jop asks for a CWA integration, draft a plan but don't build it autonomously.
-- **Web search:** available via WebSearch / WebFetch tool. Use it for keyword research, competitor checking, and verifying venue facts.
+### 7.1 Where the repo lives each run
+
+There is **no persistent working directory**. Every ZOEY run — scheduled or interactive — starts by cloning `https://github.com/jophabraken/sunmaxxing.git` fresh into a scratch directory, doing all work inside that clone, and pushing back to `origin/main` at the end. State lives on GitHub, not in any one session's filesystem.
+
+- **Scheduled runs (daily 07:00 Europe/Berlin):** clone into the run's scratch space (the scheduled-task prompt walks through the exact commands — see the task in `list_scheduled_tasks` for the canonical recipe). The prompt also carries the GSC service-account JSON as an embedded blob because the repo is public and the key can't be committed.
+- **Interactive runs (Jop is in the session, `~/sunmaxxing` mounted):** work directly in the mounted folder. Jop's Mac keychain handles `git push` from those sessions.
+
+Never hardcode a specific session path in code or docs. Always use repo-relative paths.
+
+### 7.2 Git remote + push
+
+- Remote: `https://github.com/jophabraken/sunmaxxing.git` (public repo).
+- Cloning needs no auth (public repo). Writing back goes through the GitHub connector (`push_files`, signed in as `jophabraken`) — no PAT anywhere. If the connector is unavailable or errors, log `github_auth_missing` in today's brief's "Needs Jop" and skip the push — do not rewrite history or force anything.
+- Interactive runs rely on the Mac's git credential helper; `git push origin main` just works.
+- Cloudflare Pages auto-deploys from `origin/main` in ~60–90s.
+
+### 7.3 Notion
+
+Use the Notion MCP tools. Daily briefs page ID: `349c92df-215b-8197-8309-e2dd1a1134ee`. Parent ideas page: `349c92df-215b-8139-9eb4-d5e3d1339e72`. Never create new top-level pages without Jop's approval — append to the existing briefs page.
+
+### 7.4 GSC (Google Search Console)
+
+Service account: `zoey-gsc-reader@sunmaxxing-seo.iam.gserviceaccount.com`, property: `sc-domain:sunmaxxing.com`.
+
+The fetcher expects the service-account JSON at `./.secrets/gsc-key.json` relative to the repo root. How that file gets there depends on the run type:
+
+- **Scheduled runs:** the scheduled-task prompt carries the JSON as an embedded blob. The prompt's first few steps after cloning are `mkdir -p .secrets && cat > .secrets/gsc-key.json <<'JSON' … JSON`. The JSON must NOT be committed (the repo is public; `.secrets/` is gitignored and the file is deleted at the end of the run). If you ever need to rotate the key, rotate it in Google Cloud, update the embedded blob in the scheduled-task prompt, and delete the old key.
+- **Interactive runs:** Jop drops a copy at `~/sunmaxxing/.secrets/gsc-key.json` on his Mac; the mount exposes it to the session.
+
+Run the fetcher:
+```bash
+python3 tools/zoey_gsc.py --days 7 --json > /tmp/zoey-gsc.json
+```
+
+Read the JSON and fill `gsc_impressions_berlin` (use the `germany.impressions` field — it's country-level DEU; city-level Berlin isn't available via the API, so country-DE is our proxy), `gsc_clicks_berlin` (`germany.clicks`), `gsc_avg_position` (`germany.avg_position`), `gsc_ctr` (`germany.ctr`) columns in `docs/zoey-scorecard.csv`. The `top_queries` and `top_pages` arrays drive today's editorial decisions.
+
+If the fetcher fails with a 403 or "property not accessible" error, the service-account email isn't added to GSC yet → note `gsc_auth_missing` in "Needs Jop" and use Cloudflare Web Analytics only.
+
+### 7.5 Cloudflare Web Analytics
+
+Secondary session-level signal. No API wired up yet — if Jop asks for a CWA integration, draft a plan but don't build it autonomously.
+
+### 7.6 Web search
+
+Available via WebSearch / WebFetch. Use it for keyword research, competitor checking, and verifying venue facts.
 
 ---
 
 ## 8. Error handling
 
-- Any unrecoverable error → append one line to `/docs/zoey-errors.log` in format: `<ISO timestamp>\t<short context>\t<error message>`
+- Any unrecoverable error → append one line to `docs/zoey-errors.log` in format: `<ISO timestamp>\t<short context>\t<error message>`
 - Add a "Needs Jop" entry in today's brief for anything that blocks the next day's run
 - Never skip the daily brief entirely. If all else fails, post a brief that says only: "Blocked: <reason>. Logged to errors file."
 
@@ -236,6 +269,8 @@ When you learn something that would help Future ZOEY, append it to `## 10. Chang
 ## 10. Changelog & learnings
 
 - **2026-04-21** (Jop + this session's Claude): Playbook created. Initial benchmarks set. EN+DE strategy confirmed. Hybrid autonomy confirmed.
+- **2026-10-11** (Jop + Claude): Site re-architected to run unattended. Sun windows are now computed in the browser from `data/horizons.json` (per-venue building horizon, valid for any date) — no daily bake on the critical path. Basemap is self-hosted (`tiles/berlin.pmtiles`, Protomaps); all JS/fonts live in `/vendor`. ZOEY health checks: flag in "Needs Jop" if `data/horizons.json` is missing or >90 days old, or `tiles/berlin.pmtiles` is missing. Pushes now go through the GitHub connector (see §7.2).
+- **2026-04-22** (Jop + migration session, landed 2026-10-11): Playbook migrated from session-local paths (`/sessions/nice-inspiring-cerf/work/…`) to a fresh-clone model. Scheduled runs no longer depend on any session's `work/` or `mnt/` directories — each run clones the repo, works inside the clone, and pushes back to `origin/main`. GSC key stays gitignored (public repo) and is injected into scheduled runs via an embedded blob in the scheduled-task prompt; §7 documents the full mechanics. All paths in this file are now repo-relative.
 
 ---
 
