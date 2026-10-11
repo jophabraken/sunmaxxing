@@ -623,6 +623,64 @@ function bakeHorizons(venuesJson, buildingsJson){
   };
 }
 
+// ─── Shadow tiles (what the map draws) ──────────────────────────────────────
+// The map renders real building shadows for the chosen time. It needs the same
+// footprints + heights the horizons were computed from, so shadows on the map
+// and sun/shade on the terrace dots always agree. Buildings are bucketed into
+// z15 web-mercator tiles by centroid; the client loads the tiles around the
+// viewport (plus one ring, for shadows cast in from neighbours).
+//
+// data/shadows/15/{x}/{y}.json = { b: [[heightM, lon0, lat0, dLon1, dLat1, …], …] }
+//   coordinates are integers in 1e-5° (≈1 m), first vertex absolute relative
+//   to the tile's west/north edge, the rest delta-encoded.
+// data/shadows/index.json = { bakedAt, z, tiles: [[x, y], …] }
+const SHADOW_Z = 15;
+function bakeShadowTiles(elements){
+  console.log('▸ Baking shadow tiles…');
+  const n = 2 ** SHADOW_Z;
+  const lon2x = lon => Math.floor((lon + 180) / 360 * n);
+  const lat2y = lat => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); };
+  const x2lon = x => x / n * 360 - 180;
+  const y2lat = y => { const k = Math.PI - 2 * Math.PI * y / n; return 180 / Math.PI * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k))); };
+  const tiles = new Map();
+  for (const el of elements){
+    const g = el.geometry;
+    if (!g || g.length < 3) continue;
+    let clat = 0, clon = 0;
+    for (const p of g){ clat += p.lat; clon += p.lon; }
+    clat /= g.length; clon /= g.length;
+    const tx = lon2x(clon), ty = lat2y(clat), key = tx + '/' + ty;
+    let t = tiles.get(key);
+    if (!t){ t = { x: tx, y: ty, lon0: x2lon(tx), lat0: y2lat(ty), b: [] }; tiles.set(key, t); }
+    const h = Math.round(parseHeightTags(el.tags) * 10) / 10;
+    const out = [h];
+    let px = 0, py = 0;
+    const ring = g[0].lat === g[g.length-1].lat && g[0].lon === g[g.length-1].lon ? g.slice(0, -1) : g;
+    ring.forEach((p, i) => {
+      const ix = Math.round((p.lon - t.lon0) * 1e5), iy = Math.round((t.lat0 - p.lat) * 1e5);
+      if (i === 0) out.push(ix, iy); else out.push(ix - px, iy - py);
+      px = ix; py = iy;
+    });
+    t.b.push(out);
+  }
+  const dir = path.join(OUT_DIR, 'shadows');
+  fs.rmSync(dir, { recursive: true, force: true });
+  let bytes = 0;
+  for (const t of tiles.values()){
+    const d = path.join(dir, String(SHADOW_Z), String(t.x));
+    fs.mkdirSync(d, { recursive: true });
+    const body = JSON.stringify({ b: t.b });
+    fs.writeFileSync(path.join(d, `${t.y}.json`), body);
+    bytes += body.length;
+  }
+  fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({
+    bakedAt: new Date().toISOString(), z: SHADOW_Z,
+    tiles: [...tiles.values()].map(t => [t.x, t.y]),
+  }));
+  console.log(`  shadow tiles: ${tiles.size} tiles, ${(bytes / 1048576).toFixed(1)} MB`);
+  return tiles.size;
+}
+
 // ─── Rooftop matching ──────────────────────────────────────────────────────
 // Hand-curated list of well-known Berlin rooftops/terraces/beer gardens
 // (data/rooftops.json) gets matched to venues in the OSM dataset at bake time.
@@ -821,7 +879,7 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
-module.exports = { bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
+module.exports = { bakeShadowTiles, bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -842,7 +900,8 @@ if (require.main === module) (async () => {
     const hz = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'horizons.json'), 'utf8'));
     hzAgeDays = (Date.now() - Date.parse(hz.bakedAt)) / 86400000;
   } catch {}
-  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS){
+  const haveShadowTiles = fs.existsSync(path.join(OUT_DIR, 'shadows', 'index.json'));
+  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS && haveShadowTiles){
     console.log(`▸ Light run: horizons.json is ${hzAgeDays.toFixed(1)} days old ` +
                 `(< ${HORIZON_REFRESH_DAYS}) — skipping buildings + shadow bake`);
     const rooftopsLight = bakeRooftops(venues, supplement);
@@ -906,6 +965,10 @@ if (require.main === module) (async () => {
     console.log(`  horizons.json: ${(fs.statSync(horizonsPath).size/1024).toFixed(0)} KB, ${horizons.venueCount} venues`);
   } else {
     console.warn(`  horizons.json kept as-is: building coverage ${cov.okTiles}/${cov.totalTiles}`);
+  }
+  // Same rule for the map's shadow tiles — they must match the horizons.
+  if (coverageComplete || !haveShadowTiles){
+    bakeShadowTiles(buildingsCompute.elements);
   }
 
   const manifest = buildManifest(venues, buildings, windowsToday, rooftopsToday);
