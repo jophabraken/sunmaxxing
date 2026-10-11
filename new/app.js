@@ -41,7 +41,7 @@ const STR = {
     dirs: ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'],
     locating: 'Finding you…', loc_fail: 'Could not get your location', out_of_area: 'You’re outside the area we cover — showing central Berlin',
     rooftop: 'Rooftop', saved: 'Saved', share_copied: 'Link copied', weather_na: 'Weather unavailable',
-    sr_cloud: c => `${c}% cloud`, search_none: 'Nothing found',
+    sr_cloud: c => `${c}% cloud`, search_none: 'Nothing found', snap_lab: t => `Sun & shade · ${t}`, photo: 'Photo',
   },
   de: {
     search_ph: 'Ort in Berlin suchen', now: 'Jetzt', today: 'Heute', tomorrow: 'Morgen',
@@ -66,7 +66,7 @@ const STR = {
     dirs: ['Norden', 'Nordosten', 'Osten', 'Südosten', 'Süden', 'Südwesten', 'Westen', 'Nordwesten'],
     locating: 'Suche deinen Standort…', loc_fail: 'Standort nicht verfügbar', out_of_area: 'Du bist außerhalb unseres Gebiets – zeige die Innenstadt',
     rooftop: 'Dachterrasse', saved: 'Gemerkt', share_copied: 'Link kopiert', weather_na: 'Wetter nicht verfügbar',
-    sr_cloud: c => `${c}% Wolken`, search_none: 'Nichts gefunden',
+    sr_cloud: c => `${c}% Wolken`, search_none: 'Nichts gefunden', snap_lab: t => `Sonne & Schatten · ${t}`, photo: 'Foto',
   },
 };
 const store = {
@@ -161,6 +161,7 @@ function parseVenues(j){
       cuisine: (t.cuisine || '').split(';')[0].replace(/_/g, ' '),
       street: t['addr:street'] || '', hn: t['addr:housenumber'] || '',
       hoursStr: t.opening_hours || '', web: t.website || t['contact:website'] || '', roof: false,
+      img: t.image || '', commons: t.wikimedia_commons || '', wd: t.wikidata || '',
     });
   }
   return [...seen.values()];
@@ -304,7 +305,7 @@ function loadShadowTile(key){
       blds.push({ h, pts, minx, miny, maxx, maxy });
     }
     SH.tiles.set(key, { blds, pxPerM: 256 / (2 * Math.PI * 6378137 * Math.cos(lat0 * Math.PI / 180)) });
-    shadowLayer.redraw();
+    shadowLayer.redraw(); paintSnaps(document);
   }).catch(() => {});
   return null;
 }
@@ -375,6 +376,112 @@ const shadowLayer = new CanvasLayer('shadowPane', (ctx, v) => {
   if (alt <= 0){ ctx.fillStyle = 'rgba(28,30,70,.18)'; ctx.fill(roofs); }
 });
 shadowLayer.addTo(map);
+
+// ─── Sun snapshots ─────────────────────────────────────────────────────────
+// A small aerial view of each terrace's block with its real building shadows
+// at the chosen time — our "photo" for every place. Same buildings + heights
+// as the map and the sun/shade dots.
+let VBY = new Map();
+function ringPath(path, P, reverseIfCW){
+  let a = 0; for (let i = 0, j = P.length - 2; i < P.length; j = i, i += 2) a += P[j] * P[i + 1] - P[i] * P[j + 1];
+  if ((a > 0) === reverseIfCW){ path.moveTo(P[P.length - 2], P[P.length - 1]); for (let i = P.length - 4; i >= 0; i -= 2) path.lineTo(P[i], P[i + 1]); }
+  else { path.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) path.lineTo(P[i], P[i + 1]); }
+  path.closePath();
+}
+function snapTiles(v){
+  if (!SH.index) return [];
+  const n = 2 ** SH.z, tx = Math.floor(v.x0 / 256 * n), ty = Math.floor(v.y0 / 256 * n), out = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++){
+    const k = (tx + dx) + '/' + (ty + dy);
+    if (SH.index.has(k)){ const t = loadShadowTile(k); if (t) out.push(t); }
+  }
+  return out;
+}
+function paintSnap(cv){
+  const v = VBY.get(cv.dataset.snap); if (!v) return;
+  const day = cv.dataset.day ? +cv.dataset.day : ST.day, min = cv.dataset.min ? +cv.dataset.min : ST.min, z = +(cv.dataset.z || 16.4);
+  const r = cv.getBoundingClientRect(), W = Math.round(r.width), H = Math.round(r.height);
+  if (!W || !H) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== W * dpr || cv.height !== H * dpr){ cv.width = W * dpr; cv.height = H * dpr; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const S = 2 ** z, ox = v.x0 * S - W / 2, oy = v.y0 * S - H / 2, X = x => x * S - ox, Y = y => y * S - oy;
+  const p = sunPos(min, day), alt = p.altitude, altDeg = alt * 180 / Math.PI, cl = isCloudy(min, day), up = alt > 0.01 && !cl;
+  ctx.fillStyle = '#F2EBDF'; ctx.fillRect(0, 0, W, H);
+  const tanA = Math.tan(Math.max(alt, 0.03)), ux = Math.sin(p.azimuth), uy = -Math.cos(p.azimuth);
+  const shadows = new Path2D(), roofs = new Path2D();
+  for (const t of snapTiles(v)) for (const b of t.blds){
+    const L = up ? Math.min(400, b.h / tanA) * t.pxPerM * S : 0;
+    const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
+    if (bx1 < -L - 2 || bx0 > W + L + 2 || by1 < -L - 2 || by0 > H + L + 2) continue;
+    const np = b.pts.length / 2, P = new Float64Array(np * 2);
+    for (let i = 0; i < np; i++){ P[2 * i] = X(b.pts[2 * i]); P[2 * i + 1] = Y(b.pts[2 * i + 1]); }
+    ringPath(roofs, P, false);
+    if (!up) continue;
+    const dx = ux * L, dy = uy * L, Q = new Float64Array(np * 2);
+    let area = 0; for (let i = 0, j = np - 1; i < np; j = i++) area += P[2 * j] * P[2 * i + 1] - P[2 * i] * P[2 * j + 1];
+    for (let i = 0; i < np; i++){ Q[2 * i] = P[2 * i] + dx; Q[2 * i + 1] = P[2 * i + 1] + dy; }
+    ringPath(shadows, Q, true);
+    const sgn = area > 0 ? 1 : -1;
+    for (let i = 0; i < np; i++){
+      const j = (i + 1) % np, ex = P[2 * j] - P[2 * i], ey = P[2 * j + 1] - P[2 * i + 1];
+      if ((ey * dx - ex * dy) * sgn < 0) continue;
+      ringPath(shadows, [P[2 * i], P[2 * i + 1], P[2 * j], P[2 * j + 1], Q[2 * j], Q[2 * j + 1], Q[2 * i], Q[2 * i + 1]], true);
+    }
+  }
+  if (up){ ctx.globalAlpha = .3 * Math.min(1, altDeg / 4); ctx.fillStyle = '#3E3462'; ctx.fill(shadows); ctx.globalAlpha = 1; }
+  ctx.fillStyle = alt <= 0 ? '#CFC6B8' : '#E6DBC9'; ctx.fill(roofs);
+  ctx.strokeStyle = 'rgba(150,130,100,.45)'; ctx.lineWidth = .7; ctx.stroke(roofs);
+  if (alt <= 0){ ctx.fillStyle = 'rgba(28,30,70,.38)'; ctx.fillRect(0, 0, W, H); }
+  else if (cl){ ctx.fillStyle = 'rgba(120,125,140,.16)'; ctx.fillRect(0, 0, W, H); }
+  else if (altDeg < 18){ ctx.fillStyle = `rgba(255,150,40,${(.12 * (1 - altDeg / 18)).toFixed(3)})`; ctx.fillRect(0, 0, W, H); }
+  // the terrace
+  const s = vstate(v, min, day), cx = W / 2, cy = H / 2, big = W > 120;
+  if (s.sunny){ const R = big ? 22 : 15; ctx.drawImage(GLOW, cx - R, cy - R, R * 2, R * 2); ctx.fillStyle = '#FFB000'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, big ? 7 : 5, 0, 7); ctx.fill(); ctx.stroke(); }
+  else { ctx.fillStyle = '#FFFDF8'; ctx.strokeStyle = s.geo && s.cloudy ? '#C8A65A' : '#6F6790'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, big ? 6 : 4.5, 0, 7); ctx.fill(); ctx.stroke(); }
+  // where the light comes from
+  if (alt > 0){
+    const sx = -Math.sin(p.azimuth), sy = Math.cos(p.azimuth), rx = W / 2 - (big ? 16 : 10), ry = H / 2 - (big ? 16 : 10);
+    const k = 1 / Math.max(Math.abs(sx) / rx, Math.abs(sy) / ry), gx = cx + sx * k, gy = cy + sy * k;
+    if (cl){ ctx.fillStyle = '#F4F1EA'; ctx.strokeStyle = '#B9B19E'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(gx, gy, big ? 8 : 5.5, 0, 7); ctx.fill(); ctx.stroke(); }
+    else { ctx.drawImage(GLOW, gx - 14, gy - 14, 28, 28); ctx.fillStyle = '#FFC23A'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(gx, gy, big ? 7 : 5, 0, 7); ctx.fill(); ctx.stroke(); }
+  }
+}
+function paintSnaps(root){ if (!root) return; root.querySelectorAll('canvas.snap').forEach(paintSnap); }
+const snapHTML = (v, cls = '', extra = '') => `<canvas class="snap ${cls}" data-snap="${esc(v.id)}" ${extra} aria-hidden="true"></canvas>`;
+
+// ─── Real photos (open-licence only) ───────────────────────────────────────
+// ~1% of terraces have a Wikimedia Commons / Wikidata photo in OpenStreetMap.
+// Shown on the terrace page with author + licence, as the licence requires.
+const PHOTO = new Map();
+function photoFor(v){
+  if (PHOTO.has(v.id)) return PHOTO.get(v.id);
+  const commonsInfo = async file => {
+    const title = 'File:' + file.replace(/^File:/i, '').trim();
+    const j = await (await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=900&titles=${encodeURIComponent(title)}`)).json();
+    const page = Object.values(j.query?.pages || {})[0], ii = page?.imageinfo?.[0];
+    if (!ii || !ii.thumburl) return null;
+    const md = ii.extmetadata || {}, strip = h => (h || '').replace(/<[^>]*>/g, '').trim();
+    return { src: ii.thumburl, href: ii.descriptionurl, credit: [strip(md.Artist?.value), md.LicenseShortName?.value].filter(Boolean).join(' · ') || 'Wikimedia Commons' };
+  };
+  const pr = (async () => {
+    try {
+      if (v.commons && /^File:/i.test(v.commons)) return await commonsInfo(v.commons);
+      const m = v.img.match(/commons\.wikimedia\.org\/wiki\/(File:[^?#]+)/i);
+      if (m) return await commonsInfo(decodeURIComponent(m[1]));
+      if (v.wd && /^Q\d+$/.test(v.wd)){
+        const j = await (await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${v.wd}.json`)).json();
+        const f = j.entities?.[v.wd]?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
+        if (f) return await commonsInfo(f);
+      }
+      if (/^https:\/\/.+\.(jpe?g|png|webp)(\?.*)?$/i.test(v.img)){ const h = new URL(v.img).hostname; return { src: v.img, href: v.img, credit: h }; }
+    } catch {}
+    return null;
+  })();
+  PHOTO.set(v.id, pr);
+  return pr;
+}
+const hasPhotoTags = v => !!(v.commons || v.wd || v.img);
 
 // ─── Venue dots ────────────────────────────────────────────────────────────
 let VIS = [];          // visible (filtered) venues with state, for hit-testing
@@ -559,9 +666,9 @@ function stripHTML(W, day = ST.day, nowMark = true){
 function rowHTML(v, ref){
   const s = v._s, d = distM(v, ref);
   const tag = s.sunny ? `☀ ${T().until(fmt(s.win[1]))}` : s.geo && s.cloudy ? `☁ ${T().until(fmt(s.win[1]))}` : s.next ? (isCloudy(s.next[0]) ? '☁ ' : '') + T().sun_at(fmt(s.next[0]), fmt(s.next[1])) : '';
-  return `<button class="row" data-id="${esc(v.id)}"><div class="row-top"><span class="nm">${esc(v.name)}</span><span class="tag ${s.sunny ? '' : 'off'}">${tag}</span></div>
+  return `<button class="row" data-id="${esc(v.id)}">${snapHTML(v, 'sm')}<div class="row-main"><div class="row-top"><span class="nm">${esc(v.name)}</span><span class="tag ${s.sunny ? '' : 'off'}">${tag}</span></div>
     <div class="meta">${esc(typeOf(v))}${v.street ? ' · ' + esc(v.street) : ''} · ${T().walk(walkMin(d))}</div>
-    ${s.known ? `<div class="strip">${stripHTML(s.W).h}</div>` : ''}</button>`;
+    ${s.known ? `<div class="strip">${stripHTML(s.W).h}</div>` : ''}</div></button>`;
 }
 function renderSheet(skipList){
   const ref = refPoint(), st = sunTimes(), t = T();
@@ -572,7 +679,7 @@ function renderSheet(skipList){
   if (sunny.length){
     sum = `<div class="sum"><span class="n">${sunny.length}</span><span class="t">${t.in_sun(sunny.length)}</span></div><div class="insight">${esc(skipList ? ($('summary').querySelector('.insight')?.textContent || '') : streetInsight(vis))}</div>`;
     cards = sunny.map(v => [v, distM(v, ref)]).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([v, d]) =>
-      `<button class="card" data-id="${esc(v.id)}"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}${v.roof ? ' · ' + t.rooftop : ''}</div><div class="st">${t.until(fmt(v._s.win[1]))}</div><div class="wk">${t.walk(walkMin(d))} · ${t.left(dur(v._s.left))}</div></button>`);
+      `<button class="card" data-id="${esc(v.id)}">${snapHTML(v)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}${v.roof ? ' · ' + t.rooftop : ''}</div><div class="st">${t.until(fmt(v._s.win[1]))}</div><div class="wk">${t.walk(walkMin(d))} · ${t.left(dur(v._s.left))}</div></div></button>`);
   } else {
     // Next sun: earliest upcoming cloud-free sunny minute among visible terraces
     let best = null;
@@ -584,7 +691,8 @@ function renderSheet(skipList){
       sum = `<div class="sum"><span class="n">${fmt(best.m)}</span><span class="t">${t.next_sun(later.length, cl)}</span></div><div class="insight">${esc(sub)}</div>`;
       cards = later.map(v => [v, distM(v, ref)]).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([v, d]) => {
         const w = v._s.W.find(([, b]) => b > best.m);
-        return `<button class="card off" data-id="${esc(v.id)}"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}</div><div class="st">${t.sun_at(fmt(Math.max(w[0], best.m)), fmt(w[1]))}</div><div class="wk">${t.walk(walkMin(d))}</div></button>`;
+        const at = Math.max(w[0], best.m) + 10;
+        return `<button class="card off" data-id="${esc(v.id)}">${snapHTML(v, '', `data-min="${at}"`)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}</div><div class="st">${t.sun_at(fmt(Math.max(w[0], best.m)), fmt(w[1]))}</div><div class="wk">${t.walk(walkMin(d))}</div></div></button>`;
       });
     } else if (ST.day < 2){
       // Nothing left today → show tomorrow's first sun (geometry; clouds shown on the strip)
@@ -593,7 +701,7 @@ function renderSheet(skipList){
       const first = tom.reduce((m, e) => Math.min(m, e[1][0]), Infinity);
       sum = `<div class="sum"><span class="n">${isFinite(first) ? fmt(first) : '—'}</span><span class="t">${t.first_tomorrow(tom.length, d1)}</span></div><div class="insight">${esc(sub)}</div>`;
       cards = tom.sort((a, b) => (a[1][0] - b[1][0]) || (a[2] - b[2])).slice(0, 12).map(([v, w, d]) =>
-        `<button class="card off" data-id="${esc(v.id)}" data-day="${d1}" data-min="${w[0]}"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}</div><div class="st">${t.sun_at(fmt(w[0]), fmt(w[1]))}</div><div class="wk">${t.walk(walkMin(d))}</div></button>`);
+        `<button class="card off" data-id="${esc(v.id)}" data-day="${d1}" data-min="${w[0]}">${snapHTML(v, '', `data-day="${d1}" data-min="${w[0] + 10}"`)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}</div><div class="st">${t.sun_at(fmt(w[0]), fmt(w[1]))}</div><div class="wk">${t.walk(walkMin(d))}</div></div></button>`);
     } else {
       sum = `<div class="sum"><span class="n">☾</span><span class="t">${t.no_more}</span></div><div class="insight">${esc(sub)}</div>`;
       cards = [];
@@ -601,6 +709,7 @@ function renderSheet(skipList){
   }
   $('summary').innerHTML = sum;
   $('cards').innerHTML = cards.join('');
+  paintSnaps($('cards'));
   if (skipList) return;
   // Full list: sunny first (closest first), then upcoming sun, then the rest
   const rank = v => v._s.sunny ? 0 : v._s.next ? 1 : 2;
@@ -608,6 +717,7 @@ function renderSheet(skipList){
   $('list').innerHTML = rows.length
     ? `<div class="list-h"><b>${t.list_h}</b><span>${t.list_sub(rows.length)}</span></div>` + rows.slice(0, LIST_N).map(([v]) => rowHTML(v, ref)).join('') + (rows.length > LIST_N ? `<button class="more" id="more">${t.more}</button>` : '')
     : `<div class="empty">${t.nothing}</div>`;
+  paintSnaps($('list'));
 }
 $('sheet').addEventListener('click', e => {
   if (e.target.id === 'more'){ LIST_N += 60; renderSheet(); return; }
@@ -663,6 +773,7 @@ function renderDetail(){
   if (v.web) facts.push(`<div><span>${t.website}</span><span><a href="${esc(/^https?:/.test(v.web) ? v.web : 'https://' + v.web)}" target="_blank" rel="noopener">${esc(v.web.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''))}</a></span></div>`);
   $('detail-body').innerHTML = `
     <button class="d-fav ${FAV.has(v.id) ? 'on' : ''}" id="d-fav" aria-label="${t.saved}">${FAV.has(v.id) ? '★' : '☆'}</button>
+    <div class="d-hero" id="d-hero">${snapHTML(v, 'hero', 'data-z="17.3"')}<span class="d-hero-lab">${esc(t.snap_lab(fmt(ST.min)))}</span></div>
     <h2 class="d-name">${esc(v.name)}</h2>
     <div class="d-meta">${esc(typeOf(v))}${v.cuisine ? ' · ' + esc(v.cuisine) : ''}${v.roof ? ' · ' + t.rooftop : ''} · ${t.walk(walkMin(distM(v, ref)))}</div>
     ${state}
@@ -670,6 +781,15 @@ function renderDetail(){
     <div class="d-best">${longest ? t.windows_n(s.W.length) + t.longest(fmt(longest[0]), fmt(longest[1]), dur(longest[1] - longest[0])) : t.try_other} ${t.sunset(fmt(st.set))}</div>` : ''}
     <div class="d-facts">${facts.join('')}</div>
     <div class="d-cta"><a class="go" href="https://www.google.com/maps/dir/?api=1&destination=${v.lat},${v.lng}" target="_blank" rel="noopener">${t.directions} · ${walkMin(distM(v, ref))} min</a><button class="sh" id="d-share" aria-label="Share">↗</button></div>`;
+  paintSnaps($('detail-body'));
+  if (hasPhotoTags(v)) photoFor(v).then(ph => {
+    if (!ph || ST.sel !== v) return;
+    const hero = $('d-hero'); if (!hero || hero.dataset.photo) return;
+    hero.dataset.photo = '1';
+    hero.insertAdjacentHTML('afterbegin', `<img class="d-photo" src="${esc(ph.src)}" alt="${esc(v.name)}" loading="lazy">`);
+    hero.querySelector('canvas.snap').classList.add('inset'); paintSnaps(hero);
+    hero.insertAdjacentHTML('beforeend', `<a class="d-credit" href="${esc(ph.href)}" target="_blank" rel="noopener">${esc(T().photo)}: ${esc(ph.credit)}</a>`);
+  });
 }
 $('detail').addEventListener('click', async e => {
   const v = ST.sel; if (!v) return;
@@ -690,6 +810,7 @@ function renderSearch(){
   const hits = VEN.filter(v => norm(v.name).includes(q) || norm(v.street).includes(q) || norm(v.cuisine).includes(q))
     .map(v => [v, (norm(v.name).startsWith(q) ? 0 : 1), distM(v, ref)]).sort((a, b) => a[1] - b[1] || a[2] - b[2]).slice(0, 40);
   $('search-results').innerHTML = hits.length ? hits.map(([v]) => rowHTML(v, ref)).join('') : `<div class="empty">${T().search_none}</div>`;
+  paintSnaps($('search-results'));
 }
 $('search-open').addEventListener('click', openSearch);
 $('search-close').addEventListener('click', closeSearch);
@@ -739,6 +860,7 @@ setInterval(() => {
   HZ = hz;
   VEN.forEach((v, i) => { v.i = i; v.roof = roofs.has(v.id); v.hz = HZ && v.id in HZ.h ? decodeHorizon(HZ.h[v.id], HZ.bins) : null; });
   for (const k in WIN) delete WIN[k];
+  VBY = new Map(VEN.map(v => [v.id, v]));
   render();
   $('loading').classList.add('done');
   loadWeather().then(render);
