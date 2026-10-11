@@ -85,14 +85,23 @@ const CENTER = [52.520, 13.405];
 const fmtParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 function berlin(d){ const o = {}; for (const p of fmtParts.formatToParts(d)) o[p.type] = +p.value || p.value; return o; }
 function offsetMin(ms){ const p = berlin(new Date(ms)); return Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - Math.floor(ms / 60000) * 60000) / 60000); }
-const DAYSTART = {};
+// Berlin-midnight per day offset. Intl formatting is slow, so the date key is
+// computed once and refreshed by the clock tick — never per call.
+const dateKey = () => { const p = berlin(new Date()); return `${p.year}-${p.month}-${p.day}`; };
+let DS_KEY = dateKey();
+const DS = {};
 function dayStart(off){
-  const p = berlin(new Date()), key = `${p.year}-${p.month}-${p.day}+${off}`;
-  if (DAYSTART[key]) return DAYSTART[key];
-  const guess = Date.UTC(p.year, p.month - 1, p.day + off, 0, 0);
+  if (DS[off] != null) return DS[off];
+  const [y, mo, d] = DS_KEY.split('-').map(Number);
+  const guess = Date.UTC(y, mo - 1, d + off, 0, 0);
   let ms = guess - offsetMin(guess) * 60000;
   ms = guess - offsetMin(ms) * 60000;                 // settle across DST edges
-  return (DAYSTART[key] = ms);
+  return (DS[off] = ms);
+}
+function refreshDay(){
+  const k = dateKey(); if (k === DS_KEY) return false;
+  DS_KEY = k; for (const c of [DS, SUNT, WIN, CLD]) for (const x in c) delete c[x];
+  return true;
 }
 const nowMin = () => (Date.now() - dayStart(0)) / 60000;
 const fmt = m => { m = Math.round(m); const h = Math.floor(m / 60), mm = ((m % 60) + 60) % 60; return `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`; };
@@ -118,11 +127,18 @@ async function loadWeather(){
     const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${CENTER[0]}&longitude=${CENTER[1]}&hourly=cloud_cover,temperature_2m&forecast_days=3&timezone=UTC`);
     const j = await r.json();
     j.hourly.time.forEach((t, i) => { const ms = Date.parse(t + 'Z'); WX.cloud.set(ms, j.hourly.cloud_cover[i]); WX.temp.set(ms, j.hourly.temperature_2m[i]); });
-    WX.ok = true;
+    WX.ok = true; for (const k in CLD) delete CLD[k];
   } catch { WX.ok = false; }
 }
 const hourKey = ms => Math.floor(ms / 3600e3) * 3600e3;
-const cloudAt = (min, day = ST.day) => WX.cloud.get(hourKey(tMs(min, day)));
+const CLD = {};
+function cloudArr(day){
+  if (CLD[day]) return CLD[day];
+  const a = new Array(26).fill(undefined);
+  if (WX.ok) for (let h = 0; h < 26; h++) a[h] = WX.cloud.get(hourKey(dayStart(day) + h * 3600e3));
+  return (CLD[day] = a);
+}
+const cloudAt = (min, day = ST.day) => cloudArr(day)[Math.max(0, Math.floor(min / 60))];
 const tempAt = (min, day = ST.day) => WX.temp.get(hourKey(tMs(min, day)));
 const isCloudy = (min, day = ST.day) => { const c = cloudAt(min, day); return c != null && c >= 60; };
 function clearsAt(min, day = ST.day){ const st = sunTimes(day); for (let m = Math.ceil(min / 60) * 60; m < st.set; m += 60) if (!isCloudy(m, day)) return m; return null; }
@@ -317,23 +333,37 @@ const shadowLayer = new CanvasLayer('shadowPane', (ctx, v) => {
     else { path.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) path.lineTo(P[i], P[i + 1]); }
     path.closePath();
   };
-  for (const k of keys){
-    const t = loadShadowTile(k); if (!t) continue;
-    for (const b of t.blds){
-      const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
-      if (bx1 < -margin || bx0 > v.W + margin || by1 < -margin || by0 > v.H + margin) continue;
-      const np = b.pts.length / 2, S = new Float64Array(np * 2);
-      for (let i = 0; i < np; i++){ S[2 * i] = X(b.pts[2 * i]); S[2 * i + 1] = Y(b.pts[2 * i + 1]); }
-      if (bx1 >= 0 && bx0 <= v.W && by1 >= 0 && by0 <= v.H) addRing(roofs, S, false);
-      if (!up) continue;
-      const L = Math.min(400, b.h / tanA) * t.pxPerM * v.S, dx = ux * L, dy = uy * L;
-      const Q = new Float64Array(np * 2);
-      for (let i = 0; i < np; i++){ Q[2 * i] = S[2 * i] + dx; Q[2 * i + 1] = S[2 * i + 1] + dy; }
-      addRing(shadows, Q, true);
-      for (let i = 0; i < np; i++){
-        const j = (i + 1) % np;
-        addRing(shadows, [S[2 * i], S[2 * i + 1], S[2 * j], S[2 * j + 1], Q[2 * j], Q[2 * j + 1], Q[2 * i], Q[2 * i + 1]], true);
+  // Screen-space footprints are cached per view, so dragging the sun only
+  // rebuilds the shadow path (the projection work is skipped).
+  const vkey = `${v.S}|${v.ox.toFixed(1)}|${v.oy.toFixed(1)}|${v.W}|${v.H}|${keys.join(',')}|${keys.map(k => SH.tiles.get(k) ? 1 : 0).join('')}`;
+  if (SH.vkey !== vkey){
+    SH.vkey = vkey; SH.vis = [];
+    for (const k of keys){
+      const t = loadShadowTile(k); if (!t) continue;
+      for (const b of t.blds){
+        const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
+        if (bx1 < -margin || bx0 > v.W + margin || by1 < -margin || by0 > v.H + margin) continue;
+        const np = b.pts.length / 2, S = new Float64Array(np * 2);
+        for (let i = 0; i < np; i++){ S[2 * i] = X(b.pts[2 * i]); S[2 * i + 1] = Y(b.pts[2 * i + 1]); }
+        let area = 0; for (let i = 0, j = np - 1; i < np; j = i++) area += S[2 * j] * S[2 * i + 1] - S[2 * i] * S[2 * j + 1];
+        SH.vis.push({ S, np, h: b.h, ppm: t.pxPerM, area, onScreen: bx1 >= 0 && bx0 <= v.W && by1 >= 0 && by0 <= v.H });
       }
+    }
+  }
+  for (const b of SH.vis){
+    const { S, np } = b;
+    if (b.onScreen) addRing(roofs, S, false);
+    if (!up) continue;
+    const L = Math.min(400, b.h / tanA) * b.ppm * v.S, dx = ux * L, dy = uy * L;
+    const Q = new Float64Array(np * 2);
+    for (let i = 0; i < np; i++){ Q[2 * i] = S[2 * i] + dx; Q[2 * i + 1] = S[2 * i + 1] + dy; }
+    addRing(shadows, Q, true);
+    // Only edges facing away from the sun contribute to the swept shadow.
+    const sgn = b.area > 0 ? 1 : -1;
+    for (let i = 0; i < np; i++){
+      const j = (i + 1) % np, ex = S[2 * j] - S[2 * i], ey = S[2 * j + 1] - S[2 * i + 1];
+      if ((ey * dx - ex * dy) * sgn < 0) continue;
+      addRing(shadows, [S[2 * i], S[2 * i + 1], S[2 * j], S[2 * j + 1], Q[2 * j], Q[2 * j + 1], Q[2 * i], Q[2 * i + 1]], true);
     }
   }
   if (up){
@@ -348,6 +378,7 @@ shadowLayer.addTo(map);
 
 // ─── Venue dots ────────────────────────────────────────────────────────────
 let VIS = [];          // visible (filtered) venues with state, for hit-testing
+const GLOW = (() => { const c = document.createElement('canvas'), r = 24; c.width = c.height = r * 2; const g = c.getContext('2d'), gr = g.createRadialGradient(r, r, 0, r, r, r); gr.addColorStop(0, 'rgba(255,190,40,.5)'); gr.addColorStop(1, 'rgba(255,190,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, r * 2, r * 2); return c; })();
 const venueLayer = new CanvasLayer('venuePane', (ctx, v) => {
   const glow = v.z >= 14, r = v.z >= 16 ? 7 : v.z >= 14 ? 6 : 4.2;
   const list = [];
@@ -362,7 +393,7 @@ const venueLayer = new CanvasLayer('venuePane', (ctx, v) => {
     const s = ven._s;
     if (rank === 2) continue;
     if (s.sunny){
-      if (glow){ const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.6); g.addColorStop(0, 'rgba(255,190,40,.5)'); g.addColorStop(1, 'rgba(255,190,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.6, 0, 7); ctx.fill(); }
+      if (glow){ const R = r * 2.6; ctx.drawImage(GLOW, x - R, y - R, R * 2, R * 2); }
       ctx.fillStyle = '#FFB000'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke();
     } else if (s.geo && s.cloudy){
       ctx.fillStyle = '#FFFDF8'; ctx.strokeStyle = '#C8A65A'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, r * .7, 0, 7); ctx.fill(); ctx.stroke();
@@ -457,7 +488,7 @@ function renderDial(){
   const mono = 'font-family="ui-monospace,SF Mono,Menlo,monospace" font-size="10" fill="#7C6F58"';
   svg.innerHTML = `
     <defs><radialGradient id="sg"><stop offset="0" stop-color="#FFF6CF"/><stop offset=".55" stop-color="${cl ? '#E9E4D6' : '#FFC23A'}"/><stop offset="1" stop-color="${cl ? '#CFC8B6' : '#FF9E00'}"/></radialGradient></defs>
-    <path class="dial-hit" d="${arc(Math.PI, 0)}" fill="none" stroke="transparent" stroke-width="44"/>
+    <rect class="dial-hit" x="0" y="32" width="${W}" height="96" fill="transparent"/>
     <path d="${arc(Math.PI, 0)}" fill="none" stroke="#211C14" stroke-opacity=".3" stroke-width="1.5" stroke-dasharray="2 5" pointer-events="none"/>
     ${night ? '' : `<path d="${arc(Math.PI, th)}" fill="none" stroke="${cl ? '#A9A08C' : '#E89A00'}" stroke-width="2.5" stroke-linecap="round" pointer-events="none"/>`}
     <line x1="16" x2="${W - 16}" y1="${base}" y2="${base}" stroke="#211C14" stroke-opacity=".15" pointer-events="none"/>
@@ -479,7 +510,7 @@ function renderDial(){
 function dialToMin(clientX){
   const svg = $('dial-svg'), g = svg._geom, r = svg.getBoundingClientRect();
   const x = clientX - r.left, uu = Math.max(0, Math.min(1, (x - (g.cx - g.rx)) / (2 * g.rx)));
-  const u = 1 - Math.acos(1 - 2 * uu) / Math.PI;
+  const u = 1 - Math.acos(2 * uu - 1) / Math.PI;     // x = cx + rx·cos(θ), θ = π(1−u)
   return Math.round((g.st.rise + u * (g.st.set - g.st.rise)) / 5) * 5;
 }
 function setTime(min, day = ST.day){
@@ -539,7 +570,7 @@ function renderSheet(skipList){
   const cl = isCloudy(ST.min);
   let sum, cards;
   if (sunny.length){
-    sum = `<div class="sum"><span class="n">${sunny.length}</span><span class="t">${t.in_sun(sunny.length)}</span></div><div class="insight">${esc(streetInsight(vis))}</div>`;
+    sum = `<div class="sum"><span class="n">${sunny.length}</span><span class="t">${t.in_sun(sunny.length)}</span></div><div class="insight">${esc(skipList ? ($('summary').querySelector('.insight')?.textContent || '') : streetInsight(vis))}</div>`;
     cards = sunny.map(v => [v, distM(v, ref)]).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([v, d]) =>
       `<button class="card" data-id="${esc(v.id)}"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}${v.roof ? ' · ' + t.rooftop : ''}</div><div class="st">${t.until(fmt(v._s.win[1]))}</div><div class="wk">${t.walk(walkMin(d))} · ${t.left(dur(v._s.left))}</div></button>`);
   } else {
@@ -680,11 +711,15 @@ $('locate').addEventListener('click', () => {
 });
 map.on('moveend', () => { store.set('view', { c: [map.getCenter().lat, map.getCenter().lng], z: map.getZoom() }); render(); });
 window.__hoursReady = () => render();
-window.__sm = { ST, setTime, openDetail, closeDetail, render, VEN: () => VEN, map };   // handy for debugging in the console
+window.__sm = { ST, setTime, openDetail, closeDetail, render, VEN: () => VEN, map,
+  bench(n = 20){ const out = {}; const t = (k, f) => { const a = performance.now(); f(); out[k] = (out[k] || 0) + performance.now() - a; };
+    for (let i = 0; i < n; i++){ ST.min += 5; t('states', computeStates); t('filters', applyFilters); t('shadows', () => shadowLayer._render()); t('dots', () => venueLayer._render()); t('dial', renderDial); t('chips', renderChips); t('sheet', () => renderSheet(true)); }
+    for (const k in out) out[k] = +(out[k] / n).toFixed(1); return out; } };   // handy for debugging in the console
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if ($('search').classList.contains('open')) closeSearch(); else if (ST.sel) closeDetail(); } });
 // Live clock
 setInterval(() => {
-  if (ST.live){ ST.min = nowMin(); if (ST.min >= 1440){ for (const k in WIN) delete WIN[k]; for (const k in SUNT) delete SUNT[k]; ST.min = nowMin(); } render(); }
+  const rolled = refreshDay();
+  if (ST.live || rolled){ if (ST.live) ST.min = nowMin(); render(); }
 }, 30000);
 
 // ═════════════════════════════════════════════════════════════════════════
