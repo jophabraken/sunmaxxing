@@ -11,3 +11,7 @@
 /de     /de/           301
 
 # Everything else: let Pages serve the file at the path (default behavior).
+
+# The 2026 redesign was previewed at /new/; it is now the homepage.
+/new/   /       301
+/new    /       301

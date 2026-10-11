@@ -73,7 +73,8 @@ const store = {
   get(k, d){ try { const v = localStorage.getItem('sm_' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v){ try { localStorage.setItem('sm_' + k, JSON.stringify(v)); } catch {} },
 };
-let LANG = store.get('lang', null) || (/^de\b/i.test(navigator.language || '') || location.pathname.startsWith('/de') ? 'de' : 'en');
+// /de/ is the German homepage (rewritten to this file); the URL wins, then a saved choice, then the browser.
+let LANG = /^\/de(\/|$)/.test(location.pathname) ? 'de' : (store.get('lang', null) || (/^de\b/i.test(navigator.language || '') ? 'de' : 'en'));
 const T = () => STR[LANG];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -848,7 +849,11 @@ $('search-results').addEventListener('click', e => { const b = e.target.closest(
 
 // ─── Misc controls ─────────────────────────────────────────────────────────
 function toast(msg){ const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2600); }
-$('lang-toggle').addEventListener('click', () => { LANG = LANG === 'de' ? 'en' : 'de'; store.set('lang', LANG); document.documentElement.lang = LANG; render(); });
+$('lang-toggle').addEventListener('click', () => {
+  LANG = LANG === 'de' ? 'en' : 'de'; store.set('lang', LANG); document.documentElement.lang = LANG;
+  if (location.pathname === '/' || /^\/de\/?$/.test(location.pathname)) history.replaceState(null, '', (LANG === 'de' ? '/de/' : '/') + location.search + location.hash);
+  render();
+});
 $('locate').addEventListener('click', () => {
   if (ST.user){ ST.user = null; $('locate').classList.remove('on'); render(); return; }
   if (!navigator.geolocation){ toast(T().loc_fail); return; }
@@ -905,7 +910,9 @@ setInterval(() => {
   render();
   $('loading').classList.add('done');
   loadWeather().then(render);
-  const q = new URLSearchParams(location.search).get('v');
+  const params = new URLSearchParams(location.search);
+  const q = params.get('v');
   if (q){ const v = VEN.find(x => x.id === q); if (v) openDetail(v); }
+  if (params.get('q')){ openSearch(); $('search-input').value = params.get('q'); renderSearch(); }   // sitelinks search box
 })().catch(err => { console.error(err); $('loading').innerHTML = '<p style="padding:24px;text-align:center">Could not load Berlin’s terraces. Please reload.</p>'; });
 })();
