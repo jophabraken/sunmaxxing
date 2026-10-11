@@ -22,11 +22,11 @@ const STR = {
     search_ph: 'Search a place in Berlin', now: 'Now', today: 'Today', tomorrow: 'Tomorrow',
     in_sun: n => n === 1 ? 'terrace in the sun<br>around here' : 'terraces in the sun<br>around here',
     next_sun: (n, cl) => `next sun · ${n} terraces<br>${cl ? 'once the clouds clear' : 'later today'}`,
-    no_more: 'no more sun today',
+    no_more: 'no more sun today', sunny_here: 'sunny here', next_sun_s: 'next sun', n_terraces: n => `${n} terraces`, first_sun_s: d => d === 1 ? 'first sun tomorrow' : 'first sun',
     first_tomorrow: (n, d) => `first sun ${d === 1 ? 'tomorrow' : 'that day'} · ${n} terraces<br>tap one to plan ahead`,
     until: t => `until ${t}`, left: d => `${d} left`, walk: m => `${m} min walk`, sun_at: (a, b) => `sun ${a}–${b}`,
-    shade_reaches: (s, t) => `Shade reaches most of ${s} at ${t}`, lights_up: (s, t) => `${s} lights up from ${t}`,
-    golden: (g, s) => `Golden hour from ${g} · sunset ${s}`, overcast: t => t ? `Overcast · clearing around ${t}` : 'Overcast for the rest of the day',
+    shade_reaches: (s, t) => `shade on ${s} at ${t}`, lights_up: (s, t) => `sun on ${s} from ${t}`,
+    golden: (g, s) => `golden hour ${g} · sunset ${s}`, overcast: t => t ? `Overcast · clearing around ${t}` : 'Overcast for the rest of the day',
     after_sunset: (s, r) => `Sunset was ${s} · sunrise ${r}`,
     chip_sunny: 'Sunny now', chip_open: 'Open now', chip_bar: 'Bars', chip_cafe: 'Cafés', chip_rest: 'Restaurants', chip_ice: 'Ice cream', chip_roof: 'Rooftops', chip_fav: 'Saved',
     list_h: 'Around here', list_sub: n => `${n} terraces`, more: 'Show more', nothing: 'No terraces match here. Zoom out or clear a filter.',
@@ -47,11 +47,11 @@ const STR = {
     search_ph: 'Ort in Berlin suchen', now: 'Jetzt', today: 'Heute', tomorrow: 'Morgen',
     in_sun: n => n === 1 ? 'Terrasse in der Sonne<br>hier in der Nähe' : 'Terrassen in der Sonne<br>hier in der Nähe',
     next_sun: (n, cl) => `nächste Sonne · ${n} Terrassen<br>${cl ? 'sobald die Wolken weg sind' : 'später heute'}`,
-    no_more: 'heute keine Sonne mehr',
+    no_more: 'heute keine Sonne mehr', sunny_here: 'sonnig hier', next_sun_s: 'nächste Sonne', n_terraces: n => `${n} Terrassen`, first_sun_s: d => d === 1 ? 'erste Sonne morgen' : 'erste Sonne',
     first_tomorrow: (n, d) => `erste Sonne ${d === 1 ? 'morgen' : 'an dem Tag'} · ${n} Terrassen<br>antippen zum Vorplanen`,
     until: t => `bis ${t}`, left: d => `noch ${d}`, walk: m => `${m} Min. zu Fuß`, sun_at: (a, b) => `Sonne ${a}–${b}`,
-    shade_reaches: (s, t) => `Schatten erreicht die ${s} um ${t}`, lights_up: (s, t) => `${s}: Sonne ab ${t}`,
-    golden: (g, s) => `Goldene Stunde ab ${g} · Sonnenuntergang ${s}`, overcast: t => t ? `Bewölkt · klart gegen ${t} auf` : 'Bewölkt für den Rest des Tages',
+    shade_reaches: (s, t) => `Schatten in der ${s} ab ${t}`, lights_up: (s, t) => `Sonne in der ${s} ab ${t}`,
+    golden: (g, s) => `goldene Stunde ${g} · Untergang ${s}`, overcast: t => t ? `Bewölkt · klart gegen ${t} auf` : 'Bewölkt für den Rest des Tages',
     after_sunset: (s, r) => `Sonnenuntergang war ${s} · Aufgang ${r}`,
     chip_sunny: 'Jetzt sonnig', chip_open: 'Geöffnet', chip_bar: 'Bars', chip_cafe: 'Cafés', chip_rest: 'Restaurants', chip_ice: 'Eis', chip_roof: 'Dachterrassen', chip_fav: 'Gemerkt',
     list_h: 'Hier in der Nähe', list_sub: n => `${n} Terrassen`, more: 'Mehr anzeigen', nothing: 'Hier passt nichts. Rauszoomen oder Filter entfernen.',
@@ -677,9 +677,10 @@ function renderSheet(skipList){
   const cl = isCloudy(ST.min);
   let sum, cards;
   if (sunny.length){
-    sum = `<div class="sum"><span class="n">${sunny.length}</span><span class="t">${t.in_sun(sunny.length)}</span></div><div class="insight">${esc(skipList ? ($('summary').querySelector('.insight')?.textContent || '') : streetInsight(vis))}</div>`;
+    const ins = skipList ? ($('summary').querySelector('.ins')?.textContent || '') : streetInsight(vis);
+    sum = `<div class="sum"><span class="n">${sunny.length}</span><span class="t">${t.sunny_here}</span><span class="ins">${ins ? '· ' + esc(ins) : ''}</span></div>`;
     cards = sunny.map(v => [v, distM(v, ref)]).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([v, d]) =>
-      `<button class="card" data-id="${esc(v.id)}">${snapHTML(v)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}${v.roof ? ' · ' + t.rooftop : ''}</div><div class="st">${t.until(fmt(v._s.win[1]))}</div><div class="wk">${t.walk(walkMin(d))} · ${t.left(dur(v._s.left))}</div></div></button>`);
+      `<button class="card" data-id="${esc(v.id)}">${snapHTML(v)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}${v.roof ? ' · ' + t.rooftop : ''}</div><div class="st">${t.until(fmt(v._s.win[1]))}</div><div class="wk">${walkMin(d)} min · ${t.left(dur(v._s.left))}</div></div></button>`);
   } else {
     // Next sun: earliest upcoming cloud-free sunny minute among visible terraces
     let best = null;
@@ -688,7 +689,7 @@ function renderSheet(skipList){
     const sub = cl ? t.overcast(clearsAt(ST.min) != null ? fmt(clearsAt(ST.min)) : null) : night ? t.after_sunset(fmt(st.set), fmt(st.rise)) : '';
     if (best){
       const later = vis.filter(v => v._s.W.some(([, b]) => b > best.m));
-      sum = `<div class="sum"><span class="n">${fmt(best.m)}</span><span class="t">${t.next_sun(later.length, cl)}</span></div><div class="insight">${esc(sub)}</div>`;
+      sum = `<div class="sum"><span class="n">${fmt(best.m)}</span><span class="t">${t.next_sun_s}</span><span class="ins">· ${esc(sub || t.n_terraces(later.length))}</span></div>`;
       cards = later.map(v => [v, distM(v, ref)]).sort((a, b) => a[1] - b[1]).slice(0, 12).map(([v, d]) => {
         const w = v._s.W.find(([, b]) => b > best.m);
         const at = Math.max(w[0], best.m) + 10;
@@ -699,11 +700,11 @@ function renderSheet(skipList){
       const d1 = ST.day + 1, W1 = windows(d1);
       const tom = vis.map(v => [v, (W1[v.i] || []).find(([a, b]) => b - a >= 30), distM(v, ref)]).filter(e => e[1]);
       const first = tom.reduce((m, e) => Math.min(m, e[1][0]), Infinity);
-      sum = `<div class="sum"><span class="n">${isFinite(first) ? fmt(first) : '—'}</span><span class="t">${t.first_tomorrow(tom.length, d1)}</span></div><div class="insight">${esc(sub)}</div>`;
+      sum = `<div class="sum"><span class="n">${isFinite(first) ? fmt(first) : '—'}</span><span class="t">${t.first_sun_s(d1)}</span><span class="ins">${sub ? '· ' + esc(sub) : ''}</span></div>`;
       cards = tom.sort((a, b) => (a[1][0] - b[1][0]) || (a[2] - b[2])).slice(0, 12).map(([v, w, d]) =>
         `<button class="card off" data-id="${esc(v.id)}" data-day="${d1}" data-min="${w[0]}">${snapHTML(v, '', `data-day="${d1}" data-min="${w[0] + 10}"`)}<div class="ct"><div class="nm">${esc(v.name)}</div><div class="ty">${esc(typeOf(v))}</div><div class="st">${t.sun_at(fmt(w[0]), fmt(w[1]))}</div><div class="wk">${t.walk(walkMin(d))}</div></div></button>`);
     } else {
-      sum = `<div class="sum"><span class="n">☾</span><span class="t">${t.no_more}</span></div><div class="insight">${esc(sub)}</div>`;
+      sum = `<div class="sum"><span class="n">☾</span><span class="t">${t.no_more}</span><span class="ins">${sub ? '· ' + esc(sub) : ''}</span></div>`;
       cards = [];
     }
   }
@@ -733,7 +734,7 @@ $('sheet').addEventListener('click', e => {
   grab.addEventListener('click', () => set(sh.dataset.state === 'full' ? 'peek' : 'full'));
   grab.addEventListener('pointerdown', e => { y0 = e.clientY; st0 = sh.dataset.state; grab.setPointerCapture(e.pointerId); });
   grab.addEventListener('pointerup', e => { if (y0 == null) return; const dy = e.clientY - y0; y0 = null; if (Math.abs(dy) > 30) set(dy < 0 ? 'full' : 'peek'); });
-  $('summary').addEventListener('click', () => { if (sh.dataset.state === 'peek' && innerWidth < 900) set('full'); });
+  $('summary').addEventListener('click', () => { if (innerWidth < 900) set(sh.dataset.state === 'peek' ? 'full' : 'peek'); });
 })();
 
 // ─── Terrace page ──────────────────────────────────────────────────────────

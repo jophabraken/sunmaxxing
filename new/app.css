@@ -12,7 +12,7 @@
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
   --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --peek:262px; --top:calc(env(safe-area-inset-top,0px) + 10px);
+  --peek:196px; --top:calc(env(safe-area-inset-top,0px) + 10px);
   --shadow:0 2px 12px rgba(60,40,10,.12); --shadow-lg:0 -8px 30px rgba(60,40,10,.12);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -63,21 +63,22 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;paddin
 .sheet{position:absolute;left:0;right:0;bottom:0;height:calc(100% - var(--top) - 96px);background:var(--paper-2);border-radius:28px 28px 0 0;box-shadow:var(--shadow-lg);z-index:16;
   transform:translateY(calc(100% - var(--peek)));transition:transform .32s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column}
 .sheet[data-state="full"]{transform:translateY(0)}
-.sheet-grab{flex:none;height:26px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
+.sheet-grab{flex:none;height:20px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none}
 .sheet-grab i{width:38px;height:5px;border-radius:3px;background:#E3DACB}
 .sheet-scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
 .sheet[data-state="peek"] .sheet-scroll{overflow:hidden}
-.sum{padding:0 20px;display:flex;align-items:baseline;gap:10px}
-.sum .n{font:400 42px/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.sum .t{font-size:15px;line-height:1.25;color:#5C5446}
+.sum{padding:0 18px 10px;display:flex;align-items:baseline;gap:7px;white-space:nowrap;cursor:pointer}
+.sum .n{font:400 25px/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.sum .t{font-size:14px;font-weight:600;color:var(--ink-2)}
+.sum .ins{font-size:13px;color:#8A7A5C;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .insight{padding:5px 20px 12px;font-size:13px;color:#8A7A5C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cards{display:flex;gap:10px;overflow-x:auto;padding:0 20px 18px;scrollbar-width:none;scroll-snap-type:x proximity}
+.cards{display:flex;gap:8px;overflow-x:auto;padding:0 14px 14px;scrollbar-width:none;scroll-snap-type:x proximity}
 .cards::-webkit-scrollbar{display:none}
-.card{flex:none;width:236px;border-radius:18px;background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.04),0 4px 14px rgba(60,40,10,.08);padding:9px;text-align:left;scroll-snap-align:start;display:flex;gap:11px;align-items:stretch}
+.card{flex:none;width:208px;border-radius:16px;background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.04),0 4px 14px rgba(60,40,10,.08);padding:7px;text-align:left;scroll-snap-align:start;display:flex;gap:9px;align-items:center}
 .card .ct{min-width:0;flex:1;padding:2px 2px 0 0}
 .card .nm{font-weight:600;font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .ty{font-size:12px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .st{margin-top:7px;font-weight:600;font-size:13px;color:var(--amber-deep);display:flex;align-items:center;gap:6px}
+.card .st{margin-top:5px;font-weight:600;font-size:13px;color:var(--amber-deep);display:flex;align-items:center;gap:6px}
 .card .st:before{content:"";flex:none;width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px rgba(255,176,0,.22)}
 .card.off .st{color:#7D7590}
 .card.off .st:before{background:transparent;box-shadow:0 0 0 1.5px var(--shade) inset}
@@ -178,7 +179,7 @@ body[data-sheet="full"] .map-ctl,body[data-detail] .map-ctl{opacity:0;pointer-ev
 }
 
 /* Sun snapshots */
-canvas.snap{display:block;flex:none;width:76px;height:84px;border-radius:13px;background:#F2EBDF;box-shadow:inset 0 0 0 1px rgba(60,40,10,.06)}
+canvas.snap{display:block;flex:none;width:62px;height:66px;border-radius:11px;background:#F2EBDF;box-shadow:inset 0 0 0 1px rgba(60,40,10,.06)}
 canvas.snap.sm{width:52px;height:52px;border-radius:12px}
 .row{display:flex;gap:12px;align-items:flex-start}
 .row-main{flex:1;min-width:0}
@@ -190,3 +191,5 @@ canvas.snap.sm{width:52px;height:52px;border-radius:12px}
 .d-hero[data-photo] .d-hero-lab{display:none}
 .d-credit{position:absolute;left:10px;bottom:8px;max-width:60%;font-size:10px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-fav{z-index:2}
+
+@media (min-width:900px){ .sum{padding:0 20px 12px} .sum .n{font-size:34px} }
