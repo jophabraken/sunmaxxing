@@ -1,8 +1,8 @@
 {
-  "bakedAt": "2026-10-11T19:27:34.928Z",
+  "bakedAt": "2026-10-12T11:45:07.335Z",
   "bakeDate": "2026-10-11",
   "windowsBakedAt": "2026-10-11T14:59:23.395Z",
-  "rooftopsBakedAt": "2026-10-11T19:27:34.928Z",
+  "rooftopsBakedAt": "2026-10-12T11:45:07.335Z",
   "bbox": {
     "south": 52.44,
     "west": 13.24,
@@ -22,7 +22,7 @@
     "east": 13.585
   },
   "venues": {
-    "count": 4386
+    "count": 4462
   },
   "buildings": {
     "count": 220058,
