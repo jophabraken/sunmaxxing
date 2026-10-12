@@ -274,7 +274,10 @@ function addBasemap(){
   Object.assign(F, GOLD);
   if (F.pois) for (const k of Object.keys(F.pois)) F.pois[k] = '#A8987C';
   basemap = protomapsL.leafletLayer({ url: '/tiles/{z}/{x}/{y}.pbf', maxDataZoom: 14,
-    paintRules: protomapsL.paintRules(F), labelRules: protomapsL.labelRules(F, LANG), backgroundColor: F.background,
+    paintRules: protomapsL.paintRules(F),
+    // Shop/POI icons + labels are the costliest part of the basemap and compete with our own dots — skip them.
+    labelRules: protomapsL.labelRules(F, LANG).filter(r => r.dataLayer !== 'pois'),
+    backgroundColor: F.background, updateWhenZooming: false, keepBuffer: 1,
     attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://protomaps.com">Protomaps</a> · <a href="https://open-meteo.com">Open-Meteo</a>' }).addTo(map);
 }
 window.__basemapReady = addBasemap;
@@ -313,7 +316,8 @@ function loadShadowTile(key){
   if (SH.tiles.has(key)) return SH.tiles.get(key);
   SH.tiles.set(key, null);
   const [tx, ty] = key.split('/').map(Number), n = 2 ** SH.z;
-  const lon0 = tx / n * 360 - 180, k = Math.PI - 2 * Math.PI * ty / n, lat0 = 180 / Math.PI * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k)));
+  // Tile origin on the 1e-5° grid (matches scripts/bake-data.js → bakeShadowTiles)
+  const k = Math.PI - 2 * Math.PI * ty / n, lon0 = Math.round((tx / n * 360 - 180) * 1e5) / 1e5, lat0 = Math.round(180 / Math.PI * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k))) * 1e5) / 1e5;
   fetch(`/data/shadows/${SH.z}/${tx}/${ty}.json`).then(r => r.json()).then(j => {
     const blds = [];
     for (const b of j.b){
@@ -333,78 +337,96 @@ function loadShadowTile(key){
   return null;
 }
 const SHADOW_MIN_Z = 15;
-const shadowLayer = new CanvasLayer('shadowPane', (ctx, v) => {
+// Shadows are drawn per 256-px tile (Leaflet GridLayer): panning only paints
+// tiles that scroll into view, zoom animates like any tile layer, and a time
+// change repaints just the tiles on screen — each touching only the buildings
+// that can reach it.
+function sunScene(){
   const p = sunPos(), alt = p.altitude, altDeg = alt * 180 / Math.PI, cl = isCloudy(ST.min);
-  // Warm the map as the sun drops; dusk-blue at night.
-  if (alt <= 0){ ctx.fillStyle = 'rgba(28,30,70,.36)'; ctx.fillRect(0, 0, v.W, v.H); }
-  else if (cl){ ctx.fillStyle = 'rgba(120,125,140,.12)'; ctx.fillRect(0, 0, v.W, v.H); }
-  else if (altDeg < 18){ ctx.fillStyle = `rgba(255,150,40,${(.12 * (1 - altDeg / 18)).toFixed(3)})`; ctx.fillRect(0, 0, v.W, v.H); }
-  if (v.z < SHADOW_MIN_Z || !SH.index) return;
-  // Tiles in view (+1 ring for shadows cast in from neighbours)
-  const n = 2 ** SH.z, toT = (px) => Math.floor(px / 256 * n);
-  const x0 = (v.ox) / v.S, y0 = (v.oy) / v.S, x1 = (v.ox + v.W) / v.S, y1 = (v.oy + v.H) / v.S;
-  const keys = [];
-  for (let tx = toT(x0) - 1; tx <= toT(x1) + 1; tx++) for (let ty = toT(y0) - 1; ty <= toT(y1) + 1; ty++){ const k = tx + '/' + ty; if (SH.index.has(k)) keys.push(k); }
-  if (keys.length > 40) return;
-  // Fetch what's on screen first; the surrounding ring (shadows cast in from
-  // neighbours) only once those have arrived.
-  const cx0 = toT(x0), cx1 = toT(x1), cy0 = toT(y0), cy1 = toT(y1);
-  const core = keys.filter(k => { const [tx, ty] = k.split('/').map(Number); return tx >= cx0 && tx <= cx1 && ty >= cy0 && ty <= cy1; });
-  core.forEach(loadShadowTile);
-  if (core.every(k => SH.tiles.get(k))) keys.forEach(loadShadowTile);
-  const X = x => x * v.S - v.ox, Y = y => y * v.S - v.oy;
-  const shadows = new Path2D(), roofs = new Path2D();
-  const up = alt > 0.01 && !cl;
-  const tanA = Math.tan(Math.max(alt, 0.03)), ux = Math.sin(p.azimuth), uy = -Math.cos(p.azimuth);
-  const margin = 400 * 256 / (2 * Math.PI * 6378137 * 0.6) * v.S;   // generous: 400 m at Berlin latitude
-  const addRing = (path, P, reverseIfCW) => {
-    let a = 0; for (let i = 0, j = P.length - 2; i < P.length; j = i, i += 2) a += P[j] * P[i + 1] - P[i] * P[j + 1];
-    if ((a > 0) === reverseIfCW){ path.moveTo(P[P.length - 2], P[P.length - 1]); for (let i = P.length - 4; i >= 0; i -= 2) path.lineTo(P[i], P[i + 1]); }
-    else { path.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) path.lineTo(P[i], P[i + 1]); }
-    path.closePath();
-  };
-  // Screen-space footprints are cached per view, so dragging the sun only
-  // rebuilds the shadow path (the projection work is skipped).
-  const vkey = `${v.S}|${v.ox.toFixed(1)}|${v.oy.toFixed(1)}|${v.W}|${v.H}|${keys.join(',')}|${keys.map(k => SH.tiles.get(k) ? 1 : 0).join('')}`;
-  if (SH.vkey !== vkey){
-    SH.vkey = vkey; SH.vis = [];
-    for (const k of keys){
-      const t = SH.tiles.get(k); if (!t) continue;
+  return { p, alt, altDeg, cl, up: alt > 0.01 && !cl, tanA: Math.tan(Math.max(alt, 0.03)), ux: Math.sin(p.azimuth), uy: -Math.cos(p.azimuth) };
+}
+function paintShadowTile(c, coords, sc){
+  const dpr = c._dpr, ctx = c.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, 256, 256);
+  const { alt, altDeg, cl, up, tanA, ux, uy } = sc;
+  if (alt <= 0){ ctx.fillStyle = 'rgba(28,30,70,.36)'; ctx.fillRect(0, 0, 256, 256); }
+  else if (cl){ ctx.fillStyle = 'rgba(120,125,140,.12)'; ctx.fillRect(0, 0, 256, 256); }
+  else if (altDeg < 18){ ctx.fillStyle = `rgba(255,150,40,${(.12 * (1 - altDeg / 18)).toFixed(3)})`; ctx.fillRect(0, 0, 256, 256); }
+  if (coords.z < SHADOW_MIN_Z || !SH.index) return;
+  const S = 2 ** coords.z, ox = coords.x * 256, oy = coords.y * 256;
+  const X = x => x * S - ox, Y = y => y * S - oy;
+  // Data tiles (z15) that can cast shade into this tile: tile bounds + max shadow reach.
+  const n = 2 ** SH.z, reachPx = up ? Math.min(400, 60 / tanA) * 256 / (2 * Math.PI * 6378137 * 0.6) * S : 0;
+  const t0 = v => Math.floor(v / S / 256 * n);
+  // Projected footprints for this tile are cached on the canvas (they don't
+  // change with time), so a time change only recomputes the shadow sweep.
+  const reachMax = Math.min(400, 60 / 0.0524) * 256 / (2 * Math.PI * 6378137 * 0.6) * S;   // reach at 3° sun
+  if (!c._geo || c._geoZ !== coords.z + '/' + coords.x + '/' + coords.y || c._geoN !== SH.tiles.size){
+    const geo = [];
+    for (let tx = t0(ox - reachMax); tx <= t0(ox + 256 + reachMax); tx++) for (let ty = t0(oy - reachMax); ty <= t0(oy + 256 + reachMax); ty++){
+      const key = tx + '/' + ty; if (!SH.index.has(key)) continue;
+      const t = SH.tiles.get(key); if (!t){ loadShadowTile(key); continue; }
       for (const b of t.blds){
         const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
-        if (bx1 < -margin || bx0 > v.W + margin || by1 < -margin || by0 > v.H + margin) continue;
-        const np = b.pts.length / 2, S = new Float64Array(np * 2);
-        for (let i = 0; i < np; i++){ S[2 * i] = X(b.pts[2 * i]); S[2 * i + 1] = Y(b.pts[2 * i + 1]); }
-        let area = 0; for (let i = 0, j = np - 1; i < np; j = i++) area += S[2 * j] * S[2 * i + 1] - S[2 * i] * S[2 * j + 1];
-        SH.vis.push({ S, np, h: b.h, ppm: t.pxPerM, area, onScreen: bx1 >= 0 && bx0 <= v.W && by1 >= 0 && by0 <= v.H });
+        const reach = Math.min(400, b.h / 0.0524) * t.pxPerM * S;
+        if (bx1 < -reach || bx0 > 256 + reach || by1 < -reach || by0 > 256 + reach) continue;
+        const np = b.pts.length / 2, P = new Float64Array(np * 2);
+        for (let i = 0; i < np; i++){ P[2 * i] = X(b.pts[2 * i]); P[2 * i + 1] = Y(b.pts[2 * i + 1]); }
+        let area = 0; for (let i = 0, j = np - 1; i < np; j = i++) area += P[2 * j] * P[2 * i + 1] - P[2 * i] * P[2 * j + 1];
+        geo.push({ P, np, h: b.h, ppm: t.pxPerM * S, bx0, bx1, by0, by1, sgn: area > 0 ? 1 : -1, onTile: !(bx1 < 0 || bx0 > 256 || by1 < 0 || by0 > 256) });
       }
     }
+    c._geo = geo; c._geoZ = coords.z + '/' + coords.x + '/' + coords.y; c._geoN = SH.tiles.size;
   }
-  for (const b of SH.vis){
-    const { S, np } = b;
-    if (b.onScreen) addRing(roofs, S, false);
+  const shadows = new Path2D(), roofs = new Path2D();
+  let any = false;
+  for (const g of c._geo){
+    const { P, np } = g;
+    if (g.onTile) ringPath(roofs, P, false);
     if (!up) continue;
-    const L = Math.min(400, b.h / tanA) * b.ppm * v.S, dx = ux * L, dy = uy * L;
+    const L = Math.min(400, g.h / tanA) * g.ppm, dx = ux * L, dy = uy * L;
+    if (Math.max(g.bx1, g.bx1 + dx) < 0 || Math.min(g.bx0, g.bx0 + dx) > 256 || Math.max(g.by1, g.by1 + dy) < 0 || Math.min(g.by0, g.by0 + dy) > 256) continue;
+    any = true;
     const Q = new Float64Array(np * 2);
-    for (let i = 0; i < np; i++){ Q[2 * i] = S[2 * i] + dx; Q[2 * i + 1] = S[2 * i + 1] + dy; }
-    addRing(shadows, Q, true);
-    // Only edges facing away from the sun contribute to the swept shadow.
-    const sgn = b.area > 0 ? 1 : -1;
+    for (let i = 0; i < np; i++){ Q[2 * i] = P[2 * i] + dx; Q[2 * i + 1] = P[2 * i + 1] + dy; }
+    ringPath(shadows, Q, true);
     for (let i = 0; i < np; i++){
-      const j = (i + 1) % np, ex = S[2 * j] - S[2 * i], ey = S[2 * j + 1] - S[2 * i + 1];
-      if ((ey * dx - ex * dy) * sgn < 0) continue;
-      addRing(shadows, [S[2 * i], S[2 * i + 1], S[2 * j], S[2 * j + 1], Q[2 * j], Q[2 * j + 1], Q[2 * i], Q[2 * i + 1]], true);
+      const j = (i + 1) % np, ex = P[2 * j] - P[2 * i], ey = P[2 * j + 1] - P[2 * i + 1];
+      if ((ey * dx - ex * dy) * g.sgn < 0) continue;
+      ringPath(shadows, [P[2 * i], P[2 * i + 1], P[2 * j], P[2 * j + 1], Q[2 * j], Q[2 * j + 1], Q[2 * i], Q[2 * i + 1]], true);
     }
   }
-  if (up){
-    const a = Math.min(1, altDeg / 4);      // fade shadows in right after sunrise / out before sunset
-    ctx.save(); ctx.globalAlpha = 0.27 * a; ctx.fillStyle = '#3E3462'; ctx.fill(shadows, 'nonzero'); ctx.restore();
-  }
+  if (any){ ctx.save(); ctx.globalAlpha = 0.27 * Math.min(1, altDeg / 4); ctx.fillStyle = '#3E3462'; ctx.fill(shadows, 'nonzero'); ctx.restore(); }
   ctx.fillStyle = alt <= 0 ? '#CFC6B8' : '#E6DBC9'; ctx.fill(roofs);
-  if (v.z >= 16){ ctx.strokeStyle = 'rgba(160,140,110,.35)'; ctx.lineWidth = .6; ctx.stroke(roofs); }
+  if (coords.z >= 16 && !ST.dragging){ ctx.strokeStyle = 'rgba(160,140,110,.35)'; ctx.lineWidth = .6; ctx.stroke(roofs); }
   if (alt <= 0){ ctx.fillStyle = 'rgba(28,30,70,.18)'; ctx.fill(roofs); }
+}
+const ShadowGrid = L.GridLayer.extend({
+  options: { pane: 'shadowPane', tileSize: 256, keepBuffer: 1, updateWhenZooming: false },
+  createTile(coords){
+    const c = document.createElement('canvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
+    c._dpr = dpr; c.width = c.height = 256 * dpr;
+    paintShadowTile(c, coords, sunScene());
+    return c;
+  },
+  repaint(){
+    if (!this._map) return;
+    const sc = sunScene();
+    for (const k in this._tiles){ const t = this._tiles[k]; if (t.current) paintShadowTile(t.el, t.coords, sc); }
+  },
 });
-shadowLayer.addTo(map);
+const shadowLayer = new ShadowGrid().addTo(map);
+let shadowRepaintQueued = false;
+let shadowLast = 0, shadowTrail = 0;
+// While the sun is being dragged, shadows repaint ~8×/s (the dial, time and
+// dots still follow every frame); a final full-quality repaint follows release.
+shadowLayer.redraw = () => {
+  if (shadowRepaintQueued) return;
+  const wait = ST.dragging ? Math.max(0, 120 - (performance.now() - shadowLast)) : 0;
+  shadowRepaintQueued = true;
+  clearTimeout(shadowTrail);
+  shadowTrail = setTimeout(() => requestAnimationFrame(() => { shadowRepaintQueued = false; shadowLast = performance.now(); shadowLayer.repaint(); }), wait);
+};
 
 // ─── Sun snapshots ─────────────────────────────────────────────────────────
 // A small aerial view of each terrace's block with its real building shadows
@@ -416,6 +438,23 @@ function ringPath(path, P, reverseIfCW){
   if ((a > 0) === reverseIfCW){ path.moveTo(P[P.length - 2], P[P.length - 1]); for (let i = P.length - 4; i >= 0; i -= 2) path.lineTo(P[i], P[i + 1]); }
   else { path.moveTo(P[0], P[1]); for (let i = 2; i < P.length; i += 2) path.lineTo(P[i], P[i + 1]); }
   path.closePath();
+}
+// Buildings around a terrace, cached once their data tiles are loaded
+// (a snapshot then touches ~100 buildings instead of ~6,000).
+function nearBuildings(v, radiusM){
+  const key = radiusM > 300 ? '_nearL' : '_nearS';
+  if (v[key]) return v[key];
+  if (!SH.index) return [];
+  const mPer0 = 2 * Math.PI * 6378137 * Math.cos(v.lat * Math.PI / 180) / 256, r0 = radiusM / mPer0;
+  const n = 2 ** SH.z, tx0 = Math.floor((v.x0 - r0) / 256 * n), tx1 = Math.floor((v.x0 + r0) / 256 * n), ty0 = Math.floor((v.y0 - r0) / 256 * n), ty1 = Math.floor((v.y0 + r0) / 256 * n);
+  const out = []; let complete = true;
+  for (let tx = tx0; tx <= tx1; tx++) for (let ty = ty0; ty <= ty1; ty++){
+    const k = tx + '/' + ty; if (!SH.index.has(k)) continue;
+    const t = SH.tiles.get(k); if (!t){ loadShadowTile(k); complete = false; continue; }
+    for (const b of t.blds) if (b.maxx > v.x0 - r0 && b.minx < v.x0 + r0 && b.maxy > v.y0 - r0 && b.miny < v.y0 + r0) out.push([b, t.pxPerM]);
+  }
+  if (complete) v[key] = out;
+  return out;
 }
 function snapTiles(v){
   if (!SH.index) return [];
@@ -439,8 +478,8 @@ function paintSnap(cv){
   ctx.fillStyle = '#F2EBDF'; ctx.fillRect(0, 0, W, H);
   const tanA = Math.tan(Math.max(alt, 0.03)), ux = Math.sin(p.azimuth), uy = -Math.cos(p.azimuth);
   const shadows = new Path2D(), roofs = new Path2D();
-  for (const t of snapTiles(v)) for (const b of t.blds){
-    const L = up ? Math.min(400, b.h / tanA) * t.pxPerM * S : 0;
+  for (const [b, ppm] of nearBuildings(v, W > 200 ? 650 : 280)){
+    const L = up ? Math.min(400, b.h / tanA) * ppm * S : 0;
     const bx0 = X(b.minx), bx1 = X(b.maxx), by0 = Y(b.miny), by1 = Y(b.maxy);
     if (bx1 < -L - 2 || bx0 > W + L + 2 || by1 < -L - 2 || by0 > H + L + 2) continue;
     const np = b.pts.length / 2, P = new Float64Array(np * 2);
@@ -669,7 +708,7 @@ function setTime(min, day = ST.day){
 })();
 
 // ─── Sheet: summary, cards, list ───────────────────────────────────────────
-let LIST_N = 40;
+let LIST_N = 40, LIST_DIRTY = true;
 const inView = v => { const b = map.getBounds(); return b.contains([v.lat, v.lng]); };
 function streetInsight(vs){
   const st = sunTimes(), by = {};
@@ -738,9 +777,12 @@ function renderSheet(skipList){
     }
   }
   $('summary').innerHTML = sum;
+  if (skipList) return;
   $('cards').innerHTML = cards.join('');
   paintSnaps($('cards'));
-  if (skipList) return;
+  // The list (40 rows + snapshots) is only built when it can be seen.
+  if (innerWidth < 900 && $('sheet').dataset.state !== 'full'){ LIST_DIRTY = true; return; }
+  LIST_DIRTY = false;
   // Full list: sunny first (closest first), then upcoming sun, then the rest
   const rank = v => v._s.sunny ? 0 : v._s.next ? 1 : 2;
   const rows = vis.map(v => [v, distM(v, ref)]).sort((a, b) => (rank(a[0]) - rank(b[0])) || (a[1] - b[1]));
@@ -759,7 +801,7 @@ $('sheet').addEventListener('click', e => {
 // Sheet drag (mobile)
 (() => {
   const sh = $('sheet'), grab = $('sheet-grab'); let y0 = null, st0;
-  const set = s => { sh.dataset.state = s; document.body.dataset.sheet = s; };
+  const set = s => { sh.dataset.state = s; document.body.dataset.sheet = s; if (s === 'full' && LIST_DIRTY) renderSheet(); };
   grab.addEventListener('click', () => set(sh.dataset.state === 'full' ? 'peek' : 'full'));
   grab.addEventListener('pointerdown', e => { y0 = e.clientY; st0 = sh.dataset.state; grab.setPointerCapture(e.pointerId); });
   grab.addEventListener('pointerup', e => { if (y0 == null) return; const dy = e.clientY - y0; y0 = null; if (Math.abs(dy) > 30) set(dy < 0 ? 'full' : 'peek'); });
@@ -868,7 +910,7 @@ map.on('moveend', () => { store.set('view', { c: [map.getCenter().lat, map.getCe
 window.__hoursReady = () => render();
 window.__sm = { ST, setTime, openDetail, closeDetail, render, VEN: () => VEN, map,
   bench(n = 20){ const out = {}; const t = (k, f) => { const a = performance.now(); f(); out[k] = (out[k] || 0) + performance.now() - a; };
-    for (let i = 0; i < n; i++){ ST.min += 5; t('states', computeStates); t('filters', applyFilters); t('shadows', () => shadowLayer._render()); t('dots', () => venueLayer._render()); t('dial', renderDial); t('chips', renderChips); t('sheet', () => renderSheet(true)); }
+    for (let i = 0; i < n; i++){ ST.min += 5; t('states', computeStates); t('filters', applyFilters); t('shadows', () => shadowLayer.repaint()); t('dots', () => venueLayer._render()); t('dial', renderDial); t('chips', renderChips); t('sheet', () => renderSheet(true)); }
     for (const k in out) out[k] = +(out[k] / n).toFixed(1); return out; } };   // handy for debugging in the console
 document.addEventListener('keydown', e => { if (e.key === 'Escape'){ if ($('search').classList.contains('open')) closeSearch(); else if (ST.sel) closeDetail(); } });
 // Live clock

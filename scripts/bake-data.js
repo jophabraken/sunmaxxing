@@ -676,7 +676,7 @@ function bakeHorizons(venuesJson, buildingsJson){
 //   to the tile's west/north edge, the rest delta-encoded.
 // data/shadows/index.json = { bakedAt, z, tiles: [[x, y], …] }
 const SHADOW_Z = 15;
-function bakeShadowTiles(elements){
+function bakeShadowTiles(elements, meta = {}){
   console.log('▸ Baking shadow tiles…');
   const n = 2 ** SHADOW_Z;
   const lon2x = lon => Math.floor((lon + 180) / 360 * n);
@@ -685,23 +685,28 @@ function bakeShadowTiles(elements){
   const y2lat = y => { const k = Math.PI - 2 * Math.PI * y / n; return 180 / Math.PI * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k))); };
   const tiles = new Map();
   for (const el of elements){
-    const g = el.geometry;
-    if (!g || g.length < 3) continue;
+    const g0 = el.geometry;
+    if (!g0 || g0.length < 3) continue;
+    // Quantize to the absolute 1e-5° grid first and drop repeated vertices
+    // (incl. a closing one): re-reading the store then reproduces exactly the
+    // same points, centroid and tile — no drift or churn night to night.
+    const q = [];
+    for (const p of g0){
+      const ax = Math.round(p.lon * 1e5), ay = Math.round(p.lat * 1e5), last = q[q.length - 1];
+      if (!last || last[0] !== ax || last[1] !== ay) q.push([ax, ay]);
+    }
+    while (q.length > 1 && q[0][0] === q[q.length - 1][0] && q[0][1] === q[q.length - 1][1]) q.pop();
+    if (q.length < 3) continue;
     let clat = 0, clon = 0;
-    for (const p of g){ clat += p.lat; clon += p.lon; }
-    clat /= g.length; clon /= g.length;
+    for (const [ax, ay] of q){ clon += ax; clat += ay; }
+    clat = clat / q.length / 1e5; clon = clon / q.length / 1e5;
     const tx = lon2x(clon), ty = lat2y(clat), key = tx + '/' + ty;
     let t = tiles.get(key);
-    if (!t){ t = { x: tx, y: ty, lon0: x2lon(tx), lat0: y2lat(ty), b: [] }; tiles.set(key, t); }
+    if (!t){ t = { x: tx, y: ty, LON0: Math.round(x2lon(tx) * 1e5), LAT0: Math.round(y2lat(ty) * 1e5), b: [] }; tiles.set(key, t); }
     const h = Math.round(parseHeightTags(el.tags) * 10) / 10;
     const out = [h];
     let px = 0, py = 0;
-    const ring = g[0].lat === g[g.length-1].lat && g[0].lon === g[g.length-1].lon ? g.slice(0, -1) : g;
-    ring.forEach((p, i) => {
-      const ix = Math.round((p.lon - t.lon0) * 1e5), iy = Math.round((t.lat0 - p.lat) * 1e5);
-      if (i === 0) out.push(ix, iy); else out.push(ix - px, iy - py);
-      px = ix; py = iy;
-    });
+    q.forEach(([ax, ay], i) => { const ix = ax - t.LON0, iy = t.LAT0 - ay; if (i === 0) out.push(ix, iy); else out.push(ix - px, iy - py); px = ix; py = iy; });
     t.b.push(out);
   }
   const dir = path.join(OUT_DIR, 'shadows');
@@ -715,6 +720,7 @@ function bakeShadowTiles(elements){
     bytes += body.length;
   }
   fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({
+    ...meta,
     bakedAt: new Date().toISOString(), z: SHADOW_Z,
     tiles: [...tiles.values()].map(t => [t.x, t.y]),
   }));
@@ -964,8 +970,62 @@ function buildManifest(venues, buildings, windowsToday, rooftopsToday){
   };
 }
 
+// ─── Rolling building store ─────────────────────────────────────────────────
+// The shadow tiles in data/shadows ARE our building database (footprint +
+// height for every building in the compute box). Instead of re-downloading
+// all 49 Overpass tiles in one run (30–45 min, regularly too slow for the
+// 45-min Actions limit), each night refreshes a few of them and rewrites
+// the store; horizons are then recomputed for every terrace from the whole
+// store (~1 min). The full map refreshes every ~8 nights, and a slow or
+// failing Overpass night just means fewer tiles refreshed — never a broken
+// or missing deploy.
+const ROLLING_TILES_PER_NIGHT = 6;
+const ROLLING_FETCH_CAP_MS = 15 * 60 * 1000;
+function readShadowStore(){
+  const dir = path.join(OUT_DIR, 'shadows');
+  let idx;
+  try { idx = JSON.parse(fs.readFileSync(path.join(dir, 'index.json'), 'utf8')); } catch { return null; }
+  const n = 2 ** (idx.z || SHADOW_Z), elements = [];
+  for (const [tx, ty] of idx.tiles || []){
+    let j; try { j = JSON.parse(fs.readFileSync(path.join(dir, String(idx.z || SHADOW_Z), String(tx), `${ty}.json`), 'utf8')); } catch { continue; }
+    const k = Math.PI - 2 * Math.PI * ty / n;
+    const LON0 = Math.round((tx / n * 360 - 180) * 1e5), LAT0 = Math.round(180 / Math.PI * Math.atan(0.5 * (Math.exp(k) - Math.exp(-k))) * 1e5);
+    for (const b of j.b){
+      const geometry = []; let ix = 0, iy = 0;
+      for (let i = 1; i < b.length; i += 2){ ix += b[i]; iy += b[i + 1]; geometry.push({ lat: (LAT0 - iy) / 1e5, lon: (LON0 + ix) / 1e5 }); }
+      elements.push({ geometry, tags: { height: String(b[0]) } });
+    }
+  }
+  return elements.length ? { elements, meta: idx.rolling || { cursor: 0 } } : null;
+}
+async function refreshStoreSlice(store){
+  const tiles = makeTiles(BBOX_BUILDINGS_COMPUTE, BUILDING_TILES_PER_SIDE);
+  const t0 = Date.now();
+  let cursor = store.meta.cursor || 0, done = 0, failed = 0;
+  for (let k = 0; k < ROLLING_TILES_PER_NIGHT; k++){
+    if (Date.now() - t0 > ROLLING_FETCH_CAP_MS){ console.log('  rolling refresh: time cap reached'); break; }
+    const i = cursor % tiles.length, tb = tiles[i];
+    try {
+      const j = await fetchOverpass(buildingTileQuery(tb), `buildings tile ${i + 1}/${tiles.length} (rolling)`);
+      const fresh = (j.elements || []).map(slimBuildingElement).filter(e => {
+        const c = geometryCentroid(e.geometry); return c && c.lat >= tb.south && c.lat < tb.north && c.lon >= tb.west && c.lon < tb.east;
+      });
+      if (fresh.length){            // an empty answer is far more likely an Overpass hiccup than a demolished district
+        store.elements = store.elements.filter(e => {
+          const c = geometryCentroid(e.geometry); return !(c && c.lat >= tb.south && c.lat < tb.north && c.lon >= tb.west && c.lon < tb.east);
+        }).concat(fresh);
+        done++;
+      }
+    } catch (e){ console.warn(`  !! rolling tile ${i + 1} failed: ${e.message}`); failed++; }
+    cursor++;
+    await sleep(PAUSE_BETWEEN_QUERIES_MS);
+  }
+  store.meta = { cursor: cursor % tiles.length, lastTiles: done, lastFailed: failed, total: tiles.length, refreshedAt: new Date().toISOString() };
+  console.log(`  rolling refresh: ${done} tiles updated, ${failed} failed, next cursor ${store.meta.cursor}/${tiles.length}`);
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
-module.exports = { terracePoint, writePlaces, bakeShadowTiles, bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
+module.exports = { readShadowStore, terracePoint, writePlaces, bakeShadowTiles, bakeHorizons, bakeWindows, horizonProfile, preprocessBuildings, dedupeVenues, toMeters, isShaded, buildBuildingGrid, buildingsNearPoint, CENTER, HZ_AZ_MIN_DEG, HZ_BIN_DEG, HZ_BINS, HZ_STEP_DEG };
 if (require.main === module) (async () => {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -1012,8 +1072,17 @@ if (require.main === module) (async () => {
     console.log(`\n✓ Light bake: ${manifestLight.venues.count} venues, ` +
                 `${rooftopsLight.matchedCount}/${rooftopsLight.curatedCount} rooftops matched`);
   };
-  if (process.env.BAKE_FULL !== '1' && hzAgeDays < HORIZON_REFRESH_DAYS && haveShadowTiles){
-    writeLight(`horizons.json is ${hzAgeDays.toFixed(1)} days old (< ${HORIZON_REFRESH_DAYS})`);
+  const store = process.env.BAKE_FULL === '1' ? null : readShadowStore();
+  if (store){
+    console.log(`▸ Rolling run: ${store.elements.length} buildings in store, cursor ${store.meta.cursor || 0}`);
+    await refreshStoreSlice(store);
+    writeLight('rolling refresh');                     // venues, rooftops, manifest
+    bakeShadowTiles(store.elements, { rolling: store.meta });
+    const horizons = bakeHorizons(venues, { elements: store.elements });
+    fs.writeFileSync(path.join(OUT_DIR, 'horizons.json'), JSON.stringify(horizons));
+    console.log(`  horizons.json: ${horizons.venueCount} venues, v${horizons.v}`);
+    let rt = null; try { rt = JSON.parse(fs.readFileSync(path.join(OUT_DIR, 'rooftops-today.json'), 'utf8')); } catch {}
+    writePlaces(venues, rt);
     return;
   }
   console.log(`▸ Full run: horizons.json age ${isFinite(hzAgeDays) ? hzAgeDays.toFixed(1) + ' days' : 'unknown'}`);
